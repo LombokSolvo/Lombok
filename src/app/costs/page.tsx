@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
-import { AddedCosts, IrregularRow, LiveFixedTotal } from "@/components/budget-edit";
+import { AddedCosts, IrregularRow, LiveFixedTotal, LiveIrregularTotal } from "@/components/budget-edit";
 import { Screen } from "@/components/solvo/screen";
 import { BackLink, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "@/components/solvo/ui";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
@@ -121,15 +121,27 @@ async function Costs() {
         <Group
           key={b}
           className={i ? "mt-6" : "mt-0"}
+          footer={
+            b === 2
+              ? "Costs that don't come every month: the dentist, a new phone or sofa, a trip, car repairs, yearly fees. Setting a little aside each month means they don't land on one month's budget."
+              : undefined
+          }
           title={
             <span className="flex items-center gap-2">
               <span className={`size-2.5 rounded-full ${BASKET_COLOR[b]}`} aria-hidden />
               {BASKET_LABELS[b].title}
             </span>
           }
-          aside={<span className="num">{b === 1 ? <LiveFixedTotal base={basketMonthly(b)} /> : `${eur.format(basketMonthly(b))}/mo`}</span>}
+          aside={<span className="num">{b === 1 ? (
+                <LiveFixedTotal base={basketMonthly(b)} />
+              ) : b === 2 ? (
+                <LiveIrregularTotal estimate={s.irregularSetAsidePerMonth} />
+              ) : (
+                `${eur.format(basketMonthly(b))}/mo`
+              )}</span>}
         >
-          {categories(b).map(([cat, perYear]) => (
+          {/* The irregular basket shows only what goes aside each month, not its categories (Pietu's call) */}
+          {b !== 2 && categories(b).map(([cat, perYear]) => (
             <div key={cat} className="[&+&]:border-t">
               <Row
                 title={cat === "Housing" ? "Rent" : cat}

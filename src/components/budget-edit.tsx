@@ -68,6 +68,12 @@ export function AddedCosts({ everyday }: { everyday: number }) {
   );
 }
 
+/** The irregular basket's heading: what the person sets aside each month (Solvo's estimate until they change it). */
+export function LiveIrregularTotal({ estimate }: { estimate: number }) {
+  const edits = useBudgetEdits();
+  return <>{eur.format(edits.irregular ? edits.irregular.monthly : estimate)}/mo</>;
+}
+
 /** Inside "Fixed and irregular": what goes aside each month for these costs, Solvo's estimate until the person changes it. */
 export function IrregularRow({ estimate, everyday }: { estimate: number; everyday: number }) {
   const edits = useBudgetEdits();
@@ -79,7 +85,7 @@ export function IrregularRow({ estimate, everyday }: { estimate: number; everyda
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex min-h-14 w-full items-center gap-3 border-t px-4 py-3 text-left active:bg-muted"
+        className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left active:bg-muted"
         aria-label="Change what you set aside for irregular costs"
       >
         <span className="min-w-0 flex-1">

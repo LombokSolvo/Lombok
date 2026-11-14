@@ -72,7 +72,7 @@ export function MoneyMonthCard({
         className="border-t"
         icon={dot(COLOR.irregular)}
         title="Irregular costs"
-        subtitle={edits.irregular ? `Your amount. Solvo's estimate ${eur.format(irregular)}` : undefined}
+        subtitle={edits.irregular ? `Your amount. Solvo's estimate ${eur.format(irregular)}` : "Dentist, repairs, trips, yearly fees"}
         value={minus(irregularNow)}
         valueSub={share(irregularNow)}
       />
