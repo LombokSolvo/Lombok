@@ -8,7 +8,7 @@ import { useBillActions } from "@/lib/switches";
 
 export type PaidBill = {
   date: string; // YYYY-MM-DD
-  kind: "rent" | "utility" | "subscription";
+  kind: "rent" | "utility" | "subscription" | "insurance";
   amount: number; // positive EUR
   supplier?: string; // known when Solvo has read the e-invoice for this payment, or the subscription's name
   label?: string; // what the bill is, e.g. "Electricity bill", when the e-invoices tell (Aino's demo only)
@@ -36,10 +36,10 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
   const entries: Entry[] = bills.map((b, i) => ({
     key: `${b.date}-${i}`,
     date: b.date,
-    title: b.kind === "rent" ? "Rent" : (b.label ?? b.supplier ?? "Utility bill"),
+    title: b.kind === "rent" ? "Rent" : b.kind === "insurance" ? (b.supplier ?? "Insurance") : (b.label ?? b.supplier ?? "Utility bill"),
     subtitle: `Paid ${fmtDay(b.date)}`,
     amount: b.amount,
-    badge: b.kind === "subscription" ? "Subscription" : b.supplier ? "E-invoice" : undefined,
+    badge: b.kind === "subscription" ? "Subscription" : b.kind === "insurance" ? "Direct debit" : b.supplier ? "E-invoice" : undefined,
   }));
   if (dentalBill) entries.push(
     dental?.action === "paid"

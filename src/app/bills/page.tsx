@@ -4,9 +4,10 @@ import { Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
-import { SUBSCRIPTIONS, subscriptionCharges } from "@/data/subscriptions";
+import { HOBBIES, SUBSCRIPTIONS, subscriptionCharges, type Subscription } from "@/data/subscriptions";
 import { namedBillsFor } from "@/lib/bill-names";
 import { safeToSpend } from "@/lib/coach";
+import { HOME_INSURANCE } from "@/lib/demo";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import type { PaidBill } from "./bill-history";
@@ -31,6 +32,11 @@ async function Bills() {
   // The synthetic e-invoices (and the dentist bill) belong to Aino's demo story. The new customer has none yet.
   const invoices = mode === "aino" ? INVOICES : [];
   const subscriptions = mode === "aino" ? SUBSCRIPTIONS : []; // demo data, see src/data/subscriptions.ts
+  // Aino's other fixed monthly bills, demo data: home insurance (src/lib/demo.ts, a payment in her account) and the gym.
+  const regular: Subscription[] =
+    mode === "aino"
+      ? [{ id: "home-insurance", name: HOME_INSURANCE.label, what: "Contents insurance", monthly: HOME_INSURANCE.monthly, day: HOME_INSURANCE.day, since: "2024-10" }, ...HOBBIES]
+      : [];
   const s = safeToSpend(c);
   // Rent and utility payments in the last 12 months. A payment that matches an e-invoice Solvo has read gets the
   // supplier's name; the others have none, because utility payments in the data carry no merchant.
@@ -55,7 +61,11 @@ async function Bills() {
     if (bills.length !== named.length) continue; // only when the month clearly has one payment per contract
     [...bills].sort((a, b) => a.date.localeCompare(b.date)).forEach((b, k) => (b.label = named[k].label));
   }
-  for (const s of subscriptionCharges(subscriptions, from, c.asOf)) {
+  // Insurance payments in the account (Aino's home insurance, or one paid from another connected bank).
+  for (const t of c.transactions) {
+    if (t.category === "Insurance" && t.amount < 0 && t.date >= from) history.push({ date: t.date, kind: "insurance", amount: -t.amount, supplier: t.merchant ?? undefined });
+  }
+  for (const s of subscriptionCharges([...subscriptions, ...(mode === "aino" ? HOBBIES : [])], from, c.asOf)) {
     history.push({ date: s.date, kind: "subscription", amount: s.amount, supplier: s.name });
   }
   return (
@@ -66,6 +76,7 @@ async function Bills() {
       remaining={s.remaining}
       history={history}
       subscriptions={subscriptions}
+      regular={regular}
       dentalBill={mode === "aino"}
     />
   );
