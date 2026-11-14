@@ -147,10 +147,8 @@ export function OtherBanks({
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
   const footer = sandbox.enabled
-    ? "Optional. Banks connect for real through Enable Banking; the demo uses its test banks with example data. Investing platforms are simulated."
-    : compact
-      ? "Demo: connecting is simulated and uses example data."
-      : "Demo: connecting is simulated and uses example data.";
+    ? "Demo: Enable Banking's test banks with example data."
+    : "Demo: connecting is simulated and uses example data.";
 
   const consent = (() => {
     if (!choice) return null;
