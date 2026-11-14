@@ -1,5 +1,5 @@
 // Enable Banking (PSD2 account information), for the OWNER's own accounts, run locally. No dependency on the app, so the in-app
-// connect flow (src/lib/live-nordea.ts) and scripts/nordea-psd2.mjs share it. Docs: https://enablebanking.com/docs/api/reference/
+// connect flow (src/lib/live-banks.ts) and scripts/nordea-psd2.mjs share it. Docs: https://enablebanking.com/docs/api/reference/
 //
 // The flow: sign a short-lived JWT with the application's private key (never leaves this machine) -> POST /auth returns a URL
 // -> the person approves with their bank's own ID -> the bank redirects back with a single-use code -> POST /sessions turns the

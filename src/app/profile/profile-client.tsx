@@ -2,12 +2,12 @@
 
 import { CalendarConnect } from "@/components/calendar-connect";
 import { Toggle } from "@/components/solvo/toggle";
-import { LiveNordea } from "@/components/live-nordea";
+import { LiveBanks } from "@/components/live-banks";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
 import type { GoogleStatus } from "@/lib/google-calendar";
 import type { LinkStatus } from "@/lib/ics-link";
-import type { LiveStatus } from "@/lib/live-nordea";
+import type { LiveStatus } from "@/lib/live-banks";
 
 import {
   Bell,
@@ -56,7 +56,7 @@ export function ProfileClient(props: {
   banks: BankId[];
   view: View;
   showBanks: boolean; // the Other banks picker; always on (real Nordea merges into the same picture as any other bank)
-  live: LiveStatus; // the real, local-only Nordea connection; renders nothing unless the app runs with SOLVO_LIVE=1
+  live: LiveStatus; // the real, local-only bank connections (Nordea, Trade Republic, Revolut); renders nothing unless the app runs with SOLVO_LIVE=1
   calendar: { google: GoogleStatus; link: LinkStatus; notice: string | null }; // the calendar Solvo reads to foresee trips and dinners
   linkedBank: { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null }; // Enable Banking sandbox bank
 }) {
@@ -231,7 +231,7 @@ export function ProfileClient(props: {
         </button>
       )}
 
-      <LiveNordea status={props.live} />
+      <LiveBanks status={props.live} />
 
       {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 

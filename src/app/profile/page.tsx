@@ -8,7 +8,7 @@ import { googleStatus } from "@/lib/google-calendar";
 import { linkStatus } from "@/lib/ics-link";
 import { DEFAULT_SAVINGS_GOAL_PER_MONTH } from "@/lib/coach";
 import { currentLinked, sandboxEnabled } from "@/lib/linked-bank";
-import { liveStatus } from "@/lib/live-nordea";
+import { liveStatus } from "@/lib/live-banks";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { ProfileClient } from "./profile-client";

@@ -7,7 +7,7 @@
 // (4) savings and investments held elsewhere. Connecting the banks changes her safe-to-spend and her coach's answers.
 import type { Tx } from "@/lib/demo";
 
-export type BankAccount = { id: string; label: string; balance: number };
+export type BankAccount = { id: string; label: string; balance: number; bank?: string };
 export type NordnetHolding = { name: string; invested: number; value: number };
 export type SecondBanks = {
   nordea: { accounts: BankAccount[]; transactions: Tx[] };

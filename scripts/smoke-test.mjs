@@ -8,7 +8,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", PORT, "-H", "127.0.0.1"], {
   stdio: ["ignore", "pipe", "pipe"],
-  // The checks describe the PUBLIC app, so anything a developer has switched on in .env.local (real Google, real Nordea) is forced off.
+  // The checks describe the PUBLIC app, so anything a developer has switched on in .env.local (real Google, real banks) is forced off.
   env: { ...process.env, GEMINI_API_KEY: "", EXA_API_KEY: "", EXA_KEY: "", SOLVO_GOOGLE: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "", SOLVO_LIVE: "" },
 });
 let serverLog = "";
@@ -75,13 +75,13 @@ try {
       if (last.type !== "result" || !last.db?.offers?.length) throw new Error(`${agent}: unexpected last event: ${JSON.stringify(last).slice(0, 200)}`);
     }
   });
-  // The public app must show nothing of the live Nordea connection: every route is a 404 unless SOLVO_LIVE=1 (local only).
-  await check("live Nordea routes are off by default", async () => {
+  // The public app must show nothing of the live bank connections (Nordea, Trade Republic, Revolut): every route is a 404 unless SOLVO_LIVE=1 (local only).
+  await check("live bank routes are off by default", async () => {
     // The connect page streams, so its status is already 200 when it decides to show "not found": check the content instead.
-    const connect = await (await fetch(BASE + "/connect/nordea")).text();
-    if (!connect.includes("could not be found") || connect.includes("Connecting Nordea")) throw new Error("/connect/nordea is not hidden");
+    const connect = await (await fetch(BASE + "/connect/live")).text();
+    if (!connect.includes("could not be found") || connect.includes("Connecting")) throw new Error("/connect/live is not hidden");
     const post = (path) => fetch(BASE + path, { method: "POST", headers: { Origin: BASE } });
-    const statuses = (await Promise.all(["/api/nordea/start", "/api/nordea/sync", "/api/nordea/disconnect"].map(post))).map((r) => r.status);
+    const statuses = (await Promise.all(["/api/live/start", "/api/live/sync", "/api/live/disconnect"].map(post))).map((r) => r.status);
     if (statuses.some((s) => s !== 404)) throw new Error(`expected only 404, got ${statuses.join(", ")}`);
   });
   // The demo bank connection (Enable Banking sandbox) is also off until its test application is configured.
