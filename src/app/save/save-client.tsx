@@ -77,7 +77,6 @@ export function SaveClient(props: Props) {
         </IconTile>
       }
       title="On your account"
-      subtitle={`Cash, ${dateFmt.format(new Date(`${props.asOf}T00:00:00Z`))}`}
       value={eur.format(props.balance)}
     />
   );
@@ -113,7 +112,6 @@ export function SaveClient(props: Props) {
                 </IconTile>
               }
               title={f.name.replace("S-Pankki ", "")}
-              subtitle={`Since ${h.since}, you put in ${eur.format(h.invested)}`}
               value={eur.format(h.value)}
               valueSub={signedPct(h.yearChangePct)}
             />
