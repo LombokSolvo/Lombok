@@ -24,9 +24,7 @@ import {
 import { useLearnProgress } from "@/lib/learn-store";
 import {
   resetDemo,
-  setDemoMode,
   useDemoMode,
-  type DemoMode,
   useBillActions,
   useSavingsPlan,
   useSwitches,
@@ -74,34 +72,6 @@ export function ProfileClient(props: {
         </div>
       </section>
 
-
-      <Group title="Demo account">
-        <div className="flex gap-2 p-2" role="radiogroup" aria-label="Demo account">
-          {(
-            [
-              ["aino", "Aino", "Set up, with history"],
-              ["new", "New customer", "Starts with onboarding"],
-            ] as [DemoMode, string, string][]
-          ).map(([m, label, sub]) => (
-            <button
-              key={m}
-              type="button"
-              role="radio"
-              aria-checked={mode === m}
-              onClick={() => {
-                if (m === mode) return;
-                setDemoMode(m);
-                // A full load, so every screen is rendered again from the other customer's data.
-                window.location.assign(m === "new" ? "/onboarding" : "/");
-              }}
-              className={`flex min-h-14 flex-1 flex-col items-start justify-center rounded-xl px-3 py-2 text-left ${mode === m ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-            >
-              <span className="text-[15px] font-semibold">{label}</span>
-              <span className={`text-[12px] ${mode === m ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{sub}</span>
-            </button>
-          ))}
-        </div>
-      </Group>
 
       <Group title="Solvo settings">
         <Row
