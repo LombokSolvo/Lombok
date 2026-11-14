@@ -136,29 +136,29 @@ function estimate(kind: Kind, nights: number, b: Baselines, alsoDining: boolean)
   const eur = (n: number) => `EUR ${Math.round(n)}`;
   switch (kind.id) {
     case "trip": {
-      if (b.trip) return { amount: round5(b.trip.median), basis: "history", note: `Your usual trip: ${b.trip.n} past trips in your payments, median ${eur(b.trip.median)}.` };
+      if (b.trip) return { amount: round5(b.trip.median), basis: "history", note: `Based on your ${b.trip.n} past trips.` };
       const d = TRIP_DEFAULTS.find((x) => days <= x.maxDays) as { amount: number };
-      return { amount: d.amount, basis: "default", note: `A typical amount for ${days <= 3 ? "a weekend" : days <= 7 ? "a week" : "a long trip"}, not from your history.` };
+      return { amount: d.amount, basis: "default", note: `A typical amount for ${days <= 3 ? "a weekend" : days <= 7 ? "a week" : "a long trip"}.` };
     }
     case "dinner":
     case "lunch":
     case "drinks": {
       if (b.dining) {
         const v = kind.id === "dinner" ? b.dining.p75 : b.dining.median;
-        return { amount: round5(v), basis: "history", note: `${kind.id === "dinner" ? "Your bigger restaurant payments" : "Your usual restaurant payment"}: ${b.dining.n} payments, ${kind.id === "dinner" ? "75th percentile" : "median"} ${eur(v)}.` };
+        return { amount: round5(v), basis: "history", note: `Based on your ${b.dining.n} restaurant payments.` };
       }
-      return { amount: kind.fallback, basis: "default", note: "A typical amount, not from your history." };
+      return { amount: kind.fallback, basis: "default", note: "A typical amount." };
     }
     case "concert":
-      if (b.entertainment) return { amount: round5(b.entertainment.p75), basis: "history", note: `Your bigger entertainment payments: ${b.entertainment.n} payments, 75th percentile ${eur(b.entertainment.p75)}.` };
-      return { amount: kind.fallback, basis: "default", note: "A typical ticket price, not from your history." };
+      if (b.entertainment) return { amount: round5(b.entertainment.p75), basis: "history", note: `Based on your ${b.entertainment.n} larger entertainment payments.` };
+      return { amount: kind.fallback, basis: "default", note: "A typical ticket price." };
     default: {
       // Gifts and parties have no matching spending in the bank data, so they always use the default. A birthday dinner adds the dinner.
       if (alsoDining) {
         const dinner = estimate(KINDS.find((k) => k.id === "dinner") as Kind, nights, b, false);
-        return { amount: kind.fallback + dinner.amount, basis: "default", note: `A typical gift (${eur(kind.fallback)}) plus a dinner (${eur(dinner.amount)}), not fully from your history.` };
+        return { amount: kind.fallback + dinner.amount, basis: "default", note: `A typical gift (${eur(kind.fallback)}) plus a dinner (${eur(dinner.amount)}).` };
       }
-      return { amount: kind.fallback, basis: "default", note: "A typical amount, not from your history." };
+      return { amount: kind.fallback, basis: "default", note: "A typical amount." };
     }
   }
 }

@@ -21,9 +21,12 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
   const confirmed = useOnboarding().items;
   const custom = useCustomEvents();
   // What the person's calendar expects (trips, dinners) is part of what is coming up, as an estimate.
-  const { items: calendar, mode } = useForecast();
+  const { items: calendar } = useForecast();
   const [open, setOpen] = useState<CountedItem | null>(null);
-  const events = upcomingEvents(confirmed ?? items, custom, today, 21, mode ? 5 : 4, calendar);
+  // Calendar items are never crowded out by bills: up to four of them, then bills fill the rest, all in date order.
+  const all = upcomingEvents(confirmed ?? items, custom, today, 21, 50, calendar);
+  const fromCalendar = all.filter((e) => e.forecast).slice(0, 4);
+  const events = [...fromCalendar, ...all.filter((e) => !e.forecast).slice(0, 6 - fromCalendar.length)].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <Group
@@ -52,7 +55,7 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
                     {when}{f.detail ? ` · ${e.label}` : ""} · estimate
                   </span>
                 </span>
-                <SignedAmount kind="out" value={e.amount} />
+                <SignedAmount kind="out" value={e.amount} estimate />
               </button>
             );
           }

@@ -114,7 +114,7 @@ try {
     const home = await (await go("/")).text();
     assert.ok(home.includes("set aside for your calendar"), "forecast line on Home");
     const cal = await (await go("/calendar")).text();
-    assert.ok(cal.includes("From your Google Calendar") && cal.includes("Dinner out"), "calendar page with labels");
+    assert.ok(cal.includes("Coming up") && cal.includes("Events, estimates"), "calendar page lists the events as estimates");
     assert.ok(cal.includes("Dinner at the new place") || home.includes("Dinner at the new place"), "the event's own title is shown on this computer's screen");
     for (const html of [home, cal])
       for (const secret of ["Fictional Street", "Pat Example", "Standup", "Dentist"]) assert.ok(!html.includes(secret), `leaked: ${secret}`);
@@ -164,7 +164,7 @@ try {
     const home = await (await go("/")).text();
     const cal = await (await go("/calendar")).text();
     assert.ok(home.includes("set aside for your calendar"));
-    assert.ok(cal.includes("From your calendar link"));
+    assert.ok(cal.includes("Events, estimates"));
     assert.ok(/Eero|Lauran|Lisbon|Housewarming/.test(cal), "the events' titles are shown");
     for (const html of [home, cal]) assert.ok(!/Quarterly review|Gym/.test(html), "an event that costs nothing was kept");
   });

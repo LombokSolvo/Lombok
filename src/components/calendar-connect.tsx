@@ -4,14 +4,14 @@ import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, CalendarDays, Check, ChevronRight, FileUp, Link2, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
-import { useForecast } from "@/components/forecast-ui";
-import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
+import { CategoryIcon, useForecast } from "@/components/forecast-ui";
+import { SignedAmount } from "@/components/solvo/money-badge";
 import { Sheet } from "@/components/solvo/sheet";
 import { Chip, Group, IconTile, Row, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { clearCalendarFile, saveCalendarFile, useCalendarFile } from "@/lib/calendar-file-store";
 import { postJson, request } from "@/lib/client-request";
 import { plainFormat } from "@/lib/demo-clock";
-import { eventDays, forecast, spendingEvents, type Baselines, type ForecastItem } from "@/lib/forecast";
+import { eventDays, forecast, spendingEvents, type Baselines, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
 import { resetForecast } from "@/lib/forecast-store";
 import type { GoogleStatus } from "@/lib/google-calendar";
 import { parseIcs } from "@/lib/ics";
@@ -39,7 +39,7 @@ const NOTICES: Record<string, string> = {
 const action = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left font-medium text-primary disabled:opacity-50 [&+&]:border-t";
 
 type Sheets = null | "pick" | "file" | "link" | "google";
-type Preview = { label: string; date: string; amount: number; title?: string };
+type Preview = { label: string; date: string; amount: number; title?: string; category: ForecastCategory };
 
 /** One way in, as a big tappable card in the picker. */
 function Choice({ icon, title, sub, chip, onClick }: { icon: ReactNode; title: string; sub: string; chip: string; onClick: () => void }) {
@@ -281,16 +281,16 @@ function PreviewList({ found, items, where }: { found: number; items: Preview[];
         <div className="mt-4 overflow-hidden rounded-2xl bg-muted/50">
           {items.map((i, n) => (
             <div key={`${i.date}-${n}`} className="flex min-h-14 items-center gap-3 px-4 py-2.5 [&+&]:border-t">
-              <MoneyBadge kind="out" />
+              <CategoryIcon category={i.category} />
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] leading-snug font-medium">{i.label}</div>
+                <div className="text-[15px] leading-snug font-medium">{i.title ?? i.label}</div>
                 <div className="truncate text-[13px] text-muted-foreground">
+                  {i.title ? `${i.label} · ` : ""}
                   {shortDay(i.date)}
-                  {i.title ? ` · ${i.title}` : ""}
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <SignedAmount kind="out" value={i.amount} />
+                <SignedAmount kind="out" value={i.amount} estimate />
                 <div className="text-[11px] text-muted-foreground">estimate</div>
               </div>
             </div>
@@ -304,7 +304,7 @@ function PreviewList({ found, items, where }: { found: number; items: Preview[];
   );
 }
 
-const toPreview = (items: ForecastItem[]): Preview[] => items.map((i) => ({ label: i.label, date: i.date, amount: i.amount, title: i.detail }));
+const toPreview = (items: ForecastItem[]): Preview[] => items.map((i) => ({ label: i.label, date: i.date, amount: i.amount, title: i.detail, category: i.category }));
 
 /** Choose a .ics file (or try a sample). Read in this browser with FileReader semantics: it is never sent anywhere. */
 function FileSheet({ today, baselines, onClose, onAdded }: { today: string; baselines: Baselines; onClose: () => void; onAdded: (n: number) => void }) {
