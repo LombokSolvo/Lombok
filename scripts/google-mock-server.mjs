@@ -36,7 +36,7 @@ export function mockEvents() {
     timed("e3", "Cancelled concert", 5, "20:00", "23:00", { status: "cancelled" }),
     timed("e4", "Declined party", 6, "20:00", "23:00", { attendees: [{ self: true, responseStatus: "declined" }] }),
     { id: "e5", summary: "Trip to the lake", status: "confirmed", start: { date: iso(15) }, end: { date: iso(18) } },
-    timed("e6", "Dentist", 2, "10:00", "10:30"),
+    timed("e6", "Physio appointment", 2, "10:00", "10:30"),
   ];
 }
 
