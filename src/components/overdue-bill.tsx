@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { AlarmClock, Bell, Check, Phone } from "lucide-react";
-import { IconTile, eur, primaryButton } from "@/components/solvo/ui";
-import { ESCALATION, UNPAID } from "@/data/reminders";
+import { Check, ChevronRight, Phone } from "lucide-react";
+import { IconTile, eur } from "@/components/solvo/ui";
+import { UNPAID } from "@/data/reminders";
 import { useBillActions } from "@/lib/switches";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
 
-const STEP_ICON = { notification: Bell, reminder: AlarmClock, call: Phone } as const;
-
-/** Home card for the unpaid e-invoice: the escalation so far, and Solvo's call. */
+/**
+ * Home card for the unpaid e-invoice: one compact row that opens Solvo's call. Deliberately small, so it sits under the
+ * plan and the bills instead of taking over the top of Home. The reminder timeline lives on the call screen.
+ */
 export function OverdueBillCard({ asOf }: { asOf: string }) {
   const done = useBillActions()[UNPAID.id];
 
@@ -34,47 +35,26 @@ export function OverdueBillCard({ asOf }: { asOf: string }) {
   const daysLate = Math.round((Date.parse(`${asOf}T00:00:00Z`) - Date.parse(`${UNPAID.dueDate}T00:00:00Z`)) / 86_400_000);
 
   return (
-    <section className="mt-4 rounded-[24px] bg-card p-5 shadow-[0_1px_3px_rgba(15,42,31,0.06)] ring-1 ring-warn/25">
-      <div className="flex items-start gap-3">
-        <IconTile tone="warn">
-          <Phone />
-        </IconTile>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[15px] font-semibold">
-              {done?.action === "snoozed" ? "Reminder set for Monday" : `Unpaid bill, ${daysLate} days late`}
-            </p>
-            <p className="num text-[15px] font-semibold">{eur.format(UNPAID.amount)}</p>
-          </div>
-          <p className="text-[13px] text-muted-foreground">
-            {UNPAID.supplier}, due {fmtDate(UNPAID.dueDate)}
-          </p>
-        </div>
-      </div>
-
-      <ol className="mt-4 flex flex-col gap-2 border-l-2 border-warn/25 pl-4 text-[13px]">
-        {ESCALATION.map((s) => {
-          const Icon = STEP_ICON[s.channel];
-          const isToday = s.date === asOf;
-          return (
-            <li key={s.date} className={`flex items-center gap-2 ${isToday ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-              <Icon className="size-3.5 shrink-0" aria-hidden />
-              <span>
-                {fmtDate(s.date)}: {s.title}
-                {isToday ? " (today)" : ""}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-
-      <Link href="/call" transitionTypes={["nav-forward"]} className={`${primaryButton} mt-4`}>
-        <Phone className="size-[18px]" aria-hidden />
-        Play the demo call
-      </Link>
-      <p className="mt-2 px-1 text-center text-[12px] leading-snug text-muted-foreground">
-        Demo only. In the real service Solvo would simply ring your phone.
-      </p>
-    </section>
+    <Link
+      href="/call"
+      transitionTypes={["nav-forward"]}
+      className="mt-4 flex min-h-16 items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-[0_1px_3px_rgba(15,42,31,0.06)] ring-1 ring-warn/25 active:bg-muted"
+    >
+      <IconTile tone="warn">
+        <Phone />
+      </IconTile>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="text-[15px] font-semibold">
+            {done?.action === "snoozed" ? "Dentist bill, reminder set" : `Dentist bill, ${daysLate} days late`}
+          </span>
+          <span className="num text-[15px] font-semibold">{eur.format(UNPAID.amount)}</span>
+        </span>
+        <span className="block text-[13px] text-muted-foreground">
+          Due {fmtDate(UNPAID.dueDate)}. Solvo is calling about it.
+        </span>
+      </span>
+      <ChevronRight className="size-[18px] shrink-0 text-muted-foreground" aria-hidden />
+    </Link>
   );
 }

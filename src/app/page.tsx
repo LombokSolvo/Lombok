@@ -129,9 +129,6 @@ async function HomeScreen() {
           <ForecastNote className="mt-2" />
         </Slab>
 
-        {/* The dentist e-invoice and its call are part of Aino's demo story only. */}
-        {mode === "aino" && <OverdueBillCard asOf={c.asOf} />}
-
         <PlanCard />
 
         <AllBanksCard base={base} banks={banks} view={view} platform={platform} bankName={bankName} real={real} />
@@ -141,6 +138,9 @@ async function HomeScreen() {
         <Suspense fallback={null}>
           <LinkedBankCard />
         </Suspense>
+
+        {/* The dentist e-invoice and its call are part of Aino's demo story only. A compact row, below the plan and banks. */}
+        {mode === "aino" && <OverdueBillCard asOf={c.asOf} />}
 
         <UpcomingCard items={schedule.items} today={realToday} />
 
