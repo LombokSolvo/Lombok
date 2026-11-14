@@ -146,7 +146,7 @@ Rules:
 - The bank data shows categories and merchant types, not shop names. If asked about a specific shop, say so and give the closest merchant type.
 - Be warm and practical, never judgemental. Give one concrete next step when it helps, such as a realistic weekly limit or opening the Bills view to switch electricity.
 - You never move money or switch contracts yourself. Switches happen only when the user approves them in the app.
-- For any "can I", "what if", "how long until" or "can I afford" question about the future, call the what_if tool and quote its numbers, showing the sum (for example "€3,000 over 7 months is €429 a month; you can safely save €160"). Never compute these yourself. A card with the result appears under your answer, so keep the text to the conclusion and one next step. After every save_target what_if, also call propose_action add_savings_goal with a short goalLabel (like "Trip to Japan"), the target and the deadline, so the user can add it to their goals with one tap; if it doesn't fit, use months set to the months at the current pace instead. Adding a goal moves its monthly amount to the savings account in the saving plan.
+- For any "can I", "what if", "how long until" or "can I afford" question about the future, call the what_if tool and quote its numbers, showing the sum (for example "€3,000 over 7 months is €429 a month; you can safely save €160"). Never compute these yourself. A card with the result appears under your answer, so keep the text to the conclusion and one next step. After every save_target what_if, also call propose_action add_savings_goal with a short goalLabel naming what it is for, without the amount (like "Trip to Japan", never "Save €3,000"), the target and the deadline, so the user can add it to their goals with one tap; if it doesn't fit, use months set to the months at the current pace instead. Adding a goal moves its monthly amount to the savings account in the saving plan.
 - Concept questions (index fund, fund fee, spot or fixed electricity price, buffer, compound interest, interest rate, and the like): explain in 3 to 4 plain sentences, explaining any jargon, using the user's own numbers where there are any (fund fees from her saving plan, her electricity price, how many months of bills her buffer covers). If a Money skills lesson matches (electricity, fees, buffer), propose_action open_lesson for it. For this answer you may go to about 90 words.
 - No investment, loan or tax advice: never say which product to buy or whether to buy one. Explain first; mention that an S-Pankki advisor can help in at most one short last sentence. Never only redirect.
 - Never write "definitely", "easily", "guaranteed" or "you should buy". When numbers are involved, show the sum.
@@ -261,7 +261,7 @@ function toAction(ctx: Ctx, a: ActionArgs): ChatAction | string {
       if (!Number.isFinite(target) || target < 10 || target > 1_000_000) return "The target must be between €10 and €1,000,000.";
       const months = a.deadline ? monthsUntil(a.deadline) : Math.round(Number(a.months));
       if (!Number.isFinite(months) || months < 1 || months > 600) return "Give a deadline after today (YYYY-MM-DD) or 1 to 600 months.";
-      const label = (a.goalLabel ?? "").replace(/\s+/g, " ").trim().slice(0, 40) || "Savings goal";
+      const label = goalLabel(a.goalLabel);
       if (ctx.state.goals.some((g) => g.label.toLowerCase() === label.toLowerCase())) return `There is already a goal called ${label}.`;
       const saved = Math.max(0, Math.min(target, Math.round(Number(a.alreadySaved) || 0)));
       return { kind: "add_goal", label, target, saved, months, monthly: Math.round((target - saved) / months) }; // rounded like what_if, so the two cards agree
@@ -283,6 +283,21 @@ function toAction(ctx: Ctx, a: ActionArgs): ChatAction | string {
     default:
       return "Unknown action.";
   }
+}
+
+/** A goal's name for the card and the goal list. The card shows the amount and the date itself, so a label like
+ * "Save €3,000 by June" keeps only what it is for, and becomes "Savings goal" when nothing is left. */
+function goalLabel(raw: string | undefined) {
+  const MONTH = /^(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sep(tember)?|oct(ober)?|nov(ember)?|dec(ember)?|\d+)$/i;
+  const EDGE = /^(save|saving|savings|säästä|säästö|goal|goals|target|tavoite|by|until|before|in|for|to|of|a|the|next|this|year|month|months)$/i;
+  const words = (raw ?? "")
+    .replace(/€\s*[\d\s.,]*\d|\d[\d\s.,]*\s*(€|e\b|eur\b|euros?\b)?/gi, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  while (words.length && (EDGE.test(words[0]) || MONTH.test(words[0]))) words.shift();
+  while (words.length && (EDGE.test(words.at(-1)!) || MONTH.test(words.at(-1)!))) words.pop();
+  const label = words.join(" ").slice(0, 40);
+  return label ? label[0].toUpperCase() + label.slice(1) : "Savings goal";
 }
 
 /** Whole months from the real today to a real YYYY-MM-DD date, at least 1; NaN for a bad or past date. */
