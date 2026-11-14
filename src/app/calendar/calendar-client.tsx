@@ -179,7 +179,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
 
       {/* One compact section for the month being looked at: what is coming, split into calendar events (estimates) and bills, with the total. */}
       {(monthEvents.length > 0 || billsComing.length > 0) && (
-        <Group title={isCurrentMonth ? "Coming up this month" : `Coming up in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`} aside={<span className="num font-display text-[22px] leading-none font-semibold tracking-[-0.01em] text-foreground">−{eur.format(comingBills + comingCalendar)}</span>}>
+        <Group title={isCurrentMonth ? "Coming up this month" : `Coming up in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`} aside={<span className="num font-display text-[17px] font-semibold tracking-[-0.01em] text-foreground">−{eur.format(comingBills + comingCalendar)}</span>}>
           {monthEvents.length > 0 && (
             <>
               <div className={`${SECTION} text-event`}>
