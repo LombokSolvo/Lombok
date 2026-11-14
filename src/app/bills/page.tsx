@@ -3,6 +3,7 @@ import { Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
+import { SUBSCRIPTIONS, subscriptionCharges } from "@/data/subscriptions";
 import { safeToSpend } from "@/lib/coach";
 import { getSource, pageMode } from "@/lib/source";
 import type { PaidBill } from "./bill-history";
@@ -24,6 +25,7 @@ async function Bills() {
   const { customer: c, mode } = getSource(await pageMode());
   // The synthetic e-invoices (and the dentist bill) belong to Aino's demo story. The new customer has none yet.
   const invoices = mode === "aino" ? INVOICES : [];
+  const subscriptions = mode === "aino" ? SUBSCRIPTIONS : []; // demo data, see src/data/subscriptions.ts
   const s = safeToSpend(c);
   // Rent and utility payments in the last 12 months. A payment that matches an e-invoice Solvo has read gets the
   // supplier's name; the others have none, because utility payments in the data carry no merchant.
@@ -39,6 +41,9 @@ async function Bills() {
         supplier: inv ? SAVED_READINGS[inv.id]?.supplier : undefined,
       };
     });
+  for (const s of subscriptionCharges(subscriptions, from, c.asOf)) {
+    history.push({ date: s.date, kind: "subscription", amount: s.amount, supplier: s.name });
+  }
   return (
     <BillsClient
       asOf={c.asOf}
@@ -46,6 +51,7 @@ async function Bills() {
       weeklyBudget={s.weeklyBudget}
       remaining={s.remaining}
       history={history}
+      subscriptions={subscriptions}
       dentalBill={mode === "aino"}
     />
   );
