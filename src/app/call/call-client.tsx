@@ -99,9 +99,6 @@ export function CallClient() {
           <p className="text-sm text-white/70">
             {stage === "ringing" ? "Your money coach · S-Pankki" : mmss}
           </p>
-          <p className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
-            About your dentist bill. Not a collection call.
-          </p>
         </div>
 
         {stage === "talking" && (
