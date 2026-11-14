@@ -100,8 +100,8 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
             const iso = isoDay(year, month, d);
             const evs = byDate.get(iso) ?? [];
             const isToday = iso === asOf;
-            // A trip of several days is one thin line along the bottom of its days, from the middle of the first day to the middle of the
-            // last, with the trip's icon on the last day. The line sits below the day's markers, so a bill on the same day never touches it.
+            // A trip of several days is one thin line along the bottom of its days, from the left edge of the first day's marker circle to the
+            // right edge of the last day's, so it lines up with the circles and fills the whole day, with the trip's icon on the last day. The line sits below the day's markers, so a bill on the same day never touches it.
             const span = countedForecast.find((f) => f.endDate && f.date <= iso && iso <= f.endDate);
             const spanStart = !!span && span.date === iso;
             const spanEnd = !!span && span.endDate === iso;
@@ -127,7 +127,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
                 {span && (
                   <span
                     aria-hidden
-                    className={`absolute bottom-1 h-[3px] bg-warn/45 ${spanStart ? "left-1/2 rounded-l-full" : "left-0"} ${spanEnd ? "right-1/2 rounded-r-full" : "right-0"}`}
+                    className={`absolute bottom-1 h-[3px] bg-warn/45 ${spanStart ? "left-[calc(50%-11px)] rounded-l-full" : "left-0"} ${spanEnd ? "right-[calc(50%-11px)] rounded-r-full" : "right-0"}`}
                   />
                 )}
               </button>
