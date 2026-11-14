@@ -7,7 +7,6 @@ import type { BankId, View } from "@/lib/banks";
 import type { GoogleStatus } from "@/lib/google-calendar";
 import type { LinkStatus } from "@/lib/ics-link";
 import type { LiveStatus } from "@/lib/live-nordea";
-import { useRouter } from "next/navigation";
 
 import {
   Bell,
@@ -29,6 +28,8 @@ import {
   secondaryButton,
 } from "@/components/solvo/ui";
 import { UNPAID } from "@/data/reminders";
+import { MoneySkills } from "@/components/learn/money-skills";
+import { useLearnProgress } from "@/lib/learn-store";
 import {
   clearCachedReadings,
   resetDemo,
@@ -59,13 +60,13 @@ export function ProfileClient(props: {
   calendar: { google: GoogleStatus; link: LinkStatus; notice: string | null }; // the calendar Solvo reads to foresee trips and dinners
   linkedBank: { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null }; // Enable Banking sandbox bank
 }) {
-  const router = useRouter();
   const mode = useDemoMode();
   const switches = Object.values(useSwitches()).filter((s) => !!s);
   const plan = useSavingsPlan();
   const readCount = Object.keys(useCachedReadings()).length;
   const bills = useBillActions();
   const paid = bills[UNPAID.id]?.action === "paid";
+  const learned = Object.keys(useLearnProgress().done).length > 0;
   const anything =
     switches.length > 0 || !!plan || Object.keys(bills).length > 0;
   const name = mode === "new" ? "New customer" : props.name;
@@ -86,7 +87,7 @@ export function ProfileClient(props: {
             {name}
           </h1>
           <p className="text-[15px] text-muted-foreground">
-            {mode === "new" ? "First time in Solvo" : `${props.age} years, ${props.postalCode} Espoo`}
+            {props.age} years, {props.postalCode} Espoo{mode === "new" ? ", first time in Solvo" : ""}
           </p>
         </div>
       </section>
@@ -95,7 +96,7 @@ export function ProfileClient(props: {
         title="Demo account"
         footer={
           mode === "new"
-            ? "A first-time customer goes through onboarding. Same synthetic bank data as Aino, starting from scratch."
+            ? "A first-time customer with their own bank data (another customer in the S-Pankki dataset). Starts with onboarding."
             : "Switching starts the account from scratch: approvals and plans are cleared."
         }
       >
@@ -114,7 +115,8 @@ export function ProfileClient(props: {
               onClick={() => {
                 if (m === mode) return;
                 setDemoMode(m);
-                router.push(m === "new" ? "/onboarding" : "/");
+                // A full load, so every screen is rendered again from the other customer's data.
+                window.location.assign(m === "new" ? "/onboarding" : "/");
               }}
               className={`flex min-h-14 flex-1 flex-col items-start justify-center rounded-xl px-3 py-2 text-left ${mode === m ? "bg-primary text-primary-foreground" : "bg-muted"}`}
             >
@@ -154,8 +156,8 @@ export function ProfileClient(props: {
                 ? `Switch approved, starts ${dateFmt.format(new Date(s.startDate))}`
                 : "Switch approved"
             }
-            value={`−${eur.format(s.yearlySaving)}`}
-            valueSub="a year"
+            value={`${eur.format(s.yearlySaving)}`}
+            valueSub="saved a year"
           />
         ))}
         {plan && (
@@ -184,6 +186,8 @@ export function ProfileClient(props: {
           />
         )}
       </Group>
+
+      <MoneySkills />
 
       <Group title="Solvo settings">
         <Row
@@ -255,7 +259,7 @@ export function ProfileClient(props: {
         />
       </Group>
 
-      {anything && (
+      {(anything || learned) && (
         <button
           type="button"
           onClick={resetDemo}

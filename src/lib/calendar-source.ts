@@ -8,6 +8,7 @@ import { todayIso } from "@/lib/demo-clock";
 import { baselinesFrom, forecast, type Baselines, type ForecastItem } from "@/lib/forecast";
 import { loadGoogleEvents } from "@/lib/google-calendar";
 import { loadLinkEvents } from "@/lib/ics-link";
+import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 
 export type CalendarState = {
@@ -19,7 +20,7 @@ export type CalendarState = {
 
 /** What the person's own payments say about restaurants, tickets and trips. Numbers only. */
 export async function baselinesFor(): Promise<Baselines> {
-  const { customer } = await getEffective();
+  const { customer } = await getEffective(await pageMode());
   return baselinesFrom(customer.transactions);
 }
 

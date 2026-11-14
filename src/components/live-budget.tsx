@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useWeeklyReserve } from "@/components/forecast-ui";
+import { useLearnProgress } from "@/lib/learn-store";
 import { onboardingWeeklyDelta, useOnboarding } from "@/lib/onboarding-store";
 import { resetDemo, useBillActions, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
 
@@ -49,7 +50,8 @@ export function ResetDemoButton({ className }: { className?: string }) {
   const plan = useSavingsPlan();
   const bills = useBillActions();
   const onboarding = useOnboarding();
-  if (!Object.keys(switches).length && !plan && !Object.keys(bills).length && !onboarding.completedAt && !onboarding.skipped) return null;
+  const learned = Object.keys(useLearnProgress().done).length > 0;
+  if (!learned && !Object.keys(switches).length && !plan && !Object.keys(bills).length && !onboarding.completedAt && !onboarding.skipped) return null;
   return (
     <button type="button" className={className} onClick={resetDemo}>
       Reset demo

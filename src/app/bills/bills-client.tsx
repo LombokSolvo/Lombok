@@ -3,7 +3,9 @@
 import { addTransitionType, startTransition, useEffect, useMemo, useState } from "react";
 import { SubScreen } from "@/components/solvo/screen";
 import { BillHistory, type PaidBill } from "./bill-history";
-import { ArrowRight, Cable, Check, FileText, Smartphone, Sparkles, Zap } from "lucide-react";
+import { Subscriptions } from "./subscriptions";
+import type { Subscription } from "@/data/subscriptions";
+import { ArrowRight, Leaf, Cable, Check, FileText, Smartphone, Sparkles, Zap } from "lucide-react";
 import {
   BackButton,
   Chip,
@@ -13,12 +15,14 @@ import {
   PageTitle,
   TopBar,
   eur,
+  dec2,
   eur2,
   primaryButton,
 } from "@/components/solvo/ui";
 import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
+import { LearnChip } from "@/components/learn/learn-chip";
 import type { Reading } from "@/lib/einvoice";
-import { compare, type ContractTerms } from "@/lib/offers";
+import { compare, type ContractTerms, type ElectricityPreference } from "@/lib/offers";
 import { SAVED_ELECTRICITY_DB, domainOf, type MarketDb } from "@/lib/market";
 import { compareTelecom, telecomTermsFrom } from "@/lib/telecom-offers";
 import {
@@ -32,7 +36,8 @@ import {
   type BillKey,
   type SwitchRecord,
 } from "@/lib/switches";
-import { MarketAgentCard } from "./market-agent-card";
+import { MarketAgentCard, agentHasRun } from "./market-agent-card";
+import { PreferencePicker } from "./preference-picker";
 import { PhotoUpload } from "./photo-upload";
 import { TelecomDetail } from "./telecom-detail";
 
@@ -79,6 +84,8 @@ export function BillsClient(props: {
   weeklyBudget: number;
   remaining: number;
   history: PaidBill[];
+  dentalBill: boolean; // Aino's unpaid dentist e-invoice, part of her demo story only
+  subscriptions: Subscription[]; // Aino's card subscriptions, demo data
 }) {
   const [fetched, setLoaded] = useState<Record<string, Loaded>>({});
   const stored = useCachedReadings() as Record<string, Loaded>;
@@ -153,26 +160,32 @@ export function BillsClient(props: {
           ) : (
             <>
               <PageTitle title="Your bills">
-                Solvo read the e-invoices that reached your bank this month. Nothing to photograph or upload.
+                {props.invoices.length
+                  ? "Solvo read the e-invoices that reached your bank this month. Nothing to photograph or upload."
+                  : "No e-invoices from your suppliers have reached your bank yet. When one arrives, Solvo reads it here and compares the contract."}
               </PageTitle>
 
               {actionable.map((inv) => (
                 <FeaturedInvoice key={inv.id} meta={inv} loaded={loaded[inv.id]!} onOpen={() => setOpen(inv.id)} />
               ))}
 
-              <Group
-                title={actionable.length ? "Other bills" : "This month"}
-                className={actionable.length ? "mt-7" : "mt-0"}
-              >
-                {others.map((inv) => (
-                  <InvoiceRow
-                    key={inv.id}
-                    meta={inv}
-                    loaded={loaded[inv.id]}
-                    switched={switchedFor(loaded[inv.id], switches)}
-                  />
-                ))}
-              </Group>
+              {others.length > 0 && (
+                <Group
+                  title={actionable.length ? "Other bills" : "This month"}
+                  className={actionable.length ? "mt-7" : "mt-0"}
+                >
+                  {others.map((inv) => (
+                    <InvoiceRow
+                      key={inv.id}
+                      meta={inv}
+                      loaded={loaded[inv.id]}
+                      switched={switchedFor(loaded[inv.id], switches)}
+                    />
+                  ))}
+                </Group>
+              )}
+
+              <Subscriptions subs={props.subscriptions} />
 
               <PhotoUpload
                 onRead={(d) => {
@@ -182,7 +195,7 @@ export function BillsClient(props: {
                 }}
               />
 
-              <BillHistory bills={props.history} asOf={props.asOf} />
+              <BillHistory bills={props.history} asOf={props.asOf} dentalBill={props.dentalBill} />
             </>
           )}
         </div>
@@ -245,7 +258,7 @@ function FeaturedInvoice({ meta, loaded, onOpen }: { meta: InvoiceMeta; loaded: 
         </div>
       </div>
 
-      {saving > 0 && (
+      {saving > 0 && agentHasRun(isElectricity ? "electricity" : "telecom") && (
         <p className="mt-4 font-display text-[22px] leading-tight font-semibold tracking-[-0.015em]">
           You could save <span className="num text-primary">{eur.format(saving)}</span> a year
         </p>
@@ -334,7 +347,14 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
     setTerms((t) => ({ ...t, [k]: v ?? (k === "centsAfterEnd" || k === "monthlyFeeAfterEnd" ? null : 0) }));
 
   const [db, setDb] = useState<MarketDb>(SAVED_ELECTRICITY_DB);
-  const cmp = useMemo(() => compare(terms, db), [terms, db]);
+  const [ran, setRan] = useState(() => agentHasRun("electricity")); // offers appear once the agent has run
+  const revealOffers = () => {
+    setRan(true);
+    // Bring the saving into view: it appears at the top of the screen.
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 600);
+  };
+  const [preference, setPreference] = useState<ElectricityPreference>("fixed");
+  const cmp = useMemo(() => compare(terms, db, preference), [terms, db, preference]);
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
@@ -361,6 +381,23 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
             because a fixed cost just got smaller. That&apos;s {eur.format(chosen.saving)} a year.
           </>
         }
+        steps={[
+          { title: "Signed with your bank ID", detail: "You approved the switch in the bank app, so no separate contract to sign." },
+          {
+            title: `Order sent to ${chosen.supplier}`,
+            detail: "Solvo passes the order to the new supplier through a partner interface.",
+          },
+          {
+            title: "Switch registered in Datahub",
+            detail: `${chosen.supplier} registers it in Fingrid's Datahub, which ends your ${r.supplier} contract automatically. Takes about 2 weeks${
+              startDate ? `; a fixed-term contract switches on its end date, ${fmtDate(startDate)}` : ""
+            }.`,
+          },
+          {
+            title: "First new e-invoice checked",
+            detail: `When ${chosen.supplier}'s first e-invoice reaches your bank, Solvo checks the price matches the offer.`,
+          },
+        ]}
         reminder={
           chosen.termMonths && startDate
             ? "Solvo will remind you a month before this contract ends, so it never rolls over to a worse price again."
@@ -376,13 +413,15 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         {r.supplier}, {r.product}. Contract ends {fmtDate(r.contractEndDate)}.
       </PageTitle>
 
-      <SavingSlab
-        label="Switching saves you"
-        saving={chosen.saving}
-        before={{ label: `Do nothing, rolls over ${fmtDate(startDate)}`, yearly: cmp.doNothing }}
-        after={{ label: `${chosen.supplier} ${chosen.product}`, yearly: chosen.yearly }}
-        footnote={<>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>}
-      />
+      {ran && (
+        <SavingSlab
+          label="Switching saves you"
+          saving={chosen.saving}
+          before={{ label: `Do nothing, rolls over ${fmtDate(startDate)}`, yearly: cmp.doNothing }}
+          after={{ label: `${chosen.supplier} ${chosen.product}`, yearly: chosen.yearly }}
+          footnote={<>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>}
+        />
+      )}
 
       <ReadFields badge={<SourceBadge l={props.loaded} />}>
         <EditField label="Yearly use" value={terms.annualKwh} unit="kWh" step="100" onChange={set("annualKwh")} />
@@ -401,42 +440,15 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
           onChange={set("monthlyFeeAfterEnd")}
         />
       </ReadFields>
-
-      <Group
-        title="Your options for a year"
-        aside={`${terms.annualKwh.toLocaleString("fi-FI")} kWh`}
-        footer={`Real public prices found by Solvo's market agent, energy only. Your current price would cost ${eur.format(cmp.current)} a year.`}
-      >
-        <div role="radiogroup" aria-label="Electricity offers">
-          {cmp.offers.map((o) => (
-            <OfferOption
-              key={o.id}
-              chosen={o.id === chosen.id}
-              onSelect={() => setChosenId(o.id)}
-              title={`${o.supplier} ${o.product}`}
-              yearly={o.yearly}
-              detail={
-                <>
-                  {o.pricing === "spot"
-                    ? `Spot, about ${o.centsPerKwh.toFixed(2)} c/kWh (margin ${o.marginCents?.toFixed(2)})`
-                    : `${o.centsPerKwh.toFixed(2)} c/kWh`}
-                  {` + ${o.monthlyFee.toFixed(2)} €/mo`}
-                  {o.termMonths ? `, fixed ${o.termMonths} months` : ""}
-                  {o.note ? `. ${o.note}` : ""}
-                  <span className="mt-0.5 block">
-                    Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
-                  </span>
-                </>
-              }
-              pick={o.id === cmp.recommended.id ? "Coach's pick: a fixed price is easier to budget" : undefined}
-            />
-          ))}
-        </div>
-      </Group>
+      <LearnChip pack="electricity" className="mt-3 self-start">
+        Learn why: fixed or spot price?
+      </LearnChip>
 
       <MarketAgentCard
         db={db}
         onResult={setDb}
+        onFinished={revealOffers}
+        shortlist={cmp.offers.map((o) => o.id)}
         forYou={
           <>
             For you it only picks the best of your group,{" "}
@@ -448,7 +460,65 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         }
       />
 
-      <StickyAction onClick={() => setStage("confirm")}>Switch to {chosen.supplier}</StickyAction>
+      {ran && (
+        <PreferencePicker
+          value={preference}
+          onChange={(v) => {
+            setPreference(v);
+            setChosenId(null);
+          }}
+          options={[
+            { value: "cheapest", label: "Lowest cost" },
+            { value: "fixed", label: "Fixed price" },
+            { value: "renewable", label: "Renewable", icon: <Leaf className="size-4 shrink-0" aria-hidden /> },
+          ]}
+        />
+      )}
+
+      {ran && (
+        <Group
+          title="Your options for a year"
+          aside={`${terms.annualKwh.toLocaleString("fi-FI")} kWh`}
+          footer={`Real public prices found by Solvo's market agent, energy only. At your price today, before the contract rolls over, a year would cost ${eur.format(cmp.current)}.`}
+        >
+          <div role="radiogroup" aria-label="Electricity offers">
+            {cmp.offers.map((o) => (
+              <OfferOption
+                key={o.id}
+                chosen={o.id === chosen.id}
+                onSelect={() => setChosenId(o.id)}
+                title={`${o.supplier} ${o.product}`}
+                yearly={o.yearly}
+                detail={
+                  <>
+                    {o.pricing === "spot"
+                      ? `Spot, about ${dec2(o.centsPerKwh)} c/kWh (margin ${dec2(o.marginCents ?? 0)})`
+                      : `${dec2(o.centsPerKwh)} c/kWh`}
+                    {` + ${dec2(o.monthlyFee)} €/mo`}
+                    {o.termMonths ? `, fixed ${o.termMonths} months` : ""}
+                    {o.note ? `. ${o.note}` : ""}
+                    {o.renewable && (
+                      <span className="mt-0.5 flex items-center gap-1 font-medium text-primary">
+                        <Leaf className="size-3.5" aria-hidden />
+                        Renewable electricity
+                      </span>
+                    )}
+                    <span className="mt-0.5 block">
+                      Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
+                    </span>
+                  </>
+                }
+                pick={o.id === cmp.recommended.id ? cmp.pickReason : undefined}
+              />
+            ))}
+          </div>
+        </Group>
+      )}
+
+
+      {ran && (
+        <StickyAction onClick={() => setStage("confirm")}>Switch to {chosen.supplier}</StickyAction>
+      )}
 
       {stage === "confirm" && (
         <ApproveSheet

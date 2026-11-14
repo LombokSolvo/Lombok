@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
 import { Chip, Group, eur } from "@/components/solvo/ui";
@@ -9,9 +8,9 @@ import { useBillActions } from "@/lib/switches";
 
 export type PaidBill = {
   date: string; // YYYY-MM-DD
-  kind: "rent" | "utility";
+  kind: "rent" | "utility" | "subscription";
   amount: number; // positive EUR
-  supplier?: string; // known when Solvo has read the e-invoice for this payment
+  supplier?: string; // known when Solvo has read the e-invoice for this payment, or the subscription's name
 };
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -29,7 +28,7 @@ type Entry = {
 };
 
 /** Every bill paid in the last 12 months (rent and utilities from the data), plus the dental e-invoice. */
-export function BillHistory({ bills, asOf }: { bills: PaidBill[]; asOf: string }) {
+export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; asOf: string; dentalBill: boolean }) {
   const [all, setAll] = useState(false);
   const dental = useBillActions()[UNPAID.id];
 
@@ -40,13 +39,15 @@ export function BillHistory({ bills, asOf }: { bills: PaidBill[]; asOf: string }
     subtitle:
       b.kind === "rent"
         ? `Paid ${fmtDay(b.date)}`
-        : b.supplier
+        : b.kind === "subscription"
+          ? `Paid ${fmtDay(b.date)} by card, every month`
+          : b.supplier
           ? `Paid ${fmtDay(b.date)}, read from the e-invoice`
           : `Paid ${fmtDay(b.date)}, no supplier name in the payment`,
     amount: b.amount,
-    badge: b.supplier ? "E-invoice" : undefined,
+    badge: b.kind === "subscription" ? "Subscription" : b.supplier ? "E-invoice" : undefined,
   }));
-  entries.push(
+  if (dentalBill) entries.push(
     dental?.action === "paid"
       ? {
           key: "dental",
@@ -79,7 +80,7 @@ export function BillHistory({ bills, asOf }: { bills: PaidBill[]; asOf: string }
     <section className="mt-9">
       <h2 className="px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">Bill history</h2>
       <p className="mt-1 px-1 text-[15px] leading-snug text-muted-foreground">
-        Every bill paid from your account in the last 12 months.
+        Every bill and subscription paid from your account in the last 12 months.
       </p>
       {shown.map(([month, rows]) => (
         <Group
@@ -98,14 +99,6 @@ export function BillHistory({ bills, asOf }: { bills: PaidBill[]; asOf: string }
                   {r.badge && !r.open && <Chip tone="green">{r.badge}</Chip>}
                 </div>
                 <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{r.subtitle}</div>
-                {r.open && (
-                  <Link
-                    href="/call?skip=1"
-                    className="mt-1 inline-flex min-h-11 items-center text-[13px] font-semibold text-primary underline underline-offset-4"
-                  >
-                    Pay now
-                  </Link>
-                )}
               </div>
               <SignedAmount kind="out" value={r.amount} className="text-[15px]" />
             </div>
