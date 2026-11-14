@@ -24,8 +24,7 @@ export function OverdueBillCard({ asOf }: { asOf: string }) {
         <p className="text-[14px] leading-snug">
           <span className="font-semibold">
             Paid {UNPAID.supplier}, {eur.format(UNPAID.amount)}.
-          </span>{" "}
-          <span className="text-muted-foreground">From your set-aside for irregular costs, so your safe-to-spend didn&apos;t change.</span>
+          </span>
         </p>
       </section>
     );
