@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { CalendarConnect } from "@/components/calendar-connect";
+import { InstalledChip } from "@/components/install-guide";
 import { Toggle } from "@/components/solvo/toggle";
 import { CompareSummary } from "@/components/compare-card";
 import { HomeEquityCard } from "@/components/home-equity-card";
@@ -16,8 +18,10 @@ import type { LiveStatus } from "@/lib/live-banks";
 import {
   Bell,
   Check,
+  ChevronRight,
   FileText,
   PhoneCall,
+  Smartphone,
   PiggyBank,
   ShieldCheck,
 } from "lucide-react";
@@ -230,6 +234,20 @@ export function ProfileClient(props: {
           subtitle="Remind me 30 days before a contract ends"
           value={<Toggle label="Contract end dates" />}
         />
+      </Group>
+
+      <Group>
+        <Link href="/install" className="flex min-h-14 items-center gap-3 px-4 py-3 active:bg-muted">
+          <IconTile>
+            <Smartphone />
+          </IconTile>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] leading-snug font-medium">Put Solvo on your phone</span>
+            <span className="block text-[13px] leading-snug text-muted-foreground">Add it to your home screen, like an app</span>
+          </span>
+          <InstalledChip />
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </Link>
       </Group>
       {readCount > 0 && (
         <button
