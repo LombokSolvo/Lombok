@@ -16,7 +16,6 @@ import {
   PhoneCall,
   PiggyBank,
   ShieldCheck,
-  Target,
 } from "lucide-react";
 import {
   Chip,
@@ -220,17 +219,6 @@ export function ProfileClient(props: {
           title="Contract end dates"
           subtitle="Remind me 30 days before a contract ends"
           value={<Toggle label="Contract end dates" />}
-        />
-        <Row
-          icon={
-            <IconTile>
-              <Target />
-            </IconTile>
-          }
-          title="Savings goal"
-          subtitle="Kept out of your weekly budget"
-          value={eur.format(props.savingsGoal)}
-          valueSub="a month"
         />
       </Group>
       {readCount > 0 && (
