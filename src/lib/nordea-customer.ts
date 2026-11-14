@@ -69,7 +69,7 @@ export type BuildResult = {
 };
 
 /** `accounts` is one array of transactions per account, in the order the bank listed the accounts. */
-export function buildNordeaCustomer(accounts: RawTx[][]): BuildResult {
+export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | null)[] = []): BuildResult {
   const raw = accounts.flatMap((txs, i) => txs.map((t) => ({ ...t, _acc: letter(i) })));
 
   const rows: Tx[] = raw
@@ -152,11 +152,13 @@ export function buildNordeaCustomer(accounts: RawTx[][]): BuildResult {
       postalCode: "",
       age: 0,
       asOf,
-      accounts: [...new Set(rows.map((r) => r.account))],
+      // Accounts with activity, plus any that holds money but had no transactions in the period (a quiet savings account).
+      accounts: accounts.map((_, i) => letter(i)).filter((l) => rows.some((r) => r.account === l) || (balances[l.charCodeAt(0) - 65] ?? 0) > 0),
       basketOf: BASKET,
       summary: { last12Months, basketYear, categoryYear, salaryYear },
       monthly,
       transactions: rows,
+      balances: Object.fromEntries(balances.flatMap((b, i) => (b === null ? [] : [[letter(i), round2(b)]]))),
     },
     unmapped,
   };

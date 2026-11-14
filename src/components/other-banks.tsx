@@ -21,7 +21,6 @@ import {
   type View,
 } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
-import { plainFormat } from "@/lib/demo-clock";
 import type { LiveStatus } from "@/lib/live-nordea";
 
 // Other banks: opt-in, never assumed. The picker lists every bank Enable Banking offers, per country, with search, plus the person's
@@ -38,7 +37,6 @@ type Step = "closed" | "pick" | "consent" | "waiting";
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
 const COUNTRIES = ["FI", "SE", "NO", "DK", "EE", "DE", "NL", "FR"];
-const day = plainFormat({ day: "numeric", month: "short" });
 const NOTICES: Record<string, string> = {
   connected: "Connected. Your bank now shows on Home.",
   declined: "The approval was cancelled, so nothing was connected.",
@@ -143,7 +141,7 @@ export function OtherBanks({
   const liveReady = !!live && live.enabled && live.configured && !live.connected;
   const realNordea = (b: Bank) => liveReady && !sandbox.enabled && b.name === "Nordea" && b.country === "FI";
   const list = sandbox.enabled ? lists[country] : FALLBACK_BANKS.map((name): Bank => ({ name, country: "FI" }));
-  const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase())) : [];
+  const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase()) && !(live?.connected && !sandbox.enabled && b.name === "Nordea" && b.country === "FI")) : [];
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
   const footer = sandbox.enabled
@@ -160,7 +158,7 @@ export function OtherBanks({
         points: [
           "Solvo reads your accounts, balances and transactions. Read-only: it can't move money.",
           "You approve with Nordea ID at Nordea. You never open Enable Banking's website.",
-          "Access lasts 30 days. Disconnect on Profile or in Nordea any time.",
+          "Access lasts up to 6 months, the most open banking allows. Renew or disconnect any time.",
           "Real data: it stays on this computer.",
         ],
         label: "Continue to Nordea ID",
@@ -219,7 +217,6 @@ export function OtherBanks({
                 <div className="text-[15px] leading-snug font-medium">{sandbox.linked.bank} connected</div>
                 <div className="mt-0.5 text-[13px] text-muted-foreground">Example data via Enable Banking</div>
               </div>
-              {sandbox.linked.validUntil && <span className="num text-[13px] text-muted-foreground">Until {day(sandbox.linked.validUntil.slice(0, 10))}</span>}
             </div>
             <button type="button" className={action} onClick={() => act("sync")} disabled={busy !== null}>
               <IconTile>{busy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}</IconTile>
@@ -299,21 +296,18 @@ export function OtherBanks({
             {sandbox.enabled ? "These are Enable Banking's test banks. In production the list is your real banks." : liveReady ? "Finland's banks on Enable Banking. Nordea is your real account; the others are simulated." : "Finland's banks on Enable Banking. Demo: connecting is simulated."}
           </p>
 
-          {/* Real bank data is never merged with demo data, so no simulated platform is offered next to it. */}
-          {!live?.connected && (
-            <>
-              <h3 className="mt-5 mb-2 text-[13px] font-medium text-muted-foreground">Investing platform</h3>
-              <div className="overflow-hidden rounded-2xl bg-muted/50">
-                {PLATFORMS.map((p) => (
-                  <button key={p} type="button" onClick={() => { setChoice({ kind: "platform", name: p }); setStep("consent"); }} className={row}>
-                    <IconTile><TrendingUp /></IconTile>
-                    <span className="text-[15px] font-medium">{p}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[13px] leading-snug text-muted-foreground">Investing platforms aren&apos;t part of open banking. Demo: example holdings.</p>
-            </>
-          )}
+          <>
+          <h3 className="mt-5 mb-2 text-[13px] font-medium text-muted-foreground">Investing platform</h3>
+          <div className="overflow-hidden rounded-2xl bg-muted/50">
+            {PLATFORMS.map((p) => (
+              <button key={p} type="button" onClick={() => { setChoice({ kind: "platform", name: p }); setStep("consent"); }} className={row}>
+                <IconTile><TrendingUp /></IconTile>
+                <span className="text-[15px] font-medium">{p}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">Investing platforms aren&apos;t part of open banking. Demo: example holdings.</p>
+          </>
         </Sheet>
       )}
 

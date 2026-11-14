@@ -21,6 +21,7 @@ import {
   fetchAccountTransactions,
   fetchBalances,
   listAspsps,
+  pickBalance,
   sandboxConfigFromEnv,
   startAuth,
   type AspspSummary,
@@ -122,8 +123,8 @@ export async function linkedSummary(linked: Linked, { fresh = false }: { fresh?:
   const txs: RawTx[] = [];
   for (const uid of linked.uids) {
     const balances = await fetchBalances(cfg, uid);
-    const b = balances.find((x) => x.balance_type === "CLAV") ?? balances.find((x) => x.balance_type === "ITAV") ?? balances[0];
-    if (b) accounts.push({ balance: Number(b.balance_amount.amount), currency: b.balance_amount.currency });
+    const amount = pickBalance(balances);
+    if (amount !== null) accounts.push({ balance: amount, currency: balances[0].balance_amount.currency });
     txs.push(...(await fetchAccountTransactions(cfg, uid, dateFrom)).transactions);
   }
 

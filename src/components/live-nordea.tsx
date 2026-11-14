@@ -56,7 +56,7 @@ export function LiveNordea({ status }: { status: LiveStatus }) {
       title="Your real Nordea"
       footer={
         status.connected
-          ? "Live and local only: this data stays on this computer and never goes to the demo, the cloud or the coach. Read-only."
+          ? "Merged with your other banks. Updates itself once a day while the app is running. Local only: this data stays on this computer and never goes to the cloud or the coach. Read-only."
           : "Local only. You approve with Nordea ID; Solvo never sees your codes and can't move money."
       }
     >
@@ -72,7 +72,6 @@ export function LiveNordea({ status }: { status: LiveStatus }) {
             icon={<IconTile><Landmark /></IconTile>}
             title="Nordea connected"
             subtitle={`${status.accounts} account${status.accounts === 1 ? "" : "s"}, ${status.transactions.toLocaleString("en-GB")} transactions${status.syncedAt ? `, synced ${day(status.syncedAt.slice(0, 10))}` : ""}`}
-            value={status.validUntil ? `Until ${day(status.validUntil.slice(0, 10))}` : undefined}
           />
           <button type="button" className={action} onClick={() => run("sync")} disabled={busy !== null}>
             <IconTile>{busy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}</IconTile>
