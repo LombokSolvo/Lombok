@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { CalendarDays, Check, Landmark, Minus, PiggyBank, Plus, TrendingUp, X } from "lucide-react";
 import { PortfolioChart, type ChartLabels } from "@/components/portfolio-chart";
@@ -307,15 +306,6 @@ function PlanEditor(
               {eur.format(parts.fromGoal)} is your savings goal, already outside your weekly budget.
               {parts.fromBills > 0 && ` ${eur.format(parts.fromBills)} comes from what cheaper bills free up.`}
               {parts.fromBudget > 0 && ` ${eur.format(parts.fromBudget)} comes from your budget: ${weekly(parts.fromBudget)} less to spend a week.`}
-              {freed === 0 && (
-                <>
-                  {" "}
-                  Switch a bill to free up more.{" "}
-                  <Link href="/bills" className="-my-3 inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4">
-                    See your bills
-                  </Link>
-                </>
-              )}
             </>
           )
         }
