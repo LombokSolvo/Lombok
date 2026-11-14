@@ -4,30 +4,52 @@ import { ArrowUp, ArrowUpRight, Check, GraduationCap, ReceiptText, Sparkles } fr
 import { useEffect, useRef, useState } from "react";
 import { LearnPack } from "@/components/learn/learn-pack";
 import { Group, TopBar, eur } from "@/components/solvo/ui";
+import { LAST_PAGE_KEY, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
+import type { DemoMode } from "@/lib/demo-mode";
 import { PACK_IDS, PACK_META, getPack, packFromText, type LearnContext, type PackId } from "@/lib/learn";
 import { useLearnProgress } from "@/lib/learn-store";
 import type { SpendingResult } from "@/lib/spending";
+import type { WhatIfResult } from "@/lib/what-if";
+import { ActionCard, chatState } from "./action-card";
+import { WhatIfCard } from "./what-if-card";
 
 type Msg = {
   role: "user" | "coach";
   text: string;
   checks?: SpendingResult[];
+  actions?: ChatAction[]; // cards with a button; nothing happens until the person taps
+  whatIfs?: WhatIfResult[]; // "what if" results, shown as cards
   source?: "gemini" | "offline";
   ms?: number;
   pack?: PackId; // a learning pack, played inside the chat
 };
 
-const SUGGESTIONS = [
-  "How much did I spend on taxis?",
-  "Can I afford an €80 dinner this week?",
-  "Where could I save the most?",
-  "Paljonko käytin ravintoloihin kesällä?",
-];
-
 const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
 const fmtMonth = (iso: string) => monthFmt.format(new Date(`${iso}T00:00:00Z`));
 
-export function CoachClient({ learn }: { learn: LearnContext }) {
+/** A month-by-month answer as small bars, so the trend shows at a glance. */
+function MonthBars({ groups }: { groups: SpendingResult["groups"] }) {
+  const max = Math.max(...groups.map((g) => g.total), 1);
+  return (
+    <div className="mt-2">
+      <div className="flex h-12 items-end gap-[3px]" aria-hidden>
+        {groups.map((g) => (
+          <span key={g.key} className="flex-1 rounded-t-[3px] bg-primary/70" style={{ height: `${Math.max(4, (g.total / max) * 100)}%` }} />
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+        <span>{fmtMonth(`${groups[0].key}-15`)}</span>
+        <span>{fmtMonth(`${groups.at(-1)!.key}-15`)}</span>
+      </div>
+    </div>
+  );
+}
+
+const isMonthly = (c: SpendingResult) => c.groups.length >= 3 && c.groups.every((g) => /^\d{4}-\d{2}$/.test(g.key));
+
+export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMode }) {
+  const [from, setFrom] = useState("/");
+  const suggestions = suggestionsFor(from, mode === "aino");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -57,11 +79,17 @@ export function CoachClient({ learn }: { learn: LearnContext }) {
       const res = await fetch("/api/coach", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        // Learning packs stay in the browser; the coach only sees the conversation text.
-        body: JSON.stringify({ messages: history.filter((m) => !m.pack).map(({ role, text }) => ({ role, text })) }),
+        // Learning packs stay in the browser; the coach sees the conversation text and what is already done in the app.
+        body: JSON.stringify({
+          messages: history.filter((m) => !m.pack).map(({ role, text }) => ({ role, text })),
+          state: chatState(mode),
+        }),
       });
       const d = await res.json();
-      setMessages([...history, { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, source: d.source, ms: d.ms }]);
+      setMessages([
+        ...history,
+        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, source: d.source, ms: d.ms },
+      ]);
     } catch {
       setMessages([...history, { role: "coach", text: "I couldn't connect. Check your connection and try again." }]);
     } finally {
@@ -73,6 +101,11 @@ export function CoachClient({ learn }: { learn: LearnContext }) {
   // The page stays mounted (hidden) between visits, so the parameter is removed once handled, and the effect
   // runs again each time the page is shown.
   useEffect(() => {
+    let last = "/";
+    try {
+      last = sessionStorage.getItem(LAST_PAGE_KEY) ?? "/";
+    } catch {}
+    setTimeout(() => setFrom(last), 0);
     const params = new URLSearchParams(window.location.search);
     const q = params.get("q");
     const l = params.get("learn") as PackId | null;
@@ -132,19 +165,6 @@ export function CoachClient({ learn }: { learn: LearnContext }) {
                 </button>
               ))}
             </Group>
-            <Group title="Try asking">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => ask(s)}
-                  className="flex min-h-[52px] w-full items-center gap-3 px-4 py-3 text-left text-[15px] active:bg-muted [&+&]:border-t"
-                >
-                  <span className="flex-1">{s}</span>
-                  <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                </button>
-              ))}
-            </Group>
           </div>
         ) : (
           <h1 className="sr-only">Ask Solvo</h1>
@@ -183,9 +203,12 @@ export function CoachClient({ learn }: { learn: LearnContext }) {
                     <p className="mt-0.5 text-muted-foreground">
                       {c.filter}, {fmtMonth(c.from)} to {fmtMonth(c.to)}
                     </p>
+                    {isMonthly(c) && <MonthBars groups={c.groups} />}
                   </div>
                 </div>
               ))}
+              {m.whatIfs?.map((r, j) => <WhatIfCard key={j} r={r} />)}
+              {m.actions?.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
               {m.source && (
                 <span className="px-1 text-[11px] text-muted-foreground">
                   {m.source === "gemini"
@@ -221,6 +244,20 @@ export function CoachClient({ learn }: { learn: LearnContext }) {
         }}
         className="sticky bottom-0 z-10 bg-background/85 px-4 pt-2 pb-[calc(0.75rem+var(--tabbar-h))] backdrop-blur-xl"
       >
+        {!input && !busy && (
+          <div className="-mx-4 mb-2 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Suggested questions">
+            {suggestions.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => void ask(q)}
+                className="h-11 shrink-0 rounded-full border border-border/80 bg-card px-4 text-[14px] whitespace-nowrap active:bg-muted"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-1.5 rounded-full bg-card p-1.5 pl-4 shadow-[0_1px_3px_rgba(15,42,31,0.08),0_8px_24px_-12px_rgba(15,42,31,0.18)] focus-within:ring-2 focus-within:ring-primary/30">
           <input
             value={input}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import {
   House,
   MessageCircle,
@@ -9,6 +10,7 @@ import {
   ReceiptText,
   UserRound,
 } from "lucide-react";
+import { LAST_PAGE_KEY } from "@/lib/chat-actions";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -29,6 +31,13 @@ const HOME_CHILDREN = ["/costs", "/compare", "/calendar"];
  */
 export function TabBar() {
   const path = usePathname();
+  // The chat offers questions that fit the page the person came from (src/lib/chat-actions.ts).
+  useEffect(() => {
+    if (path.startsWith("/coach")) return;
+    try {
+      sessionStorage.setItem(LAST_PAGE_KEY, path);
+    } catch {}
+  }, [path]);
   if (HIDDEN.some((p) => path.startsWith(p))) return null;
 
   return (

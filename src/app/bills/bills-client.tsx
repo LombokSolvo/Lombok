@@ -126,6 +126,15 @@ export function BillsClient(props: {
     }
   }, [props.invoices]);
 
+  // The coach chat can open a contract directly: /bills?open=electricity. The page stays mounted between visits, so the
+  // parameter is removed once handled and the effect runs again each time the page is shown.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("open");
+    if (!id) return;
+    window.history.replaceState(null, "", "/bills");
+    if (props.invoices.some((inv) => inv.id === id)) setTimeout(() => setOpenState(id), 0);
+  }, [props.invoices]);
+
   // Opening a contract starts at the top of the page, like a new screen.
   useEffect(() => {
     window.scrollTo({ top: 0 });

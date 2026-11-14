@@ -99,6 +99,24 @@ export type BillAction = { action: "paid" | "snoozed"; at: string };
 const NO_ACTIONS: Record<string, BillAction> = {};
 const billStore = createStore<Record<string, BillAction>>("solvo.bill-actions.v1", NO_ACTIONS);
 const planStore = createStore<Partial<SavingsPlan>>("solvo.savings-plan.v1", NO_PLAN);
+// Card subscriptions the person stopped from the coach chat, by subscription id (src/data/subscriptions.ts).
+const NO_CANCELLED: Record<string, string> = {};
+const cancelledStore = createStore<Record<string, string>>("solvo.cancelled-subs.v1", NO_CANCELLED);
+export const useCancelledSubs = cancelledStore.use;
+export const readCancelledSubs = cancelledStore.snapshot;
+export function cancelSubscription(id: string) {
+  cancelledStore.set({ ...cancelledStore.snapshot(), [id]: new Date().toISOString() });
+}
+export function restoreSubscription(id: string) {
+  const next = { ...cancelledStore.snapshot() };
+  delete next[id];
+  cancelledStore.set(Object.keys(next).length ? next : null);
+}
+export const readSwitches = () => switchStore.snapshot();
+export function readSavingsPlan(): SavingsPlan | null {
+  const p = planStore.snapshot();
+  return p.monthly ? (p as SavingsPlan) : null;
+}
 
 // E-invoice readings by invoice id, so Gemini reads each invoice once per device, not on every visit to Bills.
 const readingStore = createStore<Record<string, unknown>>("solvo.readings.v1", {});
@@ -172,6 +190,7 @@ export function resetDemo() {
   switchStore.set(null);
   planStore.set(null);
   billStore.set(null);
+  cancelledStore.set(null);
   resetOnboarding();
   resetCalendar();
   resetForecast();

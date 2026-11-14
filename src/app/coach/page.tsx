@@ -24,5 +24,5 @@ async function Coach() {
   const mode = await pageMode();
   const { customer } = await getEffective(mode);
   // Only the few numbers the learning packs show reach the browser, never transactions.
-  return <CoachClient learn={learnContext(customer, mode)} />;
+  return <CoachClient learn={learnContext(customer, mode)} mode={mode} />;
 }
