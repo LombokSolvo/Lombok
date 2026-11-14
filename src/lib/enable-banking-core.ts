@@ -84,18 +84,23 @@ async function call<T>(cfg: EbConfig, method: string, path: string, { query, bod
 export const appStatus = (cfg: EbConfig) =>
   call<{ name?: string; active?: boolean; environment?: string; countries?: string[] }>(cfg, "GET", "/application");
 
-export type AspspSummary = { name: string; country: string; logo?: string };
+export type AspspSummary = { name: string; country: string; logo?: string; maxConsentSeconds?: number };
 
 /** The banks a person can connect, from Enable Banking's own list (what the bank picker shows). Personal accounts only. */
 export async function listAspsps(cfg: EbConfig, country: string): Promise<AspspSummary[]> {
-  const d = await call<{ aspsps?: { name: string; country: string; logo?: string; psu_types?: string[] }[] }>(cfg, "GET", "/aspsps", { query: { country } });
+  const d = await call<{ aspsps?: { name: string; country: string; logo?: string; psu_types?: string[]; maximum_consent_validity?: number }[] }>(cfg, "GET", "/aspsps", { query: { country } });
   return (d.aspsps ?? [])
     .filter((a) => !a.psu_types || a.psu_types.includes("personal"))
-    .map((a) => ({ name: a.name, country: a.country, logo: a.logo }))
+    .map((a) => ({ name: a.name, country: a.country, logo: a.logo, maxConsentSeconds: a.maximum_consent_validity }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export type EbBalance = { name?: string; balance_type?: string; balance_amount: { amount: string; currency: string } };
+/** The balance a person would call "what is in the account": available (CLAV), else interim available (ITAV), else the first one. */
+export function pickBalance(balances: EbBalance[]): number | null {
+  const b = balances.find((x) => x.balance_type === "CLAV") ?? balances.find((x) => x.balance_type === "ITAV") ?? balances[0];
+  return b ? Number(b.balance_amount.amount) : null;
+}
 export const fetchBalances = async (cfg: EbConfig, uid: string) =>
   (await call<{ balances?: EbBalance[] }>(cfg, "GET", `/accounts/${encodeURIComponent(uid)}/balances`)).balances ?? [];
 

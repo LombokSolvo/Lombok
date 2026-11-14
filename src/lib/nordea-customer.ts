@@ -69,7 +69,7 @@ export type BuildResult = {
 };
 
 /** `accounts` is one array of transactions per account, in the order the bank listed the accounts. */
-export function buildNordeaCustomer(accounts: RawTx[][]): BuildResult {
+export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | null)[] = []): BuildResult {
   const raw = accounts.flatMap((txs, i) => txs.map((t) => ({ ...t, _acc: letter(i) })));
 
   const rows: Tx[] = raw
@@ -157,6 +157,7 @@ export function buildNordeaCustomer(accounts: RawTx[][]): BuildResult {
       summary: { last12Months, basketYear, categoryYear, salaryYear },
       monthly,
       transactions: rows,
+      balances: Object.fromEntries(balances.flatMap((b, i) => (b === null ? [] : [[letter(i), round2(b)]]))),
     },
     unmapped,
   };

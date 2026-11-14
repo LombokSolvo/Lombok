@@ -11,7 +11,7 @@ export const metadata = { title: "Your plan · Solvo" };
 export default async function OnboardingPage() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
-  const { customer: c, local, banks, view } = await getEffective();
+  const { customer: c, local, cookieBanks: banks, view } = await getEffective();
   const profile = inferProfile(c);
   const schedule = scheduleFor(c);
   const base = {

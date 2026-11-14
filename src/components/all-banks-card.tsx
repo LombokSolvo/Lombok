@@ -11,9 +11,9 @@ import { portfolio } from "@/data/portfolio";
  * Home, only once another bank is connected: the whole money picture across banks, and what the other bank adds that S-Pankki
  * alone cannot see. DEMO data for the second bank and Nordnet (src/lib/second-bank.ts).
  */
-export function AllBanksCard({ base, banks, view, platform = "Nordnet", bankName = "Nordea" }: { base: DemoCustomer; banks: BankId[]; view: View; platform?: Platform; bankName?: string }) {
+export function AllBanksCard({ base, banks, view, platform = "Nordnet", bankName = "Nordea", real = null }: { base: DemoCustomer; banks: BankId[]; view: View; platform?: Platform; bankName?: string; real?: DemoCustomer | null }) {
   if (!banks.length) return null;
-  const f = bankFacts(base, banks);
+  const f = bankFacts(base, banks, real);
   const funds = Math.round(portfolio().value);
   const cash = f.spankki.cash + (f.nordea ? f.nordea.everyday + f.nordea.savings : 0);
   const invested = funds + (f.nordnet ? Math.round(f.nordnet.value) : 0);
@@ -21,7 +21,7 @@ export function AllBanksCard({ base, banks, view, platform = "Nordnet", bankName
   const insurance = f.nordea?.bills.find((b) => b.label === "Insurance");
 
   return (
-    <Group title="All your banks" className="mt-4" footer="Demo: example data for the connected banks and investing platform. Transfers between your own accounts are not counted as spending.">
+    <Group title="All your banks" className="mt-4" footer={real ? "Your real Nordea, merged with the example S-Pankki and investing data. Transfers between your own accounts are not counted as spending." : "Demo: example data for the connected banks and investing platform. Transfers between your own accounts are not counted as spending."}>
       <div className="p-3">
         <ViewToggle banks={banks} view={view} />
       </div>
@@ -40,7 +40,7 @@ export function AllBanksCard({ base, banks, view, platform = "Nordnet", bankName
             value={eur.format(invested)}
           />
           {f.nordea && f.nordea.sideIncomeMonthly > 0 && (
-            <Row icon={<MoneyBadge kind="in" />} title={`Side income at ${bankName}`} subtitle="S-Pankki can't see this" value={<SignedAmount kind="in" value={f.nordea.sideIncomeMonthly} />} valueSub="a month" />
+            <Row icon={<MoneyBadge kind="in" />} title={`Income at ${bankName}`} subtitle="S-Pankki can't see this" value={<SignedAmount kind="in" value={f.nordea.sideIncomeMonthly} />} valueSub="a month" />
           )}
           {subs && (
             <Row icon={<IconTile><Repeat /></IconTile>} title="Subscriptions" subtitle={subs.names} value={<SignedAmount kind="out" value={subs.monthly} />} valueSub="a month" />

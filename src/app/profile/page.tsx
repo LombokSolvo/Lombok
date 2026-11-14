@@ -13,7 +13,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
   const c = MAIN_CUSTOMER;
-  const { banks, view, local } = await getEffective();
+  const { cookieBanks, view } = await getEffective();
   const { bank } = await searchParams;
   const linked = await currentLinked();
   return (
@@ -24,9 +24,9 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         age={c.age}
         postalCode={c.postalCode}
         savingsGoal={DEFAULT_SAVINGS_GOAL_PER_MONTH}
-        banks={banks}
+        banks={cookieBanks}
         view={view}
-        showBanks={!local}
+        showBanks
         live={liveStatus()}
         linkedBank={{ enabled: sandboxEnabled(), linked: linked && { bank: linked.bank, validUntil: linked.validUntil }, notice: bank ?? null }}
       />

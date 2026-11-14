@@ -8,7 +8,6 @@ import { ClockConfig } from "@/components/clock-config";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { TabBar } from "@/components/tab-bar";
 import { DATASET_END, configureDemoClock } from "@/lib/demo-clock";
-import { getSource } from "@/lib/source";
 
 // Display: Bricolage Grotesque for the big money figures and page titles. Body: Instrument Sans.
 const display = Bricolage_Grotesque({
@@ -48,14 +47,13 @@ export const viewport: Viewport = {
 };
 
 // Reads the real date per request (never frozen at deploy time) and turns the demo clock on, so every screen shows today's real
-// date. Real bank data (local Nordea mode) is already in real time, so the shift is off there. See src/lib/demo-clock.ts.
+// date. Real Nordea data is merged onto the demo timeline (src/lib/combine.ts), so the shift stays on. See src/lib/demo-clock.ts.
 async function DemoClock({ children }: { children: ReactNode }) {
   await connection();
-  const end = getSource().local ? null : DATASET_END;
-  configureDemoClock(end);
+  configureDemoClock(DATASET_END);
   return (
     <>
-      <ClockConfig end={end} />
+      <ClockConfig end={DATASET_END} />
       {children}
     </>
   );

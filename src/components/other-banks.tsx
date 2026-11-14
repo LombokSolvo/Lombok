@@ -143,7 +143,7 @@ export function OtherBanks({
   const liveReady = !!live && live.enabled && live.configured && !live.connected;
   const realNordea = (b: Bank) => liveReady && !sandbox.enabled && b.name === "Nordea" && b.country === "FI";
   const list = sandbox.enabled ? lists[country] : FALLBACK_BANKS.map((name): Bank => ({ name, country: "FI" }));
-  const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase())) : [];
+  const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase()) && !(live?.connected && !sandbox.enabled && b.name === "Nordea" && b.country === "FI")) : [];
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
   const footer = sandbox.enabled
@@ -160,7 +160,7 @@ export function OtherBanks({
         points: [
           "Solvo reads your accounts, balances and transactions. Read-only: it can't move money.",
           "You approve with Nordea ID at Nordea. You never open Enable Banking's website.",
-          "Access lasts 30 days. Disconnect on Profile or in Nordea any time.",
+          "Access lasts up to 6 months, the most open banking allows. Renew or disconnect any time.",
           "Real data: it stays on this computer.",
         ],
         label: "Continue to Nordea ID",
@@ -299,21 +299,18 @@ export function OtherBanks({
             {sandbox.enabled ? "These are Enable Banking's test banks. In production the list is your real banks." : liveReady ? "Finland's banks on Enable Banking. Nordea is your real account; the others are simulated." : "Finland's banks on Enable Banking. Demo: connecting is simulated."}
           </p>
 
-          {/* Real bank data is never merged with demo data, so no simulated platform is offered next to it. */}
-          {!live?.connected && (
-            <>
-              <h3 className="mt-5 mb-2 text-[13px] font-medium text-muted-foreground">Investing platform</h3>
-              <div className="overflow-hidden rounded-2xl bg-muted/50">
-                {PLATFORMS.map((p) => (
-                  <button key={p} type="button" onClick={() => { setChoice({ kind: "platform", name: p }); setStep("consent"); }} className={row}>
-                    <IconTile><TrendingUp /></IconTile>
-                    <span className="text-[15px] font-medium">{p}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[13px] leading-snug text-muted-foreground">Investing platforms aren&apos;t part of open banking. Demo: example holdings.</p>
-            </>
-          )}
+          <>
+          <h3 className="mt-5 mb-2 text-[13px] font-medium text-muted-foreground">Investing platform</h3>
+          <div className="overflow-hidden rounded-2xl bg-muted/50">
+            {PLATFORMS.map((p) => (
+              <button key={p} type="button" onClick={() => { setChoice({ kind: "platform", name: p }); setStep("consent"); }} className={row}>
+                <IconTile><TrendingUp /></IconTile>
+                <span className="text-[15px] font-medium">{p}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">Investing platforms aren&apos;t part of open banking. Demo: example holdings.</p>
+          </>
         </Sheet>
       )}
 

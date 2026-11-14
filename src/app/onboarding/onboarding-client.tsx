@@ -263,7 +263,7 @@ export function OnboardingClient({ profile, base, schedule, local, banks, view }
             <Row icon={<IconTile tone="grey"><Wallet /></IconTile>} title="What you usually spend" subtitle="Food, transport, fun" value={eur.format(base.everydayMonthly)} valueSub="a month" />
           </Group>
 
-          {!local && <OtherBanks banks={banks} view={view} compact />}
+          <OtherBanks banks={banks} view={view} compact />
 
           <details className="mt-5 rounded-2xl bg-card px-4 py-3 text-[14px] shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
             <summary className="flex min-h-11 cursor-pointer items-center font-medium">Why we think so</summary>

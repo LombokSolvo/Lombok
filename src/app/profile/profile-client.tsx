@@ -51,7 +51,7 @@ export function ProfileClient(props: {
   savingsGoal: number;
   banks: BankId[];
   view: View;
-  showBanks: boolean; // hidden once real Nordea data is connected: real data is never merged with the demo banks
+  showBanks: boolean; // the Other banks picker; always on (real Nordea merges into the same picture as any other bank)
   live: LiveStatus; // the real, local-only Nordea connection; renders nothing unless the app runs with SOLVO_LIVE=1
   linkedBank: { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null }; // Enable Banking sandbox bank
 }) {

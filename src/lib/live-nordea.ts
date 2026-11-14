@@ -17,6 +17,9 @@ import {
   createSession,
   deleteSession,
   fetchAccountTransactions,
+  fetchBalances,
+  listAspsps,
+  pickBalance,
   nordeaDateFrom,
   startAuth,
   type EbConfig,
@@ -69,6 +72,8 @@ export type LiveStatus = {
   syncedAt: string | null;
   asOf: string | null;
   validUntil: string | null;
+  /** Whole days until the consent ends, worked out when the page is served. Negative once it has ended. */
+  daysLeft: number | null;
   accounts: number;
   transactions: number;
   redirectUrl: string;
@@ -92,6 +97,7 @@ export function liveStatus(): LiveStatus {
     syncedAt: meta?.syncedAt ?? null,
     asOf: meta?.asOf ?? null,
     validUntil: session?.access?.valid_until ?? null,
+    daysLeft: session?.access?.valid_until ? Math.ceil((Date.parse(session.access.valid_until) - Date.now()) / 864e5) : null,
     accounts: session?.accounts?.length ?? 0,
     transactions: meta?.transactions ?? 0,
     redirectUrl: redirectUrl(),
@@ -113,9 +119,21 @@ export function explain(e: unknown): string {
 export async function beginConsent(state: string): Promise<string> {
   const cfg = config();
   if (!cfg) throw new Error("Set ENABLE_APP_ID and ENABLE_KEY_PATH in .env.local, then restart npm run dev:live.");
-  const validDays = Math.min(180, Math.max(1, Number(process.env.NORDEA_CONSENT_DAYS ?? 30)));
-  const r = await startAuth(cfg, { bank: "Nordea", country: "FI", state, redirectUrl: redirectUrl(), validDays });
-  return r.url;
+  // As long as open banking allows (180 days) and the bank agrees to, so the person renews twice a year, not monthly. The bank's own
+  // limit comes from its entry in Enable Banking's list; if it still refuses the length, fall back to shorter ones.
+  const wanted = Math.min(180, Math.max(1, Number(process.env.NORDEA_CONSENT_DAYS ?? 180)));
+  const bankMax = (await listAspsps(cfg, "FI").catch(() => [])).find((b) => b.name === "Nordea")?.maxConsentSeconds;
+  const first = Math.min(wanted, bankMax ? Math.max(1, Math.floor(bankMax / 86400)) : wanted);
+  let lastError: unknown;
+  for (const validDays of [...new Set([first, Math.min(first, 90), Math.min(first, 30)])]) {
+    try {
+      return (await startAuth(cfg, { bank: "Nordea", country: "FI", state, redirectUrl: redirectUrl(), validDays })).url;
+    } catch (e) {
+      lastError = e;
+      if (!(e instanceof EbError) || (e.status !== 400 && e.status !== 422)) throw e;
+    }
+  }
+  throw lastError;
 }
 
 let lastFinished = 0;
@@ -145,14 +163,19 @@ export function syncLive(): Promise<Meta> {
     if (!cfg || !session?.accounts?.length) throw new Error("Not connected yet.");
     const dateFrom = nordeaDateFrom();
     const perAccount: RawTx[][] = [];
-    for (const acc of session.accounts) perAccount.push((await fetchAccountTransactions(cfg, acc.uid, dateFrom)).transactions);
+    const balances: (number | null)[] = [];
+    for (const acc of session.accounts) {
+      perAccount.push((await fetchAccountTransactions(cfg, acc.uid, dateFrom)).transactions);
+      // What is in each account now. Not every bank puts a balance on each transaction, so ask for it.
+      balances.push(await fetchBalances(cfg, acc.uid).then(pickBalance, () => null));
+    }
     // Keep the raw cache under the same names as scripts/nordea-psd2.mjs, so the command-line builder keeps working.
     perAccount.forEach((txs, i) => writePrivate(path.join(apiDir(), `tx_account${i + 1}.json`), txs));
     for (const f of readdirSync(apiDir())) {
       const n = /^tx_account(\d+)\.json$/.exec(f)?.[1];
       if (n && Number(n) > perAccount.length) rmSync(path.join(apiDir(), f));
     }
-    const { customer } = buildNordeaCustomer(perAccount);
+    const { customer } = buildNordeaCustomer(perAccount, balances);
     writePrivate(customerFile(), customer);
     const meta: Meta = { syncedAt: new Date().toISOString(), transactions: customer.transactions.length, accounts: perAccount.length, asOf: customer.asOf };
     writePrivate(metaFile(), meta);

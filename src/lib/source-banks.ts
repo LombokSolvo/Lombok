@@ -1,5 +1,5 @@
 // The customer as the person has chosen to see them: S-Pankki alone, or merged with the banks they connected (cookies, set from
-// Profile). Real bank data (local Nordea mode) is never merged with the demo banks.
+// Profile) and, locally, their real Nordea. Anything that talks to an outside model uses getDemoEffective instead: synthetic only.
 import "server-only";
 import { cookies } from "next/headers";
 import { BANKNAME_COOKIE, BANKS_COOKIE, PLATFORM_COOKIE, VIEW_COOKIE, parseBankName, parseBanks, parsePlatform, type BankId, type Platform, type View } from "@/lib/banks";
@@ -8,12 +8,24 @@ import type { DemoCustomer } from "@/lib/demo";
 import { MAIN_CUSTOMER } from "@/lib/demo";
 import { getSource } from "@/lib/source";
 
-export async function getEffective(): Promise<{ base: DemoCustomer; customer: DemoCustomer; local: boolean; banks: BankId[]; view: View; platform: Platform; bankName: string }> {
-  const { customer: base, local } = getSource();
+export async function getEffective(): Promise<{ base: DemoCustomer; customer: DemoCustomer; local: boolean; real: DemoCustomer | null; banks: BankId[]; cookieBanks: BankId[]; view: View; platform: Platform; bankName: string }> {
+  const { customer: base, local, real } = getSource();
   const jar = await cookies();
-  const banks = local ? [] : parseBanks(jar.get(BANKS_COOKIE)?.value);
+  // What the person added themselves (the Profile list), and what is merged: the same, plus the real Nordea when it is connected.
+  const cookieBanks = parseBanks(jar.get(BANKS_COOKIE)?.value);
+  const banks: BankId[] = real ? [...new Set<BankId>([...cookieBanks, "nordea"])] : cookieBanks;
   const view: View = jar.get(VIEW_COOKIE)?.value === "spankki" ? "spankki" : "all";
-  return { base, customer: banks.length && view === "all" ? combinedCustomer(base, banks) : base, local, banks, view, platform: parsePlatform(jar.get(PLATFORM_COOKIE)?.value), bankName: parseBankName(jar.get(BANKNAME_COOKIE)?.value) };
+  return {
+    base,
+    customer: banks.length && view === "all" ? combinedCustomer(base, banks, real) : base,
+    local,
+    real,
+    banks,
+    cookieBanks,
+    view,
+    platform: parsePlatform(jar.get(PLATFORM_COOKIE)?.value),
+    bankName: parseBankName(jar.get(BANKNAME_COOKIE)?.value),
+  };
 }
 
 /** Like getEffective, but always the synthetic demo customer, never real bank data. For anything that talks to an outside model. */
