@@ -18,7 +18,7 @@ test("a trip is a trip, with the all-day end counted as exclusive", () => {
   assert.equal(t.detail, undefined, "the event title never travels without keepTitle");
 });
 test("Finnish words: matka, lento, illallinen, synttärit, häät", () => {
-  for (const [title, kind] of [["Matka Roomaan", "trip"], ["Lento Lontooseen", "trip"], ["Illallinen Annan kanssa", "dinner"], ["Mikon synttärit", "birthday"], ["Häät", "wedding"]]) {
+  for (const [title, kind] of [["Matka Roomaan", "trip"], ["Lento Lontooseen", "trip"], ["Illallinen Annan kanssa", "dinner"], ["Mikon synttärit", "birthday"], ["Häät", "wedding"], ["Illallisille Mikon luo", "dinner"], ["Juhliin Annalle", "party"], ["Reissussa Tampereella", "trip"], ["Konsertissa Tavastialla", "concert"], ["hippalot", "party"], ["Keikka @ Kyskin", "concert"], ["Dinner @ Cella", "dinner"], ["Berlin Trip", "trip"], ["Fontaines DC Concert", "concert"]]) {
     assert.equal(classify(title)?.kind.id, kind, title);
   }
 });

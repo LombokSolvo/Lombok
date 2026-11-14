@@ -100,22 +100,40 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
             const iso = isoDay(year, month, d);
             const evs = byDate.get(iso) ?? [];
             const isToday = iso === asOf;
+            // A trip of several days is one long line from its first day to its last, with the icon at the right end, in its own lane below the markers. The line is
+            // drawn per day cell: from the middle of the first day, across the full width of the days between, to the icon in the
+            // middle of the last day, and it carries on at the start of the next week if the trip wraps.
+            const span = countedForecast.find((f) => f.endDate && f.date <= iso && iso <= f.endDate);
+            const spanStart = !!span && span.date === iso;
+            const spanEnd = !!span && span.endDate === iso;
+            const singles = evs.filter((e) => e.forecast && e.counted !== false && !e.forecast.endDate);
             return (
               <button
                 key={iso}
                 type="button"
                 onClick={() => setOpenDay(iso)}
-                aria-label={`${dayName.format(parse(iso))}${evs.length ? `, ${evs.length} ${evs.length === 1 ? "event" : "events"}` : ""}`}
-                className={`mx-auto flex h-[60px] w-full max-w-12 flex-col items-center justify-start gap-0.5 rounded-xl pt-1.5 text-[15px] active:bg-muted ${isToday ? "bg-accent font-semibold ring-1 ring-primary/40" : ""}`}
+                aria-label={`${dayName.format(parse(iso))}${evs.length ? `, ${evs.length} ${evs.length === 1 ? "event" : "events"}` : ""}${span && !spanStart ? `, ${span.label} continues` : ""}`}
+                className={`group relative flex w-full flex-col items-center justify-start gap-0.5 pt-1.5 text-[15px] ${span ? "h-[80px]" : "h-[60px]"}`}
               >
-                <span className="num">{d}</span>
-                <span className="flex h-[22px] items-center gap-0.5">
+                <span aria-hidden className={`absolute inset-y-0 left-1/2 w-12 -translate-x-1/2 rounded-xl group-active:bg-muted ${isToday ? "bg-accent ring-1 ring-primary/40" : ""}`} />
+                <span className={`num relative ${isToday ? "font-semibold" : ""}`}>{d}</span>
+                <span className="relative flex h-[22px] w-full items-center justify-center gap-0.5">
                   {evs.some((e) => e.kind === "in") && <MoneyBadge kind="in" size="sm" />}
                   {evs.some((e) => e.kind === "out" && !e.forecast && e.counted !== false) && <MoneyBadge kind="out" size="sm" />}
-                  {[...new Set(evs.filter((e) => e.forecast && e.counted !== false).map((e) => (e.forecast as CountedItem).category))].slice(0, 2).map((c) => (
+                  {[...new Set(singles.map((e) => (e.forecast as CountedItem).category))].slice(0, 2).map((c) => (
                     <CategoryIcon key={c} category={c} size="sm" />
                   ))}
                 </span>
+                {/* The trip has its own lane under the day's markers, so a bill on the same day never sits on the line. */}
+                {span && (
+                  <span className="relative flex h-[22px] w-full items-center justify-center">
+                    <span
+                      aria-hidden
+                      className={`absolute inset-y-[8px] bg-warn/35 ${spanStart ? "left-1/2 rounded-l-full" : "left-0"} ${spanEnd ? "right-1/2 rounded-r-full" : "right-0"}`}
+                    />
+                    {spanEnd && <CategoryIcon category={span.category} size="sm" />}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -142,10 +160,12 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
             <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t ${e.counted === false ? "opacity-55" : ""}`}>
               {e.forecast ? <CategoryIcon category={e.forecast.category} /> : <MoneyBadge kind={e.kind} />}
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] leading-snug font-medium">{e.label}</span>
+                <span className="block text-[15px] leading-snug font-medium">{e.forecast?.detail ?? e.label}</span>
                 <span className="block text-[13px] text-muted-foreground">
+                  {e.forecast?.detail ? `${e.label} · ` : ""}
                   {shortDay.format(parse(e.date))}
-                  {e.forecast && (e.counted === false ? " · not counted" : " · from your calendar · estimate")}
+                  {e.forecast?.endDate ? ` to ${shortDay.format(parse(e.forecast.endDate))}` : ""}
+                  {e.forecast && (e.counted === false ? " · not counted" : " · estimate")}
                 </span>
               </span>
               <SignedAmount kind={e.kind} value={e.amount} />
@@ -166,6 +186,8 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
   const [adding, setAdding] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editing, setEditing] = useState<CountedItem | null>(null);
+  // A trip that started on an earlier day and is still on.
+  const through = useForecast().items.filter((f) => f.counted && f.endDate && f.date < date && date <= f.endDate);
   const past = date <= asOf;
   const [actual, setActual] = useState<DayResult | "loading" | "error">("loading");
 
@@ -194,6 +216,17 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
         <section aria-label={past ? "Usual for this day" : "Expected"}>
           <h3 className={h3}>{past ? "Usual for this day" : "Expected"}</h3>
           <div className={box}>
+            {through.map((f) => (
+              <div key={`through-${f.id}`} className="flex min-h-14 items-center gap-3 py-2 pr-2 pl-4 [&+&]:border-t">
+                <CategoryIcon category={f.category} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[15px] leading-snug font-medium">{f.detail ?? f.label}</div>
+                  <div className="mt-0.5 text-[13px] text-muted-foreground">
+                    {f.detail ? `${f.label} · ` : ""}Continues, started {shortDay.format(parse(f.date))}, ends {shortDay.format(parse(f.endDate as string))}
+                  </div>
+                </div>
+              </div>
+            ))}
             {events.length ? (
               events.map((e) => {
                 if (e.forecast) {
@@ -202,10 +235,11 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
                     <div key={e.id} className={`flex min-h-14 items-center gap-3 py-2 pr-2 pl-4 [&+&]:border-t ${f.counted ? "" : "opacity-60"}`}>
                       <CategoryIcon category={f.category} />
                       <div className="min-w-0 flex-1">
-                        <div className="text-[15px] leading-snug font-medium">{e.label}</div>
+                        <div className="text-[15px] leading-snug font-medium">{f.detail ?? e.label}</div>
                         <div className="mt-0.5 text-[13px] text-muted-foreground">
+                          {f.detail ? `${e.label} · ` : ""}
                           {f.counted ? "From your calendar · estimate" : "Not counted"}
-                          {f.detail ? ` · ${f.detail}` : ""}
+                          {f.endDate ? ` · to ${shortDay.format(parse(f.endDate))}` : ""}
                         </div>
                       </div>
                       <SignedAmount kind="out" value={e.amount} />
@@ -244,7 +278,7 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
                   </div>
                 );
               })
-            ) : (
+            ) : through.length ? null : (
               <p className="px-4 py-4 text-[14px] text-muted-foreground">Nothing expected on this day.</p>
             )}
           </div>

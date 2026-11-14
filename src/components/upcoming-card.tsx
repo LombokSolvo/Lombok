@@ -46,10 +46,10 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
               <button key={e.id} type="button" onClick={() => setOpen(f)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left active:bg-muted/60 ${idx ? "border-t" : ""}`}>
                 <CategoryIcon category={f.category} />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] leading-snug font-medium">{e.label}</span>
+                  <span className="block text-[15px] leading-snug font-medium">{f.detail ?? e.label}</span>
                   <span className="flex items-center gap-1 text-[13px] text-muted-foreground">
                     <CalendarClock className="size-3.5 shrink-0" aria-hidden />
-                    {when} · from your calendar · estimate
+                    {when}{f.detail ? ` · ${e.label}` : ""} · estimate
                   </span>
                 </span>
                 <SignedAmount kind="out" value={e.amount} />

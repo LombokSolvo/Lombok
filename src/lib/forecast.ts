@@ -6,8 +6,8 @@
 //    this process. Repeating events and work trips are skipped.
 //  - What an estimate is: the person's own history where there is enough of it (median or 75th percentile of their own payments,
 //    their usual trip cost), otherwise a small default table. Every item says which one it used (`basis`) and is editable.
-//  - What reaches the budget: only ForecastItem (kind, date, amount), never the event title. Titles are kept for the demo
-//    calendar's fictional events only (`detail`).
+//  - What reaches the budget: only ForecastItem (kind, date, amount). The event title travels with it as `detail` for the
+//    person's own screen (so the calendar can say "Dinner @ Cella"); it is never sent to a model and never logged.
 //  - How the budget uses it: weeklyReserve() and monthTotal() at the bottom.
 
 export type CalendarEvent = {
@@ -36,15 +36,15 @@ type Kind = { id: KindId; category: ForecastCategory; label: string; words: RegE
 // Whole words only (Finnish endings are listed), so "public holiday" is not a pub and "stay" or "showroom" match nothing.
 const W = (s: string) => new RegExp(`(^|[^\\p{L}])(${s})(?![\\p{L}])`, "iu");
 export const KINDS: Kind[] = [
-  { id: "trip", category: "travel", label: "Trip", fallback: 0, words: W("trips?|flights?|hotel|hotels|hotelli|holiday|vacation|city break|weekend away|road trip|cruise|risteily|airbnb|matka|matkalle|matkalla|matkan|matkaan|reissu|reissulle|reissulla|lento|lennot|lennolle|lennon|loma|lomalle|lomalla|loman|lomamatka|mökkireissu|mökille|viikonloppumatka|ulkomaille") },
-  { id: "concert", category: "entertainment", label: "Concert or show", fallback: 70, words: W("concerts?|gig|festival|festivals|festivaali|theatre|theater|musical|teatteri|teatteriin|konsertti|konserttiin|keikka|keikalle|oopperaan|ooppera|tickets?|liput") },
-  { id: "cinema", category: "entertainment", label: "Cinema", fallback: 15, words: W("cinema|movie|movies|elokuva|elokuviin|leffa|leffaan") },
-  { id: "wedding", category: "gift", label: "Wedding", fallback: 100, words: W("wedding|häät|hääjuhla|häihin|kihlajaiset") },
-  { id: "birthday", category: "gift", label: "Birthday", fallback: 50, words: W("birthday|bday|b-day|synttärit|synttäri|synttäreille|synttäreillä|syntymäpäivä|syntymäpäivät|nimipäivä|valmistujaiset|graduation") },
-  { id: "party", category: "gift", label: "Party", fallback: 30, words: W("party|bachelor|bachelorette|housewarming|juhlat|juhlaan|polttarit|läksiäiset|kotijuhlat") },
-  { id: "dinner", category: "dining", label: "Dinner out", fallback: 60, words: W("dinner|dinners|illallinen|illallisella|illalliselle|illallista|date night|supper") },
-  { id: "lunch", category: "dining", label: "Lunch out", fallback: 25, words: W("lunch|lounas|lounaalle|lounaalla|lounasta|brunch") },
-  { id: "drinks", category: "dining", label: "Drinks", fallback: 30, words: W("drinks|drinkit|drinkeille|beer|beers|oluet|oluella|olut|after work|afterwork|pub|baari|cocktail|cocktails") },
+  { id: "trip", category: "travel", label: "Trip", fallback: 0, words: W("trips?|flights?|hotel|hotels|hotelli|holiday|vacation|city break|weekend away|road trip|cruise|risteily|airbnb|matka|matkalle|matkalla|matkan|matkaan|matkalta|matkasta|matkoja|reissu|reissulle|reissulla|reissussa|reissulta|lento|lennot|lennolle|lennon|lennolla|lennolta|lentoon|loma|lomalle|lomalla|loman|lomalta|lomasta|lomalle|lomamatka|mökkireissu|mökille|viikonloppumatka|ulkomaille") },
+  { id: "concert", category: "entertainment", label: "Concert or show", fallback: 70, words: W("concerts?|gig|festival|festivals|festivaali|theatre|theater|musical|teatteri|teatteriin|konsertti|konserttiin|konsertissa|konsertista|keikka|keikalle|keikalla|keikalta|oopperaan|ooppera|tickets?|liput") },
+  { id: "cinema", category: "entertainment", label: "Cinema", fallback: 15, words: W("cinema|movie|movies|elokuva|elokuviin|elokuvissa|elokuvasta|leffa|leffaan") },
+  { id: "wedding", category: "gift", label: "Wedding", fallback: 100, words: W("wedding|häät|hääjuhla|häihin|häissä|häistä|hääjuhlaan|kihlajaiset") },
+  { id: "birthday", category: "gift", label: "Birthday", fallback: 50, words: W("birthday|bday|b-day|synttärit|synttäri|synttäreille|synttäreillä|synttäreiltä|synttäreistä|syntymäpäivä|syntymäpäivät|nimipäivä|valmistujaiset|graduation") },
+  { id: "party", category: "gift", label: "Party", fallback: 30, words: W("party|bachelor|bachelorette|housewarming|juhlat|juhlaan|hippalot|hippaloille|bileet|bileisiin|kekkerit|sitsit|appro|juhliin|juhlissa|juhlista|juhla|polttarit|läksiäiset|kotijuhlat") },
+  { id: "dinner", category: "dining", label: "Dinner out", fallback: 60, words: W("dinner|dinners|illallinen|illallisella|illalliselle|illallista|illallisille|illallisilla|illallisen|illalliselta|illalliselle|date night|supper") },
+  { id: "lunch", category: "dining", label: "Lunch out", fallback: 25, words: W("lunch|lounas|lounaalle|lounaalla|lounasta|lounaaksi|lounaan|brunch") },
+  { id: "drinks", category: "dining", label: "Drinks", fallback: 30, words: W("drinks|drinkit|drinkeille|drinkeillä|drinkkejä|beer|beers|oluet|oluella|olut|after work|afterwork|pub|baari|cocktail|cocktails") },
 ];
 
 // Costs somebody else pays or that are not personal spending.
@@ -114,7 +114,7 @@ export type ForecastItem = {
   basis: "history" | "default";
   basisNote: string; // one plain sentence saying where the number comes from
   source: ForecastSource;
-  detail?: string; // the event title. Set for the demo calendar's fictional events only.
+  detail?: string; // the event title, shown on the person's own screen. Never sent to a model.
 };
 
 const isoOf = (s: string) => s.slice(0, 10);
@@ -174,7 +174,7 @@ export function classify(title: string): { kind: Kind; alsoDining: boolean } | n
 
 /**
  * Upcoming events in, forecast items out, soonest first. `today` is the real date. Events before today or after `horizonDays`
- * are ignored. `keepTitle` is for fictional demo events only.
+ * are ignored. `keepTitle` puts the event title on the item, for the person's own screen.
  */
 export function forecast(events: CalendarEvent[], baselines: Baselines, today: string, source: ForecastSource, { horizonDays = 45, keepTitle = false } = {}): ForecastItem[] {
   const until = addDay(today, horizonDays);

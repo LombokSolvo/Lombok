@@ -13,13 +13,13 @@ import path from "node:path";
 import { headers } from "next/headers";
 import { todayIso } from "@/lib/demo-clock";
 import { eventDays, spendingEvents, type CalendarEvent } from "@/lib/forecast";
-import { checkCalendarUrl, parseIcs } from "@/lib/ics";
+import { SECRET_ADDRESS_HELP, checkCalendarUrl, parseIcs } from "@/lib/ics";
 import { isLoopbackHost, isLoopbackRequest, isSameOriginPost } from "@/lib/loopback";
 
 const dir = () => path.join(process.cwd(), "data/private/calendar");
 const file = () => path.join(dir(), "link.json");
 const MAX_BYTES = 5_000_000;
-const FRESH_MS = 30 * 60_000;
+const FRESH_MS = 15 * 60_000;
 
 type Saved = { url: string; syncedAt: string; found: number; events: CalendarEvent[] };
 
@@ -78,7 +78,8 @@ async function download(start: string): Promise<string> {
   let url = start;
   for (let hop = 0; hop < 4; hop++) {
     const check = checkCalendarUrl(url, testHosts());
-    if (!check.ok) throw new LinkError(check.error);
+    // After a redirect, a refusal almost always means a sign-in page: the person pasted a page address, not the private link.
+    if (!check.ok) throw new LinkError(hop > 0 ? SECRET_ADDRESS_HELP : check.error);
     let res: Response;
     try {
       res = await fetch(check.url, { redirect: "manual", signal: AbortSignal.timeout(10_000), headers: { Accept: "text/calendar, text/plain;q=0.5" } });
