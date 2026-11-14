@@ -227,11 +227,11 @@
   }
 }
 @utility animate-rise {
-  animation: solvo-rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: solvo-rise 380ms cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 @utility animate-fill {
   transform-origin: left;
-  animation: solvo-fill 900ms cubic-bezier(0.2, 0.8, 0.2, 1) 200ms both;
+  animation: solvo-fill 550ms cubic-bezier(0.25, 1, 0.5, 1) 80ms both;
 }
 @utility animate-pop {
   animation: solvo-pop 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -260,12 +260,14 @@
   display: none;
 }
 
-/* ---------- View transitions (src/components/solvo/screen.tsx) ---------- */
+/* ---------- View transitions (src/components/solvo/screen.tsx) ----------
+   Fast and overlapping: the old screen fades while the new one is already coming in, nothing waits.
+   Whole transition is about 220 ms (iOS pushes take ~350 ms; a demo wants snappier). */
 :root {
-  --vt-exit: 140ms;
-  --vt-enter: 240ms;
-  --vt-move: 380ms;
-  --vt-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --vt-exit: 90ms;
+  --vt-enter: 160ms;
+  --vt-move: 220ms;
+  --vt-ease: cubic-bezier(0.25, 1, 0.5, 1);
 }
 @keyframes vt-fade {
   from {
@@ -279,7 +281,7 @@
 }
 @keyframes vt-lift {
   from {
-    translate: 0 10px;
+    translate: 0 6px;
   }
 }
 
@@ -292,39 +294,39 @@
   pointer-events: none;
 }
 
-/* Tabs: fade out, then fade in with a small lift. */
+/* Tabs: a quick cross-fade with a small lift. */
 ::view-transition-old(.screen-out) {
-  animation: var(--vt-exit) ease-in both vt-fade reverse;
+  animation: var(--vt-exit) linear both vt-fade reverse;
 }
 ::view-transition-new(.screen-in) {
   animation:
-    var(--vt-enter) var(--vt-ease) var(--vt-exit) both vt-fade,
-    var(--vt-move) var(--vt-ease) var(--vt-exit) both vt-lift;
+    var(--vt-enter) ease-out both vt-fade,
+    var(--vt-move) var(--vt-ease) both vt-lift;
 }
 
-/* Forward: the old screen drifts left, the new one slides in from the right. Back mirrors it. */
+/* Forward: the new screen slides in from the right over the old one. Back mirrors it. */
 ::view-transition-old(.nav-forward) {
-  --vt-offset: -48px;
+  --vt-offset: -32px;
   animation:
-    var(--vt-exit) ease-in both vt-fade reverse,
+    var(--vt-exit) linear both vt-fade reverse,
     var(--vt-move) var(--vt-ease) both vt-slide reverse;
 }
 ::view-transition-new(.nav-forward) {
-  --vt-offset: 64px;
+  --vt-offset: 48px;
   animation:
-    var(--vt-enter) ease-out var(--vt-exit) both vt-fade,
+    var(--vt-enter) ease-out both vt-fade,
     var(--vt-move) var(--vt-ease) both vt-slide;
 }
 ::view-transition-old(.nav-back) {
-  --vt-offset: 64px;
+  --vt-offset: 48px;
   animation:
-    var(--vt-exit) ease-in both vt-fade reverse,
+    var(--vt-exit) linear both vt-fade reverse,
     var(--vt-move) var(--vt-ease) both vt-slide reverse;
 }
 ::view-transition-new(.nav-back) {
-  --vt-offset: -48px;
+  --vt-offset: -32px;
   animation:
-    var(--vt-enter) ease-out var(--vt-exit) both vt-fade,
+    var(--vt-enter) ease-out both vt-fade,
     var(--vt-move) var(--vt-ease) both vt-slide;
 }
 
@@ -357,5 +359,16 @@
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+}
+
+/* Press feedback everywhere: anything tappable dims a touch while held, like a native list row or button. */
+@layer base {
+  :where(a, button, [role="button"], label:has(input)) {
+    transition: filter 120ms ease-out;
+  }
+  :where(a, button, [role="button"]):active:not(:disabled) {
+    filter: brightness(0.94);
+    transition-duration: 0ms;
   }
 }

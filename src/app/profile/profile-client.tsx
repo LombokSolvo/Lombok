@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarConnect } from "@/components/calendar-connect";
+import { Toggle } from "@/components/solvo/toggle";
 import { LiveNordea } from "@/components/live-nordea";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
@@ -198,7 +199,7 @@ export function ProfileClient(props: {
           }
           title="Read my e-invoices"
           subtitle="Find each contract and what it costs"
-          value="On"
+          value={<Toggle label="Read my e-invoices" />}
         />
         <Row
           icon={
@@ -208,7 +209,7 @@ export function ProfileClient(props: {
           }
           title="Call me before a bill is late"
           subtitle="A short voice call, never a collection call"
-          value="On"
+          value={<Toggle label="Call me before a bill is late" />}
         />
         <Row
           icon={
@@ -218,7 +219,7 @@ export function ProfileClient(props: {
           }
           title="Contract end dates"
           subtitle="Remind me 30 days before a contract ends"
-          value="On"
+          value={<Toggle label="Contract end dates" />}
         />
         <Row
           icon={

@@ -154,14 +154,14 @@ export function CoachClient({ learn }: { learn: LearnContext }) {
           m.role === "user" ? (
             <div
               key={i}
-              className="ml-12 animate-in fade-in slide-in-from-bottom-2 self-end rounded-[22px] rounded-br-md bg-primary px-4 py-2.5 text-[15px] leading-snug text-primary-foreground duration-300"
+              className="ml-12 animate-in fade-in slide-in-from-bottom-2 self-end rounded-[22px] rounded-br-md bg-primary px-4 py-2.5 text-[15px] leading-snug text-primary-foreground duration-200"
             >
               {m.text}
             </div>
           ) : (
             <div
               key={i}
-              className={`flex animate-in fade-in slide-in-from-bottom-2 flex-col gap-2 duration-300 ${m.pack ? "self-stretch [&>div:first-child]:mr-8 [&>div:first-child]:self-start" : "mr-8 self-start"}`}
+              className={`flex animate-in fade-in slide-in-from-bottom-2 flex-col gap-2 duration-200 ${m.pack ? "self-stretch [&>div:first-child]:mr-8 [&>div:first-child]:self-start" : "mr-8 self-start"}`}
             >
               <div className="rounded-[22px] rounded-bl-md bg-card px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
                 {m.text}
