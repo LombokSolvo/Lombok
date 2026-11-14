@@ -63,7 +63,7 @@ export const GOOGLE_STATE_COOKIE = "solvo_google_state";
 /** Where to send the person after Google: the first-run setup or Profile (the default). Only these two are ever used. */
 export const GOOGLE_FROM_COOKIE = "solvo_google_from";
 const DEFAULT_REDIRECT = "https://localhost:3000/callback/google";
-const FRESH_MS = 30 * 60_000; // events younger than this are served from the saved copy
+const FRESH_MS = 15 * 60_000; // events younger than this are served from the saved copy
 
 /** The master switch. Off on Vercel no matter what the environment says. */
 export const googleEnabled = () => process.env.SOLVO_GOOGLE === "1" && !process.env.VERCEL;

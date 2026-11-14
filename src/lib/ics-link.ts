@@ -19,7 +19,7 @@ import { isLoopbackHost, isLoopbackRequest, isSameOriginPost } from "@/lib/loopb
 const dir = () => path.join(process.cwd(), "data/private/calendar");
 const file = () => path.join(dir(), "link.json");
 const MAX_BYTES = 5_000_000;
-const FRESH_MS = 30 * 60_000;
+const FRESH_MS = 15 * 60_000;
 
 type Saved = { url: string; syncedAt: string; found: number; events: CalendarEvent[] };
 

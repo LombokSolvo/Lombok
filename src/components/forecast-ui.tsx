@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { CalendarClock, ChevronRight, Gift, Plane, Ticket, Utensils } from "lucide-react";
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { NumberField } from "@/components/solvo/fields";
 import { Sheet } from "@/components/solvo/sheet";
@@ -35,7 +36,51 @@ export function ForecastProvider({ mode, items, today, baselines, children }: { 
     const counted = applyChoices(raw, choices);
     return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines };
   }, [mode, items, today, baselines, choices, file]);
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      <CalendarAutoSync mode={mode} />
+      {children}
+    </Ctx.Provider>
+  );
+}
+
+const SYNC_EVERY_MS = 15 * 60_000;
+const SYNC_PATH = { google: "/api/google/sync", link: "/api/calendar/link/sync" } as const;
+
+/**
+ * Keeps a connected Google calendar or calendar link up to date while the app is open: reads it again when the app opens, when the
+ * person comes back to it, and every 15 minutes, and refreshes the screen only when something new was read. The server throttles to
+ * one read per 30 seconds, so extra calls cost nothing. A calendar file has nothing to sync. Errors stay silent: the saved copy
+ * keeps working, and Profile says when a sign-in has expired.
+ */
+function CalendarAutoSync({ mode }: { mode: "google" | "link" | null }) {
+  const router = useRouter();
+  const lastRead = useRef<string | null>(null);
+  useEffect(() => {
+    if (mode !== "google" && mode !== "link") return;
+    let stopped = false;
+    const sync = async () => {
+      try {
+        const res = await fetch(SYNC_PATH[mode], { method: "POST" });
+        if (!res.ok || stopped) return;
+        const { syncedAt } = (await res.json()) as { syncedAt?: string };
+        if (syncedAt && lastRead.current !== null && syncedAt !== lastRead.current) router.refresh();
+        if (syncedAt) lastRead.current = syncedAt;
+      } catch {
+        // Offline or the server is busy: try again at the next tick.
+      }
+    };
+    void sync();
+    const timer = window.setInterval(() => void sync(), SYNC_EVERY_MS);
+    const onVisible = () => document.visibilityState === "visible" && void sync();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [mode, router]);
+  return null;
 }
 
 export const useForecast = () => useContext(Ctx);
