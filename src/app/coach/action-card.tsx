@@ -123,6 +123,45 @@ function CancelSubscription({ a }: { a: Extract<ChatAction, { kind: "cancel_subs
   );
 }
 
+/** One button that raises the saving plan to `monthly` (used by the savings plan card), with Undo once tapped. */
+export function PlanButton({ monthly, mode, label }: { monthly: number; mode: DemoMode; label: string }) {
+  const stored = useSavingsPlan();
+  const switches = useSwitches();
+  const [before, setBefore] = useState<{ plan: SavingsPlan | null } | null>(null);
+  const plan = currentPlan(mode, stored);
+  if (!plan) return null;
+  if (before && plan.monthly === monthly)
+    return (
+      <div className="flex min-h-11 items-center gap-2 text-[14px] font-medium text-primary">
+        <Check className="size-4" strokeWidth={2.75} aria-hidden />
+        <span className="flex-1">Saving plan is {eur.format(monthly)} a month</span>
+        <button
+          type="button"
+          className="h-11 px-2"
+          onClick={() => {
+            if (before.plan) approveSavingsPlan(before.plan);
+            else cancelSavingsPlan();
+            setBefore(null);
+          }}
+        >
+          Undo
+        </button>
+      </div>
+    );
+  return (
+    <button
+      type="button"
+      className={actionButton}
+      onClick={() => {
+        setBefore({ plan: stored });
+        approveSavingsPlan(resized(plan, monthly, Math.floor(monthlyFreed(switches))));
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function ChangePlan({ a, mode }: { a: Extract<ChatAction, { kind: "change_plan" }>; mode: DemoMode }) {
   const stored = useSavingsPlan();
   const switches = useSwitches();

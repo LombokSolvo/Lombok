@@ -22,6 +22,7 @@ type Msg = {
   actions?: ChatAction[]; // cards with a button; nothing happens until the person taps
   whatIfs?: WhatIfResult[]; // "what if" results, shown as cards
   savings?: SavingsPlanResult[]; // "help me save €100 more a month": a plan card
+  planMonthly?: number; // the saving plan when the question was asked, so the card's "save it" adds to that
   source?: "gemini" | "offline";
   ms?: number;
   pack?: PackId; // a learning pack, played inside the chat
@@ -89,6 +90,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
     setInput("");
     setBusy(true);
     const id = chatId.current;
+    const state = chatState(mode);
     try {
       const res = await fetch("/api/coach", {
         method: "POST",
@@ -96,14 +98,14 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
         // Learning packs stay in the browser; the coach sees the conversation text and what is already done in the app.
         body: JSON.stringify({
           messages: history.filter((m) => !m.pack).map(({ role, text }) => ({ role, text })),
-          state: chatState(mode),
+          state,
         }),
       });
       const d = await res.json();
       if (id !== chatId.current) return;
       setMessages([
         ...history,
-        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, savings: d.savings, source: d.source, ms: d.ms },
+        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, savings: d.savings, planMonthly: state.planMonthly ?? undefined, source: d.source, ms: d.ms },
       ]);
     } catch {
       if (id === chatId.current) setMessages([...history, { role: "coach", text: "I couldn't connect. Check your connection and try again." }]);
@@ -222,7 +224,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
                   </div>
                 </div>
               ))}
-              {m.savings?.map((r, j) => <SavingsCard key={j} r={r} />)}
+              {m.savings?.map((r, j) => <SavingsCard key={j} r={r} mode={mode} planMonthly={m.planMonthly} />)}
               {m.whatIfs?.map((r, j) => <WhatIfCard key={j} r={r} />)}
               {m.actions?.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
               {m.source && (

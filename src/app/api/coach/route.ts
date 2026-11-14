@@ -451,9 +451,7 @@ async function converse(ctx: Ctx, model: string, messages: ChatMessage[], key: s
         if (functionCall!.name === "find_savings") {
           const r = runFindSavings(ctx, (functionCall!.args as { monthlyTarget?: number })?.monthlyTarget);
           if (!("error" in r) && !savings.length) {
-            savings.push(r);
-            const plan = planAction(ctx, r);
-            if (plan) addAction(actions, plan);
+            savings.push(r); // the plan card carries its own "save it" button, so no separate plan action
           }
           return { functionResponse: { name: functionCall!.name, id: functionCall!.id, response: { result: r } } };
         }
@@ -605,13 +603,6 @@ function offlineGoalLabel(q: string) {
   return "Savings goal";
 }
 
-/** The plan card ends with moving what was found into savings: the saving plan goes up by that much. */
-function planAction(ctx: Ctx, r: SavingsPlanResult): ChatAction | null {
-  if (ctx.state.planMonthly == null || r.found < 5) return null;
-  const a = toAction(ctx, { action: "change_saving_plan", monthly: ctx.state.planMonthly + r.found });
-  return typeof a === "string" || a.kind !== "change_plan" ? null : a;
-}
-
 const SAVE_MORE = /help me save|save .{0,12}more|find (me )?€?\s?\d|where could i save|cut my costs|säästä.{0,20}enemmän|säästää .{0,15}lisää|mistä voisin säästää/i;
 
 function savingsSentence(r: SavingsPlanResult, fi: boolean) {
@@ -629,8 +620,7 @@ function offlineAnswer(ctx: Ctx, question: string) {
   if (SAVE_MORE.test(question)) {
     const r = runFindSavings(ctx, amountIn(question) ?? 100);
     if (!("error" in r) && r.lines.length) {
-      const plan = planAction(ctx, r);
-      return { answer: savingsSentence(r, fi), checks: [], actions: plan ? [plan] : [], whatIfs: [], savings: [r] };
+      return { answer: savingsSentence(r, fi), checks: [], actions: [], whatIfs: [], savings: [r] };
     }
   }
   const wi = offlineWhatIf(ctx, question);
