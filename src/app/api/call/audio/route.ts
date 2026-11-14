@@ -2,7 +2,7 @@ import { CALL_SCRIPT, CALL_VOICE_ID } from "@/data/reminders";
 
 // The recorded message, the fallback when the two-way call can't start ("Can't talk? Play the message instead").
 // Spoken by ElevenLabs from CALL_SCRIPT on the first request and kept for the life of the server instance (and by the CDN), so
-// the script, not a stale mp3, is the one source of truth. The key stays on the server. Without a key, or if ElevenLabs is
+// the script, not a stale mp3, is the one source of truth. The CDN keeps it for a year, so a deploy pays for it about once. The key stays on the server. Without a key, or if ElevenLabs is
 // unavailable, it answers 503 and the call screen lets the phone's own voice read the same script.
 // GET -> audio/mpeg
 
@@ -40,6 +40,6 @@ export async function GET() {
     return new Response("Unavailable", { status: 503 });
   }
   return new Response(cached, {
-    headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=86400, s-maxage=86400" },
+    headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=86400, s-maxage=31536000, immutable" },
   });
 }

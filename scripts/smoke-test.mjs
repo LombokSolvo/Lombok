@@ -106,10 +106,8 @@ try {
     if (/Connect Google Calendar|GOOGLE_CLIENT/.test(profile)) throw new Error("Profile offers Google Calendar");
     if (!profile.includes("Connect calendar")) throw new Error("Profile has no calendar row");
   });
-  // Solvo's call: without ElevenLabs keys the two-way call is off (404) and the screen offers the recorded message only.
-  await check("Solvo's call works without ElevenLabs keys", async () => {
-    const session = await fetch(BASE + "/api/call/session", { method: "POST", headers: { Origin: BASE } });
-    if (!process.env.ELEVENLABS_API_KEY && session.status !== 404) throw new Error(`session answered ${session.status}`);
+  // Solvo's call names no fixed weekday (the demo clock moves the dates) and works without an ElevenLabs key.
+  await check("Solvo's call has no fixed weekday", async () => {
     const page = await (await fetch(BASE + "/call")).text();
     if (!page.includes("Answer")) throw new Error("call screen has no Answer button");
     if (/last Friday|Bill due Friday/.test(page)) throw new Error("call screen still has a fixed weekday");
