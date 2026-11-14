@@ -55,14 +55,14 @@ async function HomeScreen() {
   ];
   const splitTotal = split.reduce((sum, x) => sum + x.amount, 0) || 1;
   const share = (v: number) => `${Math.round((Math.max(0, v) / Math.max(s.incomePerMonth, 1)) * 100)}% of salary`;
-  // The budget week is the data's own week (it starts on the Monday before asOf), so the number stays the one the demo is built on.
-  // Its days are shown as the REAL dates the demo clock gives them (asOf is today), so a week that started on the data's Monday
-  // can start on any real weekday; the chart labels each day by its real date and weekday, so the bars, the days and the euro
-  // amounts always describe the same days as the calendar and the coach.
+  // The week runs Monday to Sunday on the REAL calendar (the demo clock shows the data's last day, asOf, as today). The budget
+  // counts only the data's own week (from the Monday before asOf), so the demo's number stays the one it is built on: real days
+  // before that start count as nothing spent. Days that are counted show their own spending on their real date, like the calendar.
   const realToday = todayIso();
-  const today = (new Date(`${c.asOf}T00:00:00Z`).getUTCDay() + 6) % 7; // days since the data's Monday
-  const week = weekSoFar(c, today);
-  const remaining = s.weeklyBudget - week.spent;
+  const today = (new Date(`${realToday}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
+  const dataDays = (new Date(`${c.asOf}T00:00:00Z`).getUTCDay() + 6) % 7; // days since the data week's Monday
+  const daily = weekSoFar(c, today).daily.map((v, i) => (i < today - dataDays ? 0 : v));
+  const remaining = s.weeklyBudget - daily.reduce((x, y) => x + y, 0);
   const over = remaining < 0;
   const weekDates = Array.from({ length: 7 }, (_, i) => shiftIso(realToday, i - today));
   const dayLabels = weekDates.map(dayLabel);
@@ -100,7 +100,7 @@ async function HomeScreen() {
           >
             <LiveWeeklyEuro base={remaining} signed />
           </p>
-          <WeekChart daily={week.daily} budget={s.weeklyBudget} dayLabels={dayLabels} dayLetters={dayLetters} />
+          <WeekChart daily={daily} budget={s.weeklyBudget} dayLabels={dayLabels} dayLetters={dayLetters} />
           <ForecastNote className="mt-2" />
         </Slab>
 
