@@ -112,7 +112,7 @@ async function HomeScreen() {
         {/* The dentist e-invoice and its call are part of Aino's demo story only. */}
         {mode === "aino" && <OverdueBillCard asOf={c.asOf} />}
 
-        <PlanCard />
+        <PlanCard weeklyBudget={s.weeklyBudget} />
 
         <AllBanksCard base={base} banks={banks} view={view} bankName={bankName} real={real} />
 
