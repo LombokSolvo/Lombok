@@ -42,7 +42,7 @@ export function syntheticBanks(endIso: string): SecondBanks {
     };
 
     e(1, "N1", "Subscriptions", -33.9, "direct_debit", "Gym membership");
-    e(3, "N1", "Insurance", -47, "direct_debit", "Home insurance");
+    e(3, "N1", "Insurance", -47, "direct_debit", "Car insurance"); // her home insurance is paid from S-Pankki (src/lib/demo.ts)
     e(7, "N1", "Subscriptions", -11.99, "direct_debit", "Spotify");
     e(12, "N1", "Subscriptions", -13.99, "direct_debit", "Netflix");
     e(20, "N1", "Side income", 590 + Math.round(rand() * 40), "income", "Freelance client");
