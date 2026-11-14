@@ -42,22 +42,42 @@ const RANGES: { key: string; label: string; phrase?: string; points: Point[]; la
   { key: "all", label: "All time", points: DAILY.filter((_, i) => i % 3 === (DAILY.length - 1) % 3), labels: { point: "date", axis: "month" } },
 ];
 
-/** The 10-year projection for a plan's funds, on a light card (the Slab is the portfolio). */
+/** The 10-year projection for a plan's funds, on a light card (the Slab is the portfolio), with how the number comes about. */
 function Projection({ funds }: { funds: PlanFund[] }) {
   const parts = funds.map((r) => projectFund(r.monthly, YEARS, fundById(r.fundId)));
   const sum = (k: "value" | "deposited" | "fees") => parts.reduce((s, p) => s + p[k], 0);
   const monthly = funds.reduce((s, r) => s + r.monthly, 0);
-  const single = funds.length === 1 ? fundById(funds[0].fundId) : null;
+  const value = sum("value");
+  const deposited = sum("deposited");
+  const fees = sum("fees");
+  const growth = value + fees - deposited; // returns before fees
+  const assumptions = funds
+    .map((r) => {
+      const f = fundById(r.fundId);
+      return `${pct(f.illustrativeReturnPct)} a year for ${shortName(f.id)}`;
+    })
+    .join(", ");
+  const line = (label: string, amount: string, strong = false) => (
+    <div className={`flex items-baseline justify-between gap-3 py-1.5 text-[14px] ${strong ? "border-t pt-2.5 font-semibold" : ""}`}>
+      <span className={strong ? "" : "text-muted-foreground"}>{label}</span>
+      <span className="num">{amount}</span>
+    </div>
+  );
   return (
     <section className="mt-4 rounded-2xl bg-card p-4 shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
       <p className="text-[13px] text-muted-foreground">
         {eur.format(monthly)} a month for {YEARS} years could become
       </p>
-      <p className="num mt-1 font-display text-[34px] leading-none font-semibold tracking-[-0.03em]">{eur.format(sum("value"))}</p>
+      <p className="num mt-1 font-display text-[34px] leading-none font-semibold tracking-[-0.03em]">{eur.format(value)}</p>
+      <div className="mt-3">
+        {line(`You put in, ${eur.format(monthly)} × ${YEARS * 12} months`, eur.format(deposited))}
+        {line("Growth, if the funds earn the rate below", `+${eur.format(growth)}`)}
+        {line("Fund fees over the years", `−${eur.format(fees)}`)}
+        {line("Could be worth", eur.format(value), true)}
+      </div>
       <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
-        {eur.format(sum("deposited"))} of your own money.{" "}
-        {single ? `Illustrative ${pct(single.illustrativeReturnPct)} a year before fees` : "Illustrative returns for each fund type, before fees"};
-        fees take about {eur.format(sum("fees"))} over {YEARS} years. Funds can also lose value.
+        Growth compounds: returns earn returns. Assumes {assumptions}, before fees, an illustrative rate for each type of
+        fund. It is an example, not a promise: funds can also lose value.
       </p>
     </section>
   );
