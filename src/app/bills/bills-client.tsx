@@ -363,6 +363,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   const cmp = useMemo(() => compare(terms, db, preference), [terms, db, preference]);
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
+  const best = [...cmp.offers].sort((a, b) => b.saving - a.saving).find((o) => o.saving > 0);
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
   const perWeek = chosen.saving / 52;
   const boost = weeklyBoost(useSwitches(), useSavingsPlan()); // all approved switches, including this one once approved
@@ -421,11 +422,25 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
 
       {ran && (
         <SavingSlab
-          label="Switching saves you"
-          saving={chosen.saving}
+          label={chosen.saving < 0 ? "This choice costs you more" : "Switching saves you"}
+          saving={Math.abs(chosen.saving)}
           before={{ label: `Do nothing, rolls over ${fmtDate(startDate)}`, yearly: cmp.doNothing }}
           after={{ label: `${chosen.supplier} ${chosen.product}`, yearly: chosen.yearly }}
-          footnote={<>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>}
+          footnote={
+            chosen.saving < 0 ? (
+              <>
+                More than staying put.
+                {best && (
+                  <>
+                    {" "}Switching to {best.supplier} {best.product} instead saves you{" "}
+                    <span className="font-semibold text-white">{eur.format(best.saving)} a year</span>.
+                  </>
+                )}
+              </>
+            ) : (
+              <>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>
+            )
+          }
         />
       )}
 
