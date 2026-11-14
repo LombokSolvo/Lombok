@@ -69,11 +69,8 @@ export function OverdueBillCard({ asOf }: { asOf: string }) {
 
       <Link href="/call" transitionTypes={["nav-forward"]} className={`${primaryButton} mt-4`}>
         <Phone className="size-[18px]" aria-hidden />
-        Play the demo call
+        Play the call
       </Link>
-      <p className="mt-2 px-1 text-center text-[12px] leading-snug text-muted-foreground">
-        Demo only. In the real service Solvo would simply ring your phone.
-      </p>
     </section>
   );
 }

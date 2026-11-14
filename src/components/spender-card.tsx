@@ -8,10 +8,12 @@ const LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
  * everyday spending on each weekday, and a few numbers. It describes; it never tells the person what to do. No hooks, so it works
  * in a server or a client page. Logic: src/lib/spender.ts.
  */
-export function SpenderCard({ profile }: { profile: SpenderProfile }) {
+export function SpenderCard({ profile, compact = false, className }: { profile: SpenderProfile; compact?: boolean; className?: string }) {
   const max = Math.max(...profile.byWeekday);
+  // Compact keeps what says why the type fits: the comparisons with the average customer, and the busiest day under the chart.
+  const facts = compact ? profile.facts.filter((f) => f.value.includes("average customer")) : profile.facts;
   return (
-    <Group title="What kind of spender are you?" footer="From your payments in the last 12 months. It describes a pattern and isn't advice.">
+    <Group title="What kind of spender are you?" className={className}>
       <div className="px-4 pt-4 pb-3">
         <p className="font-display text-[24px] leading-tight font-semibold tracking-[-0.02em]">{profile.type}</p>
         <p className="mt-1 text-[15px] leading-snug text-muted-foreground">{profile.summary}</p>
@@ -33,9 +35,10 @@ export function SpenderCard({ profile }: { profile: SpenderProfile }) {
             </span>
           ))}
         </div>
+        {compact && <p className="mt-2 text-[13px] text-muted-foreground">Busiest day: {profile.busiestDay}</p>}
       </div>
       <ul>
-        {profile.facts.map((f) => (
+        {facts.map((f) => (
           <li key={f.label} className="border-t px-4 py-3">
             <p className="text-[13px] leading-snug text-muted-foreground">{f.label}</p>
             <p className="num mt-0.5 text-[15px] leading-snug font-medium">{f.value}</p>

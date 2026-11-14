@@ -59,7 +59,7 @@ export function PhotoUpload({ onRead }: { onRead: (r: { reading: Reading; ms: nu
         <div>
           <p className="text-[15px] font-medium">A bill that isn&apos;t an e-invoice?</p>
           <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-            A paper bill, or one you pay from another bank. Take a photo and Solvo reads it the same way.
+            A paper bill, or one from another bank? Take a photo.
           </p>
         </div>
       </div>

@@ -74,7 +74,7 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
     <section className="mt-9">
       <h2 className="px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">Bill history</h2>
       <p className="mt-1 px-1 text-[15px] leading-snug text-muted-foreground">
-        Every bill and subscription paid from your account in the last 12 months.
+        Paid from your account in the last 12 months.
       </p>
       {shown.map(([month, rows]) => (
         <Group

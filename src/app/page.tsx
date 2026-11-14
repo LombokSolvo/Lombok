@@ -11,9 +11,8 @@ import { OverdueBillCard } from "@/components/overdue-bill";
 import { ConnectCalendarNudge, ForecastNote, ForecastProvider } from "@/components/forecast-ui";
 import { UpcomingCard } from "@/components/upcoming-card";
 import { MoneyMonthCard } from "@/components/money-month-card";
-import { CompareSummary } from "@/components/compare-card";
+import { LearnCard } from "@/components/learn/learn-game";
 import { IconTile, Logo, PAGE, Slab, eur } from "@/components/solvo/ui";
-import { compareAgainst, ownGroups } from "@/lib/cohorts";
 import { safeToSpend } from "@/lib/coach";
 import { todayIso } from "@/lib/demo-clock";
 import { getCalendarState } from "@/lib/calendar-source";
@@ -41,7 +40,6 @@ async function HomeScreen() {
   const calendar = await getCalendarState();
   const s = safeToSpend(c);
   const schedule = scheduleFor(c);
-  const compareGroup = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
   const over = s.remaining < 0;
   // The week strip follows the REAL weekday. The demo data's own "today" is a Wednesday, which would show on a Saturday.
   const realToday = todayIso();
@@ -149,9 +147,10 @@ async function HomeScreen() {
           </Link>
           <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
             {[
+              "How do I compare to others?",
+              "Can I afford a €50 dinner tonight?",
+              "Where could I save more?",
               "How much did I spend on taxis?",
-              "Can I afford an €80 dinner this week?",
-              "Where could I save the most?",
             ].map((q) => (
               <Link
                 key={q}
@@ -165,8 +164,7 @@ async function HomeScreen() {
           </div>
         </section>
 
-        {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
-        {!local && compareGroup && <CompareSummary group={compareGroup} />}
+        <LearnCard mode={mode} />
 
         <footer className="mt-6 px-1 text-[13px]">
           <ResetDemoButton className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4" />

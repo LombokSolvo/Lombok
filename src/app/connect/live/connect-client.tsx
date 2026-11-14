@@ -9,10 +9,10 @@ import { plainFormat } from "@/lib/demo-clock";
 const day = plainFormat({ day: "numeric", month: "long" });
 
 const errors = (bank: string): Record<string, string> => ({
-  state: "That approval couldn't be matched to this session, so nothing was connected. Start again from Profile.",
+  state: "Couldn't connect. Try again from Profile.",
   declined: `The approval at ${bank} was cancelled, so nothing was connected.`,
   nocode: `${bank} didn't send back an approval. Try again from Profile.`,
-  session: `${bank}'s approval couldn't be turned into a connection. Try again from Profile.`,
+  session: `Couldn't connect to ${bank}. Try again from Profile.`,
 });
 
 type State = { kind: "working" } | { kind: "done"; transactions: number; accounts: number; asOf: string } | { kind: "error"; message: string };

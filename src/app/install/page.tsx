@@ -9,7 +9,7 @@ export default function InstallPage() {
     <main className={PAGE}>
       <TopBar back={<BackLink href="/profile" label="Profile" />} />
       <PageTitle title="Put Solvo on your phone">
-        Solvo installs from the browser. No app store, nothing to download. It opens full screen like an app.
+        Add Solvo to your home screen. It opens like an app.
       </PageTitle>
       <InstallGuide />
     </main>

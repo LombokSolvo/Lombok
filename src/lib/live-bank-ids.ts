@@ -35,9 +35,8 @@ export function liveConsentPoints(id: LiveBankId): string[] {
   const b = LIVE_BANKS[id];
   return [
     "Solvo can see your balances and payments. It can never move money.",
-    `You sign in at ${b.name}. Before that, Enable Banking, which connects Solvo to the bank, asks you to continue.`,
+    `Enable Banking, our connection partner, asks you to continue first. Then you sign in at ${b.name}.`,
     ...(b.note ? [b.note] : []),
     "Access lasts up to 6 months. Disconnect any time.",
-    "Your data stays on this computer.",
   ];
 }

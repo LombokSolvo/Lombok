@@ -198,7 +198,7 @@ export function ConnectCalendarNudge() {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] leading-snug font-semibold">Budget for what is coming</span>
-        <span className="block text-[13px] leading-snug text-muted-foreground">Connect your calendar. Solvo sets money aside for trips and dinners.</span>
+        <span className="block text-[13px] leading-snug text-muted-foreground">Connect your calendar. Solvo takes your upcoming expenses into your forecast.</span>
       </span>
       <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
     </Link>
