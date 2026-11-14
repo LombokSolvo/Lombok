@@ -11,6 +11,7 @@ export type PaidBill = {
   kind: "rent" | "utility" | "subscription";
   amount: number; // positive EUR
   supplier?: string; // known when Solvo has read the e-invoice for this payment, or the subscription's name
+  label?: string; // what the bill is, e.g. "Electricity bill", when the e-invoices tell (Aino's demo only)
 };
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -35,7 +36,7 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
   const entries: Entry[] = bills.map((b, i) => ({
     key: `${b.date}-${i}`,
     date: b.date,
-    title: b.kind === "rent" ? "Rent" : (b.supplier ?? "Utility bill"),
+    title: b.kind === "rent" ? "Rent" : (b.label ?? b.supplier ?? "Utility bill"),
     subtitle: `Paid ${fmtDay(b.date)}`,
     amount: b.amount,
     badge: b.kind === "subscription" ? "Subscription" : b.supplier ? "E-invoice" : undefined,
