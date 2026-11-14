@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Check, PiggyBank, Repeat, Zap, Wifi } from "lucide-react";
+import { ArrowUpRight, Check, GraduationCap, PiggyBank, Repeat, Zap, Wifi } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { IconTile, eur, eur2 } from "@/components/solvo/ui";
 import { AINO_PLAN } from "@/data/portfolio";
 import { DEFAULT_SAVINGS_GOAL_PER_MONTH } from "@/lib/coach";
 import { VIEW_HREF, VIEW_LABEL, type ChatAction, type ChatState } from "@/lib/chat-actions";
 import type { DemoMode } from "@/lib/demo-mode";
+import { PACK_META, type PackId } from "@/lib/learn";
 import {
   WEEKS_PER_YEAR,
   approveSavingsPlan,
@@ -188,7 +189,7 @@ function OpenView({ view }: { view: Extract<ChatAction, { kind: "open" }>["view"
 }
 
 /** One proposed action under a coach answer. The person's tap is the approval; nothing happens before it. */
-export function ActionCard({ action, mode }: { action: ChatAction; mode: DemoMode }) {
+export function ActionCard({ action, mode, onLearn }: { action: ChatAction; mode: DemoMode; onLearn: (id: PackId) => void }) {
   switch (action.kind) {
     case "cancel_subscription":
       return <CancelSubscription a={action} />;
@@ -198,5 +199,22 @@ export function ActionCard({ action, mode }: { action: ChatAction; mode: DemoMod
       return <SwitchBill a={action} />;
     case "open":
       return <OpenView view={action.view} />;
+    case "learn": {
+      const meta = PACK_META.find((p) => p.id === action.pack)!;
+      return (
+        <button
+          type="button"
+          onClick={() => onLearn(action.pack)}
+          className="flex min-h-11 w-full items-center gap-3 rounded-2xl bg-card px-4 py-2.5 text-left shadow-[0_1px_3px_rgba(15,42,31,0.06)] active:bg-muted"
+        >
+          <GraduationCap className="size-[18px] shrink-0 text-primary" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium">{meta.title}</span>
+            <span className="block text-[13px] text-muted-foreground">{meta.minutes} min lesson with your own numbers</span>
+          </span>
+          <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      );
+    }
   }
 }

@@ -12,13 +12,17 @@ import { requestMode } from "@/lib/source";
 import { getDemoEffective } from "@/lib/source-banks";
 import { compare } from "@/lib/offers";
 import { MERCHANT_TYPE_NAMES, spending, type SpendingQuery, type SpendingResult } from "@/lib/spending";
+import { inferProfile } from "@/lib/profile";
+import { whatIf, type WhatIfInput, type WhatIfResult } from "@/lib/what-if";
 import { MAX_ACTIONS, actionKey, type ChatAction, type ChatState, type ChatView } from "@/lib/chat-actions";
 
 // Coach chat. Gemini answers, but every spending number comes from the `spending` tool,
 // which runs exact queries over the customer's real S-Pankki transactions.
 // It can also propose actions (cancel a subscription, change the saving plan, switch a contract, open a view) with the
 // `propose_action` tool; they come back as cards with a button, and nothing happens until the person taps it.
-// POST { messages: [{ role: "user" | "coach", text }], state? } -> { answer, checks, actions, source, ms, error? }
+// "Can I / what if / how long until" questions go to the `what_if` tool (src/lib/what-if.ts), so the coach quotes
+// computed numbers instead of guessing; each result is shown as a card under the answer.
+// POST { messages: [{ role: "user" | "coach", text }], state? } -> { answer, checks, actions, whatIfs, source, ms, error? }
 
 export const maxDuration = 30;
 
@@ -28,8 +32,24 @@ const DEADLINE_MS = 24_000;
 const MAX_TOOL_ROUNDS = 4;
 
 type ChatMessage = { role: "user" | "coach"; text: string };
-type ActionArgs = { action?: string; subscription?: string; monthly?: number; view?: string };
-type Part = { text?: string; functionCall?: { name: string; args?: SpendingQuery & ActionArgs; id?: string }; thoughtSignature?: string };
+type ActionArgs = { action?: string; subscription?: string; monthly?: number; view?: string; lesson?: string };
+type WhatIfArgs = {
+  question?: string;
+  target?: number;
+  deadline?: string;
+  months?: number;
+  alreadySaved?: number;
+  category?: string;
+  merchantType?: string;
+  percentChange?: number;
+  newMonthly?: number;
+  monthly?: number;
+};
+type Part = {
+  text?: string;
+  functionCall?: { name: string; args?: SpendingQuery & ActionArgs & WhatIfArgs; id?: string };
+  thoughtSignature?: string;
+};
 type Content = { role: "user" | "model"; parts: Record<string, unknown>[] };
 
 // The demo clock (src/lib/demo-clock.ts) shows real dates. The data and the spending tool work in the demo's own dates, so the
@@ -115,7 +135,10 @@ Rules:
 - The bank data shows categories and merchant types, not shop names. If asked about a specific shop, say so and give the closest merchant type.
 - Be warm and practical, never judgemental. Give one concrete next step when it helps, such as a realistic weekly limit or opening the Bills view to switch electricity.
 - You never move money or switch contracts yourself. Switches happen only when the user approves them in the app.
-- No investment, loan or tax advice. Say a human advisor at S-Pankki can help.
+- For any "can I", "what if", "how long until" or "can I afford" question about the future, call the what_if tool and quote its numbers, showing the sum (for example "€3,000 over 7 months is €429 a month; you can safely save €160"). Never compute these yourself. A card with the result appears under your answer, so keep the text to the conclusion and one next step. When a saving target fits, or the user picks a lever, you may propose_action change_saving_plan with that monthly amount.
+- Concept questions (index fund, fund fee, spot or fixed electricity price, buffer, compound interest, interest rate, and the like): explain in 3 to 4 plain sentences, explaining any jargon, using the user's own numbers where there are any (fund fees from her saving plan, her electricity price, how many months of bills her buffer covers). If a Money skills lesson matches (electricity, fees, buffer), propose_action open_lesson for it. For this answer you may go to about 90 words.
+- No investment, loan or tax advice: never say which product to buy or whether to buy one. Explain first; mention that an S-Pankki advisor can help in at most one short last sentence. Never only redirect.
+- Never write "definitely", "easily", "guaranteed" or "you should buy". When numbers are involved, show the sum.
 - When the user wants something the app can do, or your advice points to one (cancel a subscription, change the saving plan total, switch electricity or phone and internet, open a view), call propose_action so a card with a button appears under your answer. At most ${MAX_ACTIONS} per answer, the most useful first. Then say in one short sentence that they can approve it below. Never say it is already done.
 - Only propose what fits the data below. Don't offer something the user has already done (see "In the app right now").
 
@@ -157,13 +180,35 @@ const tools = (c: DemoCustomer) => [
           properties: {
             action: {
               type: "STRING",
-              enum: ["cancel_subscription", "change_saving_plan", "switch_electricity", "switch_phone_internet", "open_view"],
+              enum: ["cancel_subscription", "change_saving_plan", "switch_electricity", "switch_phone_internet", "open_view", "open_lesson"],
             },
+            lesson: { type: "STRING", enum: ["electricity", "fees", "buffer"], description: "For open_lesson: the Money skills lesson." },
             subscription: { type: "STRING", enum: SUBSCRIPTIONS.map((x) => x.id), description: "For cancel_subscription." },
             monthly: { type: "NUMBER", description: "For change_saving_plan: the new monthly total in EUR." },
             view: { type: "STRING", enum: ["home", "bills", "save", "calendar", "costs", "compare"], description: "For open_view." },
           },
           required: ["action"],
+        },
+      },
+      {
+        name: "what_if",
+        description:
+          "Simulates the customer's future money with exact maths from their last 12 months. save_target: can they save a sum by a date. change_spending: what changes if a kind of spending goes down or up. how_long: how long until they have a sum. Returns safe-to-save per month and the numbers to quote.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            question: { type: "STRING", enum: ["save_target", "change_spending", "how_long"] },
+            target: { type: "NUMBER", description: "save_target, how_long: the sum in EUR." },
+            deadline: { type: "STRING", description: "save_target: YYYY-MM-DD. 'By June' means the end of the next June after today." },
+            months: { type: "NUMBER", description: "save_target: months from today, instead of a deadline." },
+            alreadySaved: { type: "NUMBER", description: "Optional: EUR already put aside for it. Omit if not said." },
+            category: { type: "STRING", enum: Object.keys(c.basketOf).sort(), description: "change_spending: broad category." },
+            merchantType: { type: "STRING", enum: MERCHANT_TYPE_NAMES, description: "change_spending: specific kind, e.g. Taxis." },
+            percentChange: { type: "NUMBER", description: "change_spending: e.g. -50 for half, -100 to stop." },
+            newMonthly: { type: "NUMBER", description: "change_spending: a new monthly amount in EUR instead of a percent." },
+            monthly: { type: "NUMBER", description: "how_long: EUR a month the user would save. Omit to use safe-to-save." },
+          },
+          required: ["question"],
         },
       },
     ],
@@ -202,11 +247,53 @@ function toAction(ctx: Ctx, a: ActionArgs): ChatAction | string {
       if (!aino) return "No phone and internet contract has been read yet.";
       if (ctx.state.switched.includes("telecom")) return "The phone and internet switch is already approved.";
       return { kind: "switch_bill", bill: "telecom" };
+    case "open_lesson":
+      return a.lesson === "electricity" || a.lesson === "fees" || a.lesson === "buffer" ? { kind: "learn", pack: a.lesson } : "Unknown lesson.";
     case "open_view":
       return VIEWS.includes(a.view as ChatView) ? { kind: "open", view: a.view as ChatView } : "Unknown view.";
     default:
       return "Unknown action.";
   }
+}
+
+/** Runs a what_if call: the base is the same as Home's and onboarding's, spending comes from the `spending` tool, dates go through the demo clock. */
+function runWhatIf(ctx: Ctx, a: WhatIfArgs): WhatIfResult {
+  const c = ctx.c;
+  const s = safeToSpend(c);
+  const profile = inferProfile(c);
+  const base = {
+    incomeMonthly: Math.round(c.summary.salaryYear / 12),
+    fixedRegularMonthly: Math.round(c.summary.basketYear[1] / 12),
+    irregularMonthly: Math.round(c.summary.basketYear[2] / 12),
+    everydayMonthly: Math.round(c.summary.basketYear[3] / 12),
+    cashBalance: profile.cashBalance === null ? null : Math.round(profile.cashBalance),
+    investsMonthlyToday: Math.round(profile.investsMonthly),
+    status: profile.status,
+    planMonthly: ctx.state.planMonthly,
+    weeklyBudget: s.weeklyBudget,
+    today: c.asOf,
+  };
+  let input: WhatIfInput;
+  if (a.question === "save_target") {
+    input = { kind: "save_target", target: Number(a.target), deadline: a.deadline ? toDemo(a.deadline) : undefined, months: a.months, alreadySaved: a.alreadySaved };
+  } else if (a.question === "how_long") {
+    input = { kind: "how_long", target: Number(a.target), monthly: a.monthly, alreadySaved: a.alreadySaved };
+  } else if (a.question === "change_spending") {
+    const q: SpendingQuery = a.merchantType ? { merchantType: a.merchantType } : a.category ? { category: a.category } : {};
+    if (!q.merchantType && !q.category) return { kind: "error", error: "Name a category or merchant type." };
+    const r = spending(c, q);
+    const basket = q.category ? (c.basketOf[q.category] ?? 3) : 3;
+    input = { kind: "change_spending", label: a.merchantType ?? a.category!, basket, currentMonthly: r.averagePerMonth, percent: a.percentChange, newMonthly: a.newMonthly };
+  } else return { kind: "error", error: "Unknown question type." };
+  // A bad date from the model would throw in the clock mapping; whatIf() itself refuses bad input.
+  return whatIf(base, input);
+}
+
+/** Real dates for the model and the screen, like everywhere else in the chat. */
+function whatIfShown(r: WhatIfResult) {
+  if (r.kind === "save_target") return { ...r, deadline: toShown(r.deadline), dateIfCurrentPace: r.dateIfCurrentPace && toShown(r.dateIfCurrentPace) };
+  if (r.kind === "how_long") return { ...r, date: r.date && toShown(r.date) };
+  return r;
 }
 
 function addAction(list: ChatAction[], a: ChatAction) {
@@ -254,6 +341,7 @@ async function converse(ctx: Ctx, model: string, messages: ChatMessage[], key: s
   }));
   const checks: SpendingResult[] = [];
   const actions: ChatAction[] = [];
+  const whatIfs: WhatIfResult[] = [];
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const reply = await gemini(ctx, model, contents, key, signal);
@@ -264,13 +352,24 @@ async function converse(ctx: Ctx, model: string, messages: ChatMessage[], key: s
         .join("")
         .trim();
       if (!answer && !actions.length) throw new Error("Gemini returned no answer");
-      return { answer: answer || "You can approve it below.", checks, actions };
+      return { answer: answer || "You can approve it below.", checks, actions, whatIfs };
     }
     // Send the model turn back unchanged (it carries Gemini's thought signatures), then the tool results.
     contents.push(reply as Content);
     contents.push({
       role: "user",
       parts: calls.map(({ functionCall }) => {
+        if (functionCall!.name === "what_if") {
+          let r: WhatIfResult;
+          try {
+            r = runWhatIf(ctx, functionCall!.args ?? {});
+          } catch {
+            r = { kind: "error", error: "Could not read that date. Use YYYY-MM-DD." };
+          }
+          const shown = whatIfShown(r);
+          if (shown.kind !== "error" && whatIfs.length < 2) whatIfs.push(shown); // real dates; the card formats them with plainFormat
+          return { functionResponse: { name: functionCall!.name, id: functionCall!.id, response: { result: shown } } };
+        }
         if (functionCall!.name === "propose_action") {
           const a = toAction(ctx, functionCall!.args ?? {});
           if (typeof a !== "string") addAction(actions, a);
@@ -317,9 +416,102 @@ function offlineActions(ctx: Ctx, q: string): ChatAction[] {
   return out;
 }
 
+// Offline what-if: the three question types from keywords, so the cards still work without the model.
+const MONTHS: [RegExp, number][] = [
+  [/january|tammi/i, 1], [/february|helmi/i, 2], [/march|maalis/i, 3], [/april|huhti/i, 4], [/\bmay\b|touko/i, 5], [/june|kesäkuu/i, 6],
+  [/july|heinä/i, 7], [/august|elo/i, 8], [/september|syys/i, 9], [/october|loka/i, 10], [/november|marras/i, 11], [/december|joulu/i, 12],
+];
+const amountIn = (q: string) => {
+  const m = q.replace(/(\d)[\s,](?=\d{3}\b)/g, "$1").match(/(\d{2,7})(?:\s*(k)\b)?/i);
+  return m ? Number(m[1]) * (m[2] ? 1000 : 1) : null;
+};
+
+function offlineWhatIf(ctx: Ctx, q: string): WhatIfArgs | null {
+  const amount = amountIn(q);
+  if (/how long|kuinka kauan|milloin minulla/i.test(q) && amount) return { question: "how_long", target: amount };
+  if (/what if|entä jos|mitä jos/i.test(q)) {
+    const hit = KEYWORDS.find(([re]) => re.test(q));
+    if (!hit) return null;
+    const pct = /half|puolit|puoleen/i.test(q) ? -50 : /stop|quit|lopet|ilman/i.test(q) ? -100 : q.match(/(\d{1,3})\s*%/) ? -Number(q.match(/(\d{1,3})\s*%/)![1]) : null;
+    return pct === null ? null : { question: "change_spending", ...hit[1], percentChange: pct };
+  }
+  if (/\bsave\b|säästä|afford|realistic|realisti/i.test(q) && amount) {
+    const month = MONTHS.find(([re]) => re.test(q));
+    if (/summer|kesä/i.test(q) && !month) return { question: "save_target", target: amount, deadline: monthEnd(6) };
+    return month ? { question: "save_target", target: amount, deadline: monthEnd(month[1]) } : { question: "save_target", target: amount, months: 12 };
+  }
+  return null;
+}
+
+/** The last day of the next such month after today, in real dates (the model's convention). */
+function monthEnd(month: number) {
+  const [y, m] = todayIso().split("-").map(Number);
+  const year = month > m ? y : y + 1;
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+}
+
+function whatIfSentence(r: WhatIfResult, fi: boolean) {
+  const e = eur;
+  switch (r.kind) {
+    case "save_target":
+      return r.fits
+        ? fi
+          ? `${e(r.toGo)} / ${r.months} kk = ${e(r.neededMonthly)} kuussa. Pystyt säästämään turvallisesti ${e(r.safeToSaveMonthly)} kuussa, joten se onnistuu.`
+          : `${e(r.toGo)} over ${r.months} months is ${e(r.neededMonthly)} a month. You can safely save ${e(r.safeToSaveMonthly)} a month, so it fits.`
+        : fi
+          ? `${e(r.toGo)} / ${r.months} kk = ${e(r.neededMonthly)} kuussa, mutta turvallisesti pystyt ${e(r.safeToSaveMonthly)} kuussa. Ero kuroutuu, jos arkikulut pienenevät ${e(r.cutWeekly)} viikossa.`
+          : `${e(r.toGo)} over ${r.months} months is ${e(r.neededMonthly)} a month, but you can safely save ${e(r.safeToSaveMonthly)}. Spending ${e(r.cutWeekly)} less a week on everyday things closes the gap.`;
+    case "change_spending":
+      return fi
+        ? `Nyt ${e(r.currentMonthly)} kuussa, jatkossa ${e(r.newMonthly)}: vapautuu ${e(r.freedMonthly)} kuussa eli ${e(r.freedYearly)} vuodessa.`
+        : `You spend ${e(r.currentMonthly)} a month now; at ${e(r.newMonthly)} you free ${e(r.freedMonthly)} a month, ${e(r.freedYearly)} a year.`;
+    case "how_long":
+      return r.months === null
+        ? fi
+          ? "Tällä hetkellä turvalliseen säästämiseen ei jää rahaa, joten aloita pienentämällä arkikuluja."
+          : "Right now nothing is left to save safely, so the first step is trimming everyday spending."
+        : fi
+          ? `${e(r.toGo)} / ${e(r.monthly)} kuussa = ${r.months} kuukautta.`
+          : `${e(r.toGo)} at ${e(r.monthly)} a month takes ${r.months} months.`;
+    default:
+      return "";
+  }
+}
+
+// Offline concept answers: plain words, then the matching Money skills lesson.
+const OFFLINE_CONCEPTS: [RegExp, string, "electricity" | "fees" | "buffer"][] = [
+  [
+    /index fund|indeksirahast|what is a fund|mikä on rahasto/i,
+    "An index fund buys every company in a stock index, such as the 500 biggest in the US, so its value follows that whole market instead of a manager's picks. Because nobody picks stocks, the yearly fee is usually low, and fees come off your money every year. Its value goes up and down with the market, so it suits money you won't need for years. Whether to buy one is your call; an S-Pankki advisor can go through it with you.",
+    "fees",
+  ],
+  [
+    /spot price|pörssisähk|fixed or spot|kiinteä vai pörssi/i,
+    "A spot price contract follows the electricity exchange hour by hour, so it is cheap when there is plenty of wind and dear on cold, still days. A fixed price stays the same for the whole contract, so your bill is easier to plan. Over a year spot is often cheaper, but you carry the risk of price spikes.",
+    "electricity",
+  ],
+  [
+    /emergency fund|buffer|puskuri|hätärahast/i,
+    "A buffer is money kept aside for surprises, like a broken phone or a dentist bill, so they don't go on a credit card. A common rule is about one month of must-pay costs to start, and three months later on. Keep it in a savings account you can reach quickly, not in funds that go up and down.",
+    "buffer",
+  ],
+];
+
 function offlineAnswer(ctx: Ctx, question: string) {
   const c = ctx.c;
   const fi = /[äö]|paljon|kuinka|mihin/i.test(question);
+  const wi = offlineWhatIf(ctx, question);
+  if (wi) {
+    let r: WhatIfResult;
+    try {
+      r = runWhatIf(ctx, wi);
+    } catch {
+      r = { kind: "error", error: "bad date" };
+    }
+    if (r.kind !== "error") return { answer: whatIfSentence(r, fi), checks: [], actions: [], whatIfs: [whatIfShown(r)] };
+  }
+  const concept = OFFLINE_CONCEPTS.find(([re]) => re.test(question));
+  if (concept) return { answer: concept[1], checks: [], actions: [{ kind: "learn" as const, pack: concept[2] }], whatIfs: [] };
   const actions = offlineActions(ctx, question);
   if (actions.length) {
     return {
