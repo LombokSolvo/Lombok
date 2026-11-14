@@ -2,12 +2,11 @@ import { Screen } from "@/components/solvo/screen";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CalendarDays, MessageCircle } from "lucide-react";
-import { LiveWeeklyEuro, ResetDemoButton, SwitchBoostNote } from "@/components/live-budget";
+import { LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
 import { CompareCard } from "@/components/compare-card";
-import { LearnChip } from "@/components/learn/learn-chip";
 import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
 import { compareWith } from "@/lib/cohorts";
 import { safeToSpend, topCategories } from "@/lib/coach";
@@ -103,10 +102,6 @@ async function HomeScreen() {
           <p className="mt-4 border-t border-white/10 pt-3 text-[13px] text-white/60">
             {eur.format(s.spentThisWeek)} spent since {fmtDate(s.weekStart)}
           </p>
-          <SwitchBoostNote className="mt-2 text-[13px] font-semibold text-mint" />
-          <LearnChip pack="buffer" tone="dark" className="mt-3 -mb-1">
-            Learn: how big a safety buffer?
-          </LearnChip>
         </Slab>
 
         {/* The dentist e-invoice and its call are part of Aino's demo story only. */}
