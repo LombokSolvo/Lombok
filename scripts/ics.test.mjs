@@ -57,6 +57,9 @@ test("calendar links: Google, iCloud (webcal) and Outlook pass; anything else is
   const ic = checkCalendarUrl("webcal://p12-caldav.icloud.com/published/2/abc");
   assert.ok(ic.ok && ic.url.startsWith("https://p12-caldav.icloud.com/"));
   assert.equal(checkCalendarUrl("https://outlook.office365.com/owa/calendar/x/y/calendar.ics").ok, true);
+  // The address bar's page is not the private link, and the message says what to copy instead.
+  const page = checkCalendarUrl("https://calendar.google.com/calendar/u/0/r?pli=1");
+  assert.ok(!page.ok && /Secret address in iCal format/.test(page.error));
   for (const bad of ["", "not a url", "http://calendar.google.com/x.ics", "https://evil.example/x.ics", "https://calendar.google.com.evil.example/x", "https://169.254.169.254/latest/meta-data", "https://localhost:3000/x", "https://user:pw@calendar.google.com/x"]) {
     assert.equal(checkCalendarUrl(bad).ok, false, bad);
   }

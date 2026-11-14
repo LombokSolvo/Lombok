@@ -107,6 +107,9 @@ export function parseIcs(text: string): CalendarEvent[] {
 const ALLOWED_HOSTS = ["calendar.google.com", "outlook.office365.com", "outlook.live.com"];
 const ALLOWED_SUFFIXES = [".icloud.com"];
 
+export const SECRET_ADDRESS_HELP =
+  "That is the calendar page, not the private calendar link. In Google Calendar: Settings (the gear), pick your calendar on the left, Integrate calendar, then copy \"Secret address in iCal format\". It ends in .ics.";
+
 export type LinkCheck = { ok: true; url: string } | { ok: false; error: string };
 
 export function checkCalendarUrl(raw: string, extraHosts: string[] = []): LinkCheck {
@@ -121,6 +124,8 @@ export function checkCalendarUrl(raw: string, extraHosts: string[] = []): LinkCh
   const allowed = ALLOWED_HOSTS.includes(host) || ALLOWED_SUFFIXES.some((s) => host.endsWith(s)) || extraHosts.includes(host);
   if (u.protocol !== "https:" && !(extraHosts.includes(host) && u.protocol === "http:")) return { ok: false, error: "The link must start with https:// or webcal://." };
   if (u.username || u.password) return { ok: false, error: "That link has a login in it. Use the calendar's secret address instead." };
+  // Google's calendar page (calendar.google.com/calendar/u/0/r) is what the address bar shows. The private calendar address lives under /calendar/ical/.
+  if (host === "calendar.google.com" && !u.pathname.startsWith("/calendar/ical/")) return { ok: false, error: SECRET_ADDRESS_HELP };
   if (!allowed) return { ok: false, error: "Solvo only reads links from Google Calendar, iCloud and Outlook. For anything else, export a file and choose it instead." };
   return { ok: true, url: u.toString() };
 }
