@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
+import { LiveBankRows } from "@/components/live-banks";
 import { Chip, Group, IconTile } from "@/components/solvo/ui";
 import { FALLBACK_BANKS, readBankNameCookie, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
@@ -155,9 +156,12 @@ export function OtherBanks({
   const testError = sandbox.enabled && tab === "bank" && listed && !Array.isArray(listed) ? listed.error : null;
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
-  const footer = sandbox.enabled
-    ? "Demo: Enable Banking's test banks with example data."
-    : "Demo: connecting is simulated and uses example data.";
+  const anyReal = !!live?.banks.some((b) => b.connected);
+  const footer = anyReal
+    ? "Your real accounts update once a day while the app is running. They stay on this computer and never go to the cloud or the coach. Read-only."
+    : sandbox.enabled
+      ? "Demo: Enable Banking's test banks with example data."
+      : "Demo: connecting is simulated and uses example data.";
 
   const consent = (() => {
     if (!choice) return null;
@@ -201,6 +205,7 @@ export function OtherBanks({
             </div>
           </div>
         )}
+        {live && <LiveBankRows status={live} />}
         {banks.map((b) => {
           const name = bankName;
           return (
