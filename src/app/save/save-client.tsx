@@ -207,10 +207,7 @@ export function SaveClient(props: Props) {
     return (
       <main className={PAGE}>
         <TopBar />
-        <PageTitle title="Your investments">
-          {eur.format(plan.monthly)} a month into {funds.length === 1 ? shortName(funds[0].fundId) : `${funds.length} funds`}, on the{" "}
-          {plan.dayOfMonth}nd. You can edit it any time.
-        </PageTitle>
+        <PageTitle title="Your investments" />
         {now}
         <Group
           title="Your saving plan"
