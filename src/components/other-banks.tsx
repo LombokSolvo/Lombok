@@ -62,7 +62,9 @@ export function OtherBanks({
   title = "Other banks",
   sandbox = { enabled: false, linked: null, notice: null },
   live,
+  mainBank = false,
 }: {
+  mainBank?: boolean; // show S-Pankki itself as the connected main bank (Profile)
   banks: BankId[];
   view: View;
   compact?: boolean;
@@ -191,6 +193,18 @@ export function OtherBanks({
   return (
     <>
       <Group title={title} footer={footer}>
+        {mainBank && (
+          <div className={row}>
+            <IconTile><Landmark /></IconTile>
+            <div className="min-w-0 flex-1">
+              <div className="text-[15px] leading-snug font-medium">S-Pankki</div>
+              <div className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground">
+                <Check className="size-3.5 text-primary" aria-hidden />
+                Connected, your main bank
+              </div>
+            </div>
+          </div>
+        )}
         {banks.map((b) => {
           const name = b === "nordnet" ? platform : bankName;
           return (

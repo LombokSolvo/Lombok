@@ -233,7 +233,7 @@ export function ProfileClient(props: {
 
       <LiveNordea status={props.live} />
 
-      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
+      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
       <CalendarConnect {...props.calendar} />
 
