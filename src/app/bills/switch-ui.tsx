@@ -68,6 +68,16 @@ export function ReadFields({ badge, children }: { badge: ReactNode; children: Re
   );
 }
 
+/** A contract detail read from the e-invoice that isn't a number to edit, such as the supplier or end date. */
+export function InfoRow(props: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5 [&+*]:border-t [*+&]:border-t">
+      <span className="shrink-0 text-[15px]">{props.label}</span>
+      <span className="text-right text-[15px] leading-snug font-medium">{props.children}</span>
+    </div>
+  );
+}
+
 export function EditField(props: {
   label: string;
   value: number | null;
@@ -77,7 +87,7 @@ export function EditField(props: {
   onChange: (v: number | null) => void;
 }) {
   return (
-    <label className="flex min-h-[52px] items-center justify-between gap-3 px-4 [&+&]:border-t">
+    <label className="flex min-h-[52px] items-center justify-between gap-3 px-4 [*+&]:border-t">
       <span className="text-[15px]">{props.label}</span>
       <span className="flex items-center gap-1.5 rounded-lg bg-muted/70 pr-2.5 focus-within:bg-accent focus-within:ring-2 focus-within:ring-primary/30">
         <input

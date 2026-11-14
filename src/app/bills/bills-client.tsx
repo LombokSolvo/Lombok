@@ -19,7 +19,7 @@ import {
   eur2,
   primaryButton,
 } from "@/components/solvo/ui";
-import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
+import { ApproveSheet, DoneView, EditField, InfoRow, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 import { LearnChip } from "@/components/learn/learn-chip";
 import type { Reading } from "@/lib/einvoice";
 import { compare, type ContractTerms, type ElectricityPreference } from "@/lib/offers";
@@ -415,7 +415,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   return (
     <div className="flex flex-col pb-24">
       <PageTitle title="Your electricity">
-        {r.supplier}, {r.product}. Contract ends {fmtDate(r.contractEndDate)}.
+        Your current contract, as read from your latest e-invoice.
       </PageTitle>
 
       {ran && (
@@ -429,6 +429,21 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
       )}
 
       <ReadFields badge={<SourceBadge l={props.loaded} />}>
+        <InfoRow label="Supplier">{r.supplier}</InfoRow>
+        <InfoRow label="Contract">{r.product}</InfoRow>
+        <InfoRow label="Type">
+          {r.contractType === "fixed_term"
+            ? "Fixed price, fixed term"
+            : r.contractType === "spot"
+              ? "Spot price"
+              : r.contractType === "open_ended"
+                ? "Valid until further notice"
+                : "Not stated"}
+        </InfoRow>
+        {r.contractEndDate && <InfoRow label="Contract ends">{fmtDate(r.contractEndDate)}</InfoRow>}
+        <InfoRow label="Latest invoice">
+          {eur2.format(r.total)}, due {fmtDate(r.dueDate)}
+        </InfoRow>
         <EditField label="Yearly use" value={terms.annualKwh} unit="kWh" step="100" onChange={set("annualKwh")} />
         <EditField label="Price now" value={terms.centsPerKwh} unit="c/kWh" onChange={set("centsPerKwh")} />
         <EditField label="Base fee now" value={terms.monthlyFee} unit="€/mo" onChange={set("monthlyFee")} />
