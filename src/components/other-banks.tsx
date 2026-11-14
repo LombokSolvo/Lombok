@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { Check, Landmark, Loader2, Lock, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
 import { LiveBankRows } from "@/components/live-banks";
@@ -160,8 +160,8 @@ export function OtherBanks({
   const footer = anyReal
     ? "Your real accounts update once a day while the app is running. They stay on this computer and never go to the cloud or the coach. Read-only."
     : sandbox.enabled
-      ? "Demo: Enable Banking's test banks with example data."
-      : "Demo: connecting is simulated and uses example data.";
+      ? "Demo: Enable Banking's test banks with example data. Real bank connections work only when Solvo runs on your own computer."
+      : "Demo: connecting is simulated and uses example data. Real bank connections work only when Solvo runs on your own computer.";
 
   const consent = (() => {
     if (!choice) return null;
@@ -300,6 +300,17 @@ export function OtherBanks({
             {!loadingTest && !testError && shown.length === 0 && (
               <p className="px-4 py-4 text-[14px] text-muted-foreground">{q ? "Nothing matches." : "Nothing to connect here in this demo."}</p>
             )}
+            {/* The real connection is switched off on the public app on purpose: real bank data never runs through a public server. Say so. */}
+            {tab === "bank" && !liveActive && !q && (
+              <div className={`${row} border-b`} aria-disabled="true">
+                <IconTile tone="grey"><Lock /></IconTile>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-medium">Your real bank</span>
+                  <span className="block text-[13px] leading-snug text-muted-foreground">Works only when Solvo runs on your own computer</span>
+                </span>
+                <Chip>Local only</Chip>
+              </div>
+            )}
             {shown.map((e) => (
               <button
                 key={e.key}
@@ -324,10 +335,10 @@ export function OtherBanks({
             {tab === "invest"
               ? "Trade Republic is the one investing platform open banking reaches, and only its cash account, not your shares. eToro, Trading 212 and Nordnet aren't on open banking, so they can't be connected here yet."
               : sandbox.enabled
-                ? "Banks here are Enable Banking's test banks. In production the list is your real banks."
+                ? "Banks here are Enable Banking's test banks, with example data. Real bank connections work only when Solvo runs on your own computer."
                 : liveActive
                   ? "Real connects to your own account. Demo shows example data."
-                  : "Demo: connecting is simulated and shows example data."}
+                  : "Demo: connecting is simulated and shows example data. Real bank connections work only when Solvo runs on your own computer."}
           </p>
         </Sheet>
       )}
