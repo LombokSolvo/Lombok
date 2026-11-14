@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CalendarClock, ChevronRight } from "lucide-react";
-import { ForecastEditSheet, useForecast } from "@/components/forecast-ui";
+import { CategoryIcon, ForecastEditSheet, useForecast } from "@/components/forecast-ui";
 import type { CountedItem } from "@/lib/forecast";
 import { Group, Row } from "@/components/solvo/ui";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
@@ -44,7 +44,7 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
             const f = e.forecast;
             return (
               <button key={e.id} type="button" onClick={() => setOpen(f)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left active:bg-muted/60 ${idx ? "border-t" : ""}`}>
-                <MoneyBadge kind="out" />
+                <CategoryIcon category={f.category} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] leading-snug font-medium">{e.label}</span>
                   <span className="flex items-center gap-1 text-[13px] text-muted-foreground">

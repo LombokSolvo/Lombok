@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { CalendarClock, ChevronRight, Gift, Plane, Ticket, Utensils } from "lucide-react";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { NumberField } from "@/components/solvo/fields";
 import { Sheet } from "@/components/solvo/sheet";
 import { eur, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
-import { applyChoices, weeklyReserve, type CountedItem, type ForecastItem } from "@/lib/forecast";
+import { useCalendarFile } from "@/lib/calendar-file-store";
+import { applyChoices, forecast, weeklyReserve, type Baselines, type CalendarMode, type CountedItem, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
 import { setChoice, useChoices } from "@/lib/forecast-store";
 
 // What the person's calendar adds to the budget, on every screen that shows it. The server page hands over the forecast items
@@ -15,18 +17,24 @@ import { setChoice, useChoices } from "@/lib/forecast-store";
 // in the browser. Dates are REAL dates, so they use plainFormat (never shifted by the demo clock).
 
 const dayFmt = plainFormat({ weekday: "short", day: "numeric", month: "short" });
-const shortFmt = plainFormat({ day: "numeric", month: "short" });
 
-type State = { mode: "demo" | "google" | null; today: string; items: CountedItem[]; reserve: number };
-const EMPTY: State = { mode: null, today: "", items: [], reserve: 0 };
+type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines };
+const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null } };
 const Ctx = createContext<State>(EMPTY);
 
-export function ForecastProvider({ mode, items, today, children }: { mode: "demo" | "google" | null; items: ForecastItem[]; today: string; children: ReactNode }) {
+/**
+ * `items` and `mode` come from the server (demo, Google, link). A calendar FILE lives only in this browser, so when there is one and
+ * no real calendar on the server, the items are made here from the person's baselines (numbers the server sends for exactly this).
+ */
+export function ForecastProvider({ mode, items, today, baselines, children }: { mode: Exclude<CalendarMode, "file"> | null; items: ForecastItem[]; today: string; baselines: Baselines; children: ReactNode }) {
   const choices = useChoices();
+  const file = useCalendarFile();
   const value = useMemo<State>(() => {
-    const counted = applyChoices(items, choices);
-    return { mode, today, items: counted, reserve: weeklyReserve(counted, today) };
-  }, [mode, items, today, choices]);
+    const useFile = !!file && mode !== "google" && mode !== "link";
+    const raw = useFile ? forecast(file.events, baselines, today, "file", { keepTitle: true }) : items;
+    const counted = applyChoices(raw, choices);
+    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines };
+  }, [mode, items, today, baselines, choices, file]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -34,39 +42,43 @@ export const useForecast = () => useContext(Ctx);
 /** EUR a week the calendar takes out of the weekly budget. */
 export const useWeeklyReserve = () => useContext(Ctx).reserve;
 
-const sourceNote = (mode: State["mode"]) => (mode === "demo" ? "Demo: example calendar" : "Your Google Calendar");
+export const SOURCE_NOTE: Record<CalendarMode, string> = {
+  demo: "Demo: example calendar",
+  google: "Your Google Calendar",
+  link: "Your calendar link",
+  file: "Your calendar file, kept on this phone",
+};
+const sourceNote = (mode: State["mode"]) => (mode ? SOURCE_NOTE[mode] : "");
 
-/** Under the safe-to-spend number: why it is lower, in plain words, with a tap to change each item. */
+const ICONS: Record<ForecastCategory, { icon: typeof Plane; name: string }> = {
+  travel: { icon: Plane, name: "Trip" },
+  dining: { icon: Utensils, name: "Eating out" },
+  entertainment: { icon: Ticket, name: "Event" },
+  gift: { icon: Gift, name: "Gift or party" },
+};
+
+/** What a calendar item is, as a small icon in the warm "money out" circle: a plane for trips, a fork for dinners. Used on the calendar. */
+export function CategoryIcon({ category, size = "md" }: { category: ForecastCategory; size?: "sm" | "md" }) {
+  const { icon: Icon, name } = ICONS[category];
+  return (
+    <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-warn-soft text-warn ${size === "sm" ? "size-[22px]" : "size-7"}`}>
+      <Icon className={size === "sm" ? "size-3.5" : "size-4"} strokeWidth={2.25} aria-hidden />
+      <span className="sr-only">{name}</span>
+    </span>
+  );
+}
+
+/** Under the safe-to-spend number: one line saying why it is lower. The items themselves are on the calendar, as icons. */
 export function ForecastNote({ className }: { className?: string }) {
   const { mode, items, reserve, today } = useForecast();
-  const [open, setOpen] = useState<CountedItem | null>(null);
-  const counted = items.filter((i) => i.counted && i.date >= today);
-  if (!mode || !counted.length) return null;
+  if (!mode || !items.some((i) => i.counted && i.date >= today)) return null;
   return (
-    <div className={className}>
-      <p className="text-[13px] font-semibold text-white/80">
-        {eur.format(Math.round(reserve))} a week is set aside for what is on your calendar
-        <span className="block text-[12px] font-normal text-white/50">{sourceNote(mode)}</span>
-      </p>
-      <ul className="mt-1">
-        {counted.slice(0, 3).map((i) => (
-          <li key={i.id}>
-            <button type="button" onClick={() => setOpen(i)} className="flex min-h-11 w-full items-center justify-between gap-3 text-left text-[13px] text-white/70 active:text-white">
-              <span>
-                {i.label} on {shortFmt(i.date)}: about {eur.format(i.amount)} <span className="text-white/45">(estimate)</span>
-              </span>
-              <span className="shrink-0 text-white/50 underline underline-offset-4">Change</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {counted.length > 3 && (
-        <Link href="/calendar" className="flex min-h-11 items-center text-[13px] text-white/60 underline underline-offset-4">
-          and {counted.length - 3} more on the calendar
-        </Link>
-      )}
-      {open && <ForecastEditSheet item={open} onClose={() => setOpen(null)} />}
-    </div>
+    <Link href="/calendar" className={`${className ?? ""} flex min-h-11 items-center justify-between gap-2 text-[13px] text-white/70 active:text-white`}>
+      <span>
+        Includes {eur.format(Math.round(reserve))} a week set aside for your calendar{mode === "demo" ? " (demo)" : ""}
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-white/50" aria-hidden />
+    </Link>
   );
 }
 
@@ -136,5 +148,26 @@ export function ForecastEditSheet({ item, onClose }: { item: CountedItem; onClos
       </div>
     </Sheet>,
     document.body,
+  );
+}
+
+/** On Home while no calendar is connected: a way in, so the feature is found without going looking for it. */
+export function ConnectCalendarNudge() {
+  const { mode } = useForecast();
+  if (mode) return null;
+  return (
+    <Link
+      href="/profile#calendar"
+      className="mt-4 flex min-h-16 items-center gap-3 rounded-2xl border border-dashed border-primary/30 bg-accent/50 px-4 py-3 active:bg-accent"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-primary">
+        <CalendarClock className="size-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] leading-snug font-semibold">Budget for what is coming</span>
+        <span className="block text-[13px] leading-snug text-muted-foreground">Connect your calendar. Solvo sets money aside for trips and dinners.</span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+    </Link>
   );
 }

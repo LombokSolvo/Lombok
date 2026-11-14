@@ -5,13 +5,18 @@ const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const hostOf = (req: Request) => req.headers.get("host") ?? "";
 
-/** True when the request was addressed to this machine itself (localhost, 127.0.0.1 or ::1). */
-export function isLoopbackRequest(req: Request): boolean {
+/** True when a Host header names this machine itself (localhost, 127.0.0.1 or ::1). */
+export function isLoopbackHost(host: string): boolean {
   try {
-    return LOOPBACK.has(new URL(`http://${hostOf(req)}`).hostname);
+    return LOOPBACK.has(new URL(`http://${host}`).hostname);
   } catch {
     return false;
   }
+}
+
+/** True when the request was addressed to this machine itself (localhost, 127.0.0.1 or ::1). */
+export function isLoopbackRequest(req: Request): boolean {
+  return isLoopbackHost(hostOf(req));
 }
 
 /** True when a browser sent this request from our own page. Browsers always send Origin on a POST; scripts and other sites fail it. */

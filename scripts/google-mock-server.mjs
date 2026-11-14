@@ -6,6 +6,7 @@
 //   GOOGLE_AUTH_URL=http://127.0.0.1:4455/auth GOOGLE_TOKEN_URL=http://127.0.0.1:4455/token \
 //   GOOGLE_REVOKE_URL=http://127.0.0.1:4455/revoke GOOGLE_API_URL=http://127.0.0.1:4455 npx next dev -H 127.0.0.1 -p 3000
 import http from "node:http";
+import { sampleIcs } from "../src/lib/calendar-demo.ts";
 
 const DAY = 86_400_000;
 const iso = (offsetDays) => new Date(Date.now() + offsetDays * DAY).toISOString().slice(0, 10);
@@ -35,6 +36,11 @@ export function startMock({ port = 0, pageSize = 4 } = {}) {
     };
     const form = async () => new URLSearchParams(await new Promise((r) => { let b = ""; req.on("data", (d) => (b += d)); req.on("end", () => r(b)); }));
 
+    if (url.pathname === "/cal.ics") {
+      // A published calendar link (Google "secret address", iCloud, Outlook), with fictional events relative to today.
+      res.writeHead(200, { "Content-Type": "text/calendar" });
+      return res.end(sampleIcs(new Date().toISOString().slice(0, 10)));
+    }
     if (url.pathname === "/auth") {
       // The consent page, collapsed to an instant "Allow": straight back to the app with a code and the state we were given.
       const back = new URL(url.searchParams.get("redirect_uri"));

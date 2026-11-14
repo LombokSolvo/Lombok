@@ -27,3 +27,24 @@ export const writeCalendarCookie = (on: boolean) => {
   document.cookie = on ? `${CALENDAR_COOKIE}=demo; path=/; max-age=31536000; samesite=lax` : `${CALENDAR_COOKIE}=; path=/; max-age=0`;
 };
 export const readCalendarCookie = () => document.cookie.split("; ").some((c) => c === `${CALENDAR_COOKIE}=demo`);
+
+/**
+ * A fictional .ics file, made on the spot with dates relative to today, so the file import can be tried without having a file.
+ * It goes through exactly the same reader as a real file.
+ */
+export function sampleIcs(today: string): string {
+  const d = (n: number) => plus(today, n).replace(/-/g, "");
+  const ev = (uid: string, title: string, lines: string[]) => ["BEGIN:VEVENT", `UID:sample-${uid}`, `SUMMARY:${title}`, ...lines, "END:VEVENT"];
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Solvo sample//EN",
+    ...ev("lunch", "Lunch with Eero", [`DTSTART;TZID=Europe/Helsinki:${d(3)}T120000`, `DTEND;TZID=Europe/Helsinki:${d(3)}T133000`]),
+    ...ev("gym", "Gym", [`DTSTART;TZID=Europe/Helsinki:${d(1)}T180000`, "RRULE:FREQ=WEEKLY;BYDAY=MO"]),
+    ...ev("dinner", "Illallinen Lauran kanssa", [`DTSTART;TZID=Europe/Helsinki:${d(8)}T190000`, `DTEND;TZID=Europe/Helsinki:${d(8)}T223000`]),
+    ...ev("party", "Housewarming party", [`DTSTART;TZID=Europe/Helsinki:${d(13)}T180000`, `DTEND;TZID=Europe/Helsinki:${d(13)}T230000`]),
+    ...ev("trip", "Flight to Lisbon", [`DTSTART;VALUE=DATE:${d(24)}`, `DTEND;VALUE=DATE:${d(29)}`]),
+    ...ev("review", "Quarterly review", [`DTSTART;TZID=Europe/Helsinki:${d(5)}T100000`, `DTEND;TZID=Europe/Helsinki:${d(5)}T110000`]),
+    "END:VCALENDAR",
+  ].join("\r\n");
+}

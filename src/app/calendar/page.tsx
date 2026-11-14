@@ -15,7 +15,7 @@ export default async function CalendarPage() {
   const { customer: c } = await getEffective();
   const calendar = await getCalendarState();
   return (
-    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today}>
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
       <CalendarClient items={scheduleFor(c).items} today={todayIso()} offset={offsetDays()} />
     </ForecastProvider>
   );

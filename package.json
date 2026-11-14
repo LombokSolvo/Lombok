@@ -10,9 +10,10 @@
     "start": "next start",
     "lint": "eslint",
     "smoke": "node scripts/smoke-test.mjs",
-    "test": "node --experimental-strip-types --test scripts/forecast.test.mjs scripts/google-calendar.test.mjs",
+    "test": "node --experimental-strip-types --test scripts/forecast.test.mjs scripts/google-calendar.test.mjs scripts/ics.test.mjs scripts/schedule.test.mjs",
     "dev:google": "SOLVO_GOOGLE=1 next dev -H 127.0.0.1 --experimental-https",
-    "test:google-flow": "node scripts/google-flow-test.mjs"
+    "test:google-flow": "node scripts/google-flow-test.mjs",
+    "setup:google": "node scripts/setup-google.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

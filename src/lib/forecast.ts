@@ -13,7 +13,7 @@
 export type CalendarEvent = {
   id: string;
   title: string;
-  /** YYYY-MM-DD for an all-day event, otherwise RFC 3339 with offset (the calendar's own time zone). */
+  /** YYYY-MM-DD for an all-day event, otherwise a local date and time, YYYY-MM-DDTHH:MM:SS, with or without an offset. */
   start: string;
   /** Same format. For an all-day event Google's end is the day AFTER the last day. */
   end: string;
@@ -23,6 +23,9 @@ export type CalendarEvent = {
   recurring?: boolean;
 };
 
+/** Where the events came from: the demo calendar, the person's Google Calendar, a calendar link they pasted, or a file they chose. */
+export type ForecastSource = "demo" | "google" | "link" | "file";
+export type CalendarMode = ForecastSource;
 export type ForecastCategory = "travel" | "dining" | "entertainment" | "gift";
 export type KindId = "trip" | "dinner" | "lunch" | "drinks" | "concert" | "cinema" | "birthday" | "wedding" | "party";
 
@@ -110,7 +113,7 @@ export type ForecastItem = {
   amount: number; // EUR, the estimate
   basis: "history" | "default";
   basisNote: string; // one plain sentence saying where the number comes from
-  source: "demo" | "google";
+  source: ForecastSource;
   detail?: string; // the event title. Set for the demo calendar's fictional events only.
 };
 
@@ -173,7 +176,7 @@ export function classify(title: string): { kind: Kind; alsoDining: boolean } | n
  * Upcoming events in, forecast items out, soonest first. `today` is the real date. Events before today or after `horizonDays`
  * are ignored. `keepTitle` is for fictional demo events only.
  */
-export function forecast(events: CalendarEvent[], baselines: Baselines, today: string, source: ForecastItem["source"], { horizonDays = 45, keepTitle = false } = {}): ForecastItem[] {
+export function forecast(events: CalendarEvent[], baselines: Baselines, today: string, source: ForecastSource, { horizonDays = 45, keepTitle = false } = {}): ForecastItem[] {
   const until = addDay(today, horizonDays);
   const out: ForecastItem[] = [];
   for (const e of events) {
@@ -200,6 +203,19 @@ export function forecast(events: CalendarEvent[], baselines: Baselines, today: s
     });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+}
+
+/**
+ * Only the events that look like spending and start in the window: all that needs to be kept from a calendar. A link or a file
+ * keeps these and nothing else, so the rest of the person's calendar is dropped the moment it is read.
+ */
+export function spendingEvents(events: CalendarEvent[], today: string, horizonDays = 45): CalendarEvent[] {
+  const until = addDay(today, horizonDays);
+  return events.filter((e) => {
+    if (e.recurring || !classify(e.title)) return false;
+    const { first } = eventDays(e);
+    return first >= today && first <= until;
+  });
 }
 
 // ---- What the person changed, and what that does to the budget ----

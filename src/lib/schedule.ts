@@ -207,22 +207,93 @@ export const daysIn = (year: number, month0: number) => new Date(Date.UTC(year, 
 export const isoDay = (year: number, month0: number, day: number) =>
   `${year}-${String(month0 + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
+// ---- Paydays: when a payment day is not a banking day, the money arrives the banking day before ----
+
+const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+const utc = (y: number, m0: number, d: number) => Date.UTC(y, m0, d);
+
+/** Easter Sunday (the Gregorian computus), as a UTC timestamp. */
+function easterSunday(year: number): number {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return utc(year, month - 1, day);
+}
+
+/** Days Finnish banks are closed besides Saturdays and Sundays: public holidays, plus Christmas Eve and Midsummer Eve. */
+const finnishBankHolidays = (year: number): Set<string> => {
+  const easter = easterSunday(year);
+  const day = 86_400_000;
+  const midsummerEve = (() => {
+    for (let d = 19; d <= 25; d++) if (new Date(utc(year, 5, d)).getUTCDay() === 5) return utc(year, 5, d);
+    return 0;
+  })();
+  return new Set([
+    iso(utc(year, 0, 1)), // New Year's Day
+    iso(utc(year, 0, 6)), // Epiphany
+    iso(easter - 2 * day), // Good Friday
+    iso(easter + day), // Easter Monday
+    iso(utc(year, 4, 1)), // May Day
+    iso(easter + 39 * day), // Ascension Day
+    iso(midsummerEve),
+    iso(utc(year, 11, 6)), // Independence Day
+    iso(utc(year, 11, 24)), // Christmas Eve
+    iso(utc(year, 11, 25)),
+    iso(utc(year, 11, 26)),
+  ]);
+};
+
+export function isBankingDay(date: string): boolean {
+  const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return dow !== 0 && dow !== 6 && !finnishBankHolidays(Number(date.slice(0, 4))).has(date);
+}
+
+/** The banking day on or before `date`. A payday on Sunday 15 Nov comes in on Friday 13 Nov. */
+export function previousBankingDay(date: string): string {
+  let d = date;
+  while (!isBankingDay(d)) d = iso(Date.parse(`${d}T00:00:00Z`) - 86_400_000);
+  return d;
+}
+
+// Salary, the study grant and a side income are paid in by banks, so they follow banking days. Bills and the person's own added
+// dates stay on the day they name.
+const PAID_ON_BANKING_DAY = new Set(["salary", "grant", "side-income"]);
+
 /** Every expected or added event in one month, sorted by date. A day past the end of the month falls on its last day. */
 export function eventsForMonth(items: Item[], custom: CustomEvent[], year: number, month0: number, calendar: CountedItem[] = []): DayEvent[] {
   const out: DayEvent[] = [];
-  const last = daysIn(year, month0);
-  for (const it of items) {
-    out.push({ id: it.id, date: isoDay(year, month0, Math.min(it.day, last)), label: it.label, kind: it.kind, amount: it.amount, source: it.source, detail: it.detail });
-  }
   const here = isoDay(year, month0, 1).slice(0, 7);
+  for (const it of items) {
+    // A payday early in the month can move back into the month before, so look at next month's too and keep what lands here.
+    const spans = PAID_ON_BANKING_DAY.has(it.id) && it.kind === "in" ? [0, 1] : [0];
+    for (const add of spans) {
+      const d = new Date(Date.UTC(year, month0 + add, 1));
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth();
+      const nominal = isoDay(y, m, Math.min(it.day, daysIn(y, m)));
+      const date = spans.length > 1 ? previousBankingDay(nominal) : nominal;
+      if (date.slice(0, 7) === here) out.push({ id: it.id, date, label: it.label, kind: it.kind, amount: it.amount, source: it.source, detail: it.detail });
+    }
+  }
+  const last = daysIn(year, month0);
   for (const e of custom) {
     const start = e.date.slice(0, 7);
     const day = Number(e.date.slice(8, 10));
     const applies = e.monthly ? here >= start : here === start;
     if (applies) out.push({ id: e.id, date: isoDay(year, month0, Math.min(day, last)), label: e.label, kind: e.kind, amount: e.amount, source: "you" });
   }
-  const monthKey = isoDay(year, month0, 1).slice(0, 7);
-  out.push(...forecastEvents(calendar.filter((f) => f.date.startsWith(monthKey))));
+  out.push(...forecastEvents(calendar.filter((f) => f.date.startsWith(here))));
   return out.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? 0 : a.kind === "in" ? -1 : 1));
 }
 

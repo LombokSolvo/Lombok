@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CalendarClock, ChevronLeft, ChevronRight, Pencil, Repeat, Trash2 } from "lucide-react";
-import { ForecastEditSheet, useForecast } from "@/components/forecast-ui";
+import { CategoryIcon, ForecastEditSheet, useForecast } from "@/components/forecast-ui";
 import type { DayResult } from "@/app/api/day/route";
 import { NumberField } from "@/components/solvo/fields";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
@@ -37,7 +37,8 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   const [month, setMonth] = useState(today.getUTCMonth());
   const [openDay, setOpenDay] = useState<string | null>(null);
 
-  const { items: forecast, mode } = useForecast();
+  const { items: forecast, mode, reserve } = useForecast();
+  const countedForecast = forecast.filter((f) => f.counted && f.date >= asOf);
   const events = eventsForMonth(items, custom, year, month, forecast);
   const byDate = new Map<string, DayEvent[]>();
   for (const e of events) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
@@ -62,9 +63,16 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
       <TopBar back={<BackLink href="/" label="Home" />} />
       <PageTitle title="Calendar">Tap any day to see what is expected and what you spent. Add your own dates there.</PageTitle>
       {mode && (
-        <p className="-mt-2 mb-4 flex items-center gap-2 rounded-xl bg-accent px-3 py-2 text-[13px] leading-snug text-accent-foreground">
-          <CalendarClock className="size-4 shrink-0" aria-hidden />
-          {mode === "demo" ? "Demo: example events from a simulated calendar. Trips and dinners show as estimates." : "Trips and dinners from your Google Calendar show as estimates."}
+        <p className="-mt-2 mb-4 rounded-xl bg-accent px-3 py-2.5 text-[13px] leading-snug text-accent-foreground">
+          <span className="flex items-center gap-2 font-medium">
+            <CalendarClock className="size-4 shrink-0" aria-hidden />
+            {mode === "demo" ? "Demo: example events from a simulated calendar" : `From ${mode === "google" ? "your Google Calendar" : mode === "link" ? "your calendar link" : "your calendar file"}`}
+          </span>
+          <span className="mt-1 block">
+            {countedForecast.length
+              ? `Icons mark trips, dinners and events. Solvo sets aside ${eur.format(Math.round(reserve))} a week for them, as estimates. Tap a day to change one.`
+              : "Nothing in the next 45 days looks like spending."}
+          </span>
         </p>
       )}
 
@@ -98,12 +106,15 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
                 type="button"
                 onClick={() => setOpenDay(iso)}
                 aria-label={`${dayName.format(parse(iso))}${evs.length ? `, ${evs.length} ${evs.length === 1 ? "event" : "events"}` : ""}`}
-                className={`mx-auto flex h-14 w-full max-w-12 flex-col items-center justify-start gap-0.5 rounded-xl pt-1.5 text-[15px] active:bg-muted ${isToday ? "bg-accent font-semibold ring-1 ring-primary/40" : ""}`}
+                className={`mx-auto flex h-[60px] w-full max-w-12 flex-col items-center justify-start gap-0.5 rounded-xl pt-1.5 text-[15px] active:bg-muted ${isToday ? "bg-accent font-semibold ring-1 ring-primary/40" : ""}`}
               >
                 <span className="num">{d}</span>
-                <span className="flex h-[18px] items-center gap-0.5">
+                <span className="flex h-[22px] items-center gap-0.5">
                   {evs.some((e) => e.kind === "in") && <MoneyBadge kind="in" size="sm" />}
-                  {evs.some((e) => e.kind === "out" && e.counted !== false) && <MoneyBadge kind="out" size="sm" />}
+                  {evs.some((e) => e.kind === "out" && !e.forecast && e.counted !== false) && <MoneyBadge kind="out" size="sm" />}
+                  {[...new Set(evs.filter((e) => e.forecast && e.counted !== false).map((e) => (e.forecast as CountedItem).category))].slice(0, 2).map((c) => (
+                    <CategoryIcon key={c} category={c} size="sm" />
+                  ))}
                 </span>
               </button>
             );
@@ -129,7 +140,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
         {events.length ? (
           events.map((e) => (
             <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t ${e.counted === false ? "opacity-55" : ""}`}>
-              <MoneyBadge kind={e.kind} />
+              {e.forecast ? <CategoryIcon category={e.forecast.category} /> : <MoneyBadge kind={e.kind} />}
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-snug font-medium">{e.label}</span>
                 <span className="block text-[13px] text-muted-foreground">
@@ -189,7 +200,7 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
                   const f = e.forecast;
                   return (
                     <div key={e.id} className={`flex min-h-14 items-center gap-3 py-2 pr-2 pl-4 [&+&]:border-t ${f.counted ? "" : "opacity-60"}`}>
-                      <MoneyBadge kind="out" />
+                      <CategoryIcon category={f.category} />
                       <div className="min-w-0 flex-1">
                         <div className="text-[15px] leading-snug font-medium">{e.label}</div>
                         <div className="mt-0.5 text-[13px] text-muted-foreground">

@@ -7,8 +7,8 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import assert from "node:assert/strict";
 import { startMock } from "./google-mock-server.mjs";
 
-if (existsSync("data/private/google")) {
-  console.log("data/private/google exists (a real connection?). Disconnect it first; this test would delete it.");
+if (existsSync("data/private/google") || existsSync("data/private/calendar")) {
+  console.log("data/private/google or data/private/calendar exists (a real connection?). Disconnect it first; this test would delete it.");
   process.exit(2);
 }
 const PORT = process.env.GOOGLE_FLOW_PORT ?? "3124";
@@ -27,6 +27,7 @@ const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "star
     GOOGLE_REVOKE_URL: `${mock.url}/revoke`,
     GOOGLE_API_URL: mock.url,
     GEMINI_API_KEY: "",
+    SOLVO_ICS_TEST_HOSTS: "127.0.0.1", // lets the calendar-link test fetch the local mock over http; never set in real use
   },
 });
 let log = "";
@@ -109,11 +110,13 @@ try {
     assert.equal(JSON.parse(readFileSync("data/private/google/token.json", "utf8")).refreshToken, "mock-refresh");
     assert.equal(JSON.parse(readFileSync("data/private/google/events.json", "utf8")).events.length, 4);
   });
-  await check("Home explains the effect, and no event title or location reaches the page", async () => {
-    const html = await (await go("/")).text();
-    assert.ok(html.includes("on your calendar") && html.includes("Your Google Calendar"), "forecast note");
-    assert.ok(html.includes("Dinner out") && html.includes("Trip"), "generic labels");
-    for (const secret of ["Dinner at the new place", "Trip to the lake", "Fictional Street", "Pat Example", "Standup", "Dentist"]) assert.ok(!html.includes(secret), `leaked: ${secret}`);
+  await check("Home explains the effect in one line; the calendar shows the icons; no event title or location reaches either page", async () => {
+    const home = await (await go("/")).text();
+    assert.ok(home.includes("set aside for your calendar"), "forecast line on Home");
+    const cal = await (await go("/calendar")).text();
+    assert.ok(cal.includes("From your Google Calendar") && cal.includes("Dinner out"), "calendar page with generic labels");
+    for (const html of [home, cal])
+      for (const secret of ["Dinner at the new place", "Trip to the lake", "Fictional Street", "Pat Example", "Standup", "Dentist"]) assert.ok(!html.includes(secret), `leaked: ${secret}`);
   });
   await check("Profile shows it connected, with a count and no titles", async () => {
     const html = await (await go("/profile?calendar=connected")).text();
@@ -122,9 +125,9 @@ try {
   });
   await check("the real calendar is never mixed with the demo one", async () => {
     jar.set("solvo_calendar", "demo");
-    const html = await (await go("/")).text();
+    const html = await (await go("/calendar")).text();
     jar.delete("solvo_calendar");
-    assert.ok(html.includes("Your Google Calendar") && !html.includes("Demo: example calendar"));
+    assert.ok(html.includes("From your Google Calendar") && !html.includes("Demo: example events"));
   });
   await check("sync reads again; the mock saw only Bearer calls and a fields filter", async () => {
     const before = mock.log.eventRequests.length;
@@ -141,7 +144,39 @@ try {
     assert.deepEqual(mock.log.revoked, ["mock-refresh"]);
     assert.equal(existsSync("data/private/google"), false);
     const html = await (await go("/")).text();
-    assert.ok(!html.includes("on your calendar"));
+    assert.ok(!html.includes("set aside for your calendar"));
+  });
+
+  // ---- A pasted calendar link: no OAuth, local only ----
+  const linkPost = (body, headers = { Origin: BASE }) => go("/api/calendar/link", { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+  await check("calendar link: refuses other hosts and posts not from the app", async () => {
+    assert.equal((await linkPost({ url: "https://evil.example/x.ics" })).status, 422);
+    assert.equal((await linkPost({ url: "http://169.254.169.254/latest" })).status, 422);
+    assert.equal((await linkPost({ url: `${mock.url}/cal.ics` }, {})).status, 403);
+    assert.equal(existsSync("data/private/calendar"), false);
+  });
+  await check("calendar link: reads the calendar, answers with counts and generic labels, saves 0600", async () => {
+    const r = await linkPost({ url: `${mock.url}/cal.ics` });
+    assert.equal(r.status, 200);
+    const text = await r.text();
+    const d = JSON.parse(text);
+    assert.equal(d.counted, 4);
+    assert.ok(d.found >= 5);
+    assert.ok(!/Eero|Lauran|Lisbon|Housewarming/.test(text), "no titles in the answer");
+    assert.equal(statSync("data/private/calendar/link.json").mode & 0o777, 0o600);
+    assert.equal(JSON.parse(readFileSync("data/private/calendar/link.json", "utf8")).events.length, 4, "only the spending events are kept");
+  });
+  await check("calendar link: Home and Calendar show it, titles stay out of the pages", async () => {
+    const home = await (await go("/")).text();
+    const cal = await (await go("/calendar")).text();
+    assert.ok(home.includes("set aside for your calendar"));
+    assert.ok(cal.includes("From your calendar link"));
+    for (const html of [home, cal]) assert.ok(!/Eero|Lauran|Lisbon|Housewarming|Quarterly review|Gym/.test(html), "a title leaked");
+  });
+  await check("calendar link: disconnect deletes the saved link and events", async () => {
+    assert.equal((await post("/api/calendar/link/disconnect")).status, 200);
+    assert.equal(existsSync("data/private/calendar"), false);
+    assert.ok(!(await (await go("/")).text()).includes("set aside for your calendar"));
   });
 } catch (e) {
   failed++;

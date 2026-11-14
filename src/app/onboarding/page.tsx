@@ -27,7 +27,7 @@ export default async function OnboardingPage() {
     investsMonthlyToday: Math.round(profile.investsMonthly),
   };
   return (
-    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today}>
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
       <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} banks={banks} view={view} />
     </ForecastProvider>
   );

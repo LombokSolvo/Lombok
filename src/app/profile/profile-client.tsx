@@ -5,6 +5,7 @@ import { LiveNordea } from "@/components/live-nordea";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
 import type { GoogleStatus } from "@/lib/google-calendar";
+import type { LinkStatus } from "@/lib/ics-link";
 import type { LiveStatus } from "@/lib/live-nordea";
 import { useRouter } from "next/navigation";
 
@@ -55,7 +56,7 @@ export function ProfileClient(props: {
   view: View;
   showBanks: boolean; // hidden once real Nordea data is connected: real data is never merged with the demo banks
   live: LiveStatus; // the real, local-only Nordea connection; renders nothing unless the app runs with SOLVO_LIVE=1
-  calendar: { mode: "demo" | "google" | null; count: number; google: GoogleStatus; notice: string | null }; // the calendar Solvo reads to foresee trips and dinners
+  calendar: { google: GoogleStatus; link: LinkStatus; notice: string | null }; // the calendar Solvo reads to foresee trips and dinners
   linkedBank: { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null }; // Enable Banking sandbox bank
 }) {
   const router = useRouter();

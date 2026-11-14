@@ -108,9 +108,9 @@ try {
   // The demo calendar is opt-in (a cookie): nothing about it on Home until it is connected, then the reason the number moved.
   await check("demo calendar is opt-in and feeds Home", async () => {
     const without = await (await fetch(BASE + "/")).text();
-    if (without.includes("on your calendar")) throw new Error("Home mentions the calendar before it was connected");
+    if (without.includes("set aside for your calendar")) throw new Error("Home mentions the calendar before it was connected");
     const withIt = await (await fetch(BASE + "/", { headers: { Cookie: "solvo_calendar=demo" } })).text();
-    if (!withIt.includes("on your calendar") || !withIt.includes("(estimate)")) throw new Error("Home does not explain the calendar's effect");
+    if (!withIt.includes("set aside for your calendar")) throw new Error("Home does not explain the calendar's effect");
     const cal = await (await fetch(BASE + "/calendar", { headers: { Cookie: "solvo_calendar=demo" } })).text();
     if (!cal.includes("Demo: example events")) throw new Error("Calendar page does not say it is a demo");
   });

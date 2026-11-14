@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Screen } from "@/components/solvo/screen";
 import { LinkedBankCard } from "@/components/linked-bank-card";
-import { ForecastNote, ForecastProvider } from "@/components/forecast-ui";
+import { ConnectCalendarNudge, ForecastNote, ForecastProvider } from "@/components/forecast-ui";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, MessageCircle, ReceiptText } from "lucide-react";
 import { LiveWeeklyEuro, ResetDemoButton, SwitchBoostNote } from "@/components/live-budget";
@@ -44,7 +44,7 @@ export default async function Home() {
 
   return (
     <Screen>
-      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today}>
+      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
       <main className={PAGE}>
         <OnboardingGate />
         {local && (
@@ -124,6 +124,8 @@ export default async function Home() {
         </Suspense>
 
         <UpcomingCard items={schedule.items} today={realToday} />
+
+        <ConnectCalendarNudge />
 
         {/* The bank's blind spot, and Solvo's hook */}
         <section className="mt-4 rounded-[24px] bg-card p-5 shadow-[0_1px_3px_rgba(15,42,31,0.06)]">

@@ -1,5 +1,7 @@
 import { connection } from "next/server";
 import { Screen } from "@/components/solvo/screen";
+import { ForecastProvider } from "@/components/forecast-ui";
+import { linkStatus } from "@/lib/ics-link";
 import { getCalendarState } from "@/lib/calendar-source";
 import { DEFAULT_SAVINGS_GOAL_PER_MONTH } from "@/lib/coach";
 import { googleStatus } from "@/lib/google-calendar";
@@ -21,6 +23,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const linked = await currentLinked();
   return (
     <Screen>
+      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
       <ProfileClient
         name="Aino Esimerkki"
         id={c.id}
@@ -31,9 +34,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         view={view}
         showBanks={!local}
         live={liveStatus()}
-        calendar={{ mode: calendar.mode, count: calendar.items.length, google: googleStatus(), notice: calendarNotice ?? null }}
+        calendar={{ google: googleStatus(), link: await linkStatus(), notice: calendarNotice ?? null }}
         linkedBank={{ enabled: sandboxEnabled(), linked: linked && { bank: linked.bank, validUntil: linked.validUntil }, notice: bank ?? null }}
       />
+      </ForecastProvider>
     </Screen>
   );
 }
