@@ -62,7 +62,7 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
           return <Row key={e.id + e.date} className={idx ? "border-t" : ""} icon={<MoneyBadge kind={e.kind} />} title={e.label} subtitle={when} value={<SignedAmount kind={e.kind} value={e.amount} />} />;
         })
       ) : (
-        <p className="px-4 py-4 text-[14px] text-muted-foreground">Nothing expected in the next three weeks. Open the calendar to add a date.</p>
+        <p className="px-4 py-4 text-[14px] text-muted-foreground">Nothing coming up. Add a date in the calendar.</p>
       )}
       {open && <ForecastEditSheet item={open} onClose={() => setOpen(null)} />}
     </Group>

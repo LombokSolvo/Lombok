@@ -68,6 +68,16 @@ export function ReadFields({ badge, children }: { badge: ReactNode; children: Re
   );
 }
 
+/** A contract detail read from the e-invoice that isn't a number to edit, such as the supplier or end date. */
+export function InfoRow(props: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2.5 [&+*]:border-t [*+&]:border-t">
+      <span className="shrink-0 text-[15px]">{props.label}</span>
+      <span className="text-right text-[15px] leading-snug font-medium">{props.children}</span>
+    </div>
+  );
+}
+
 export function EditField(props: {
   label: string;
   value: number | null;
@@ -77,7 +87,7 @@ export function EditField(props: {
   onChange: (v: number | null) => void;
 }) {
   return (
-    <label className="flex min-h-[52px] items-center justify-between gap-3 px-4 [&+&]:border-t">
+    <label className="flex min-h-[52px] items-center justify-between gap-3 px-4 [*+&]:border-t">
       <span className="text-[15px]">{props.label}</span>
       <span className="flex items-center gap-1.5 rounded-lg bg-muted/70 pr-2.5 focus-within:bg-accent focus-within:ring-2 focus-within:ring-primary/30">
         <input
@@ -260,9 +270,6 @@ export function DoneView(props: {
       {props.steps && (
         <section className="mt-4 rounded-2xl bg-card p-4 shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
           <h2 className="font-display text-[17px] font-semibold tracking-[-0.01em]">What happens next</h2>
-          <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-            How the switch would run in real use. In this demo it is simulated.
-          </p>
           <ol className="mt-3 flex flex-col">
             {props.steps.map((st, i) => (
               <li key={st.title} className="relative flex gap-3 pb-4 last:pb-0">

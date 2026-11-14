@@ -19,7 +19,7 @@ import {
   eur2,
   primaryButton,
 } from "@/components/solvo/ui";
-import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
+import { ApproveSheet, DoneView, EditField, InfoRow, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 import { LearnChip } from "@/components/learn/learn-chip";
 import type { Reading } from "@/lib/einvoice";
 import { compare, type ContractTerms, type ElectricityPreference } from "@/lib/offers";
@@ -170,8 +170,8 @@ export function BillsClient(props: {
             <>
               <PageTitle title="Your bills">
                 {props.invoices.length
-                  ? "Solvo read the e-invoices that reached your bank this month. Nothing to photograph or upload."
-                  : "No e-invoices from your suppliers have reached your bank yet. When one arrives, Solvo reads it here and compares the contract."}
+                  ? "Read from the e-invoices in your bank."
+                  : "No e-invoices yet. New ones show up here."}
               </PageTitle>
 
               {actionable.length > 0 && (
@@ -238,10 +238,10 @@ function SourceBadge({ l }: { l: Loaded }) {
   return l.source === "gemini" ? (
     <Chip tone="green">
       <Sparkles className="size-3" aria-hidden />
-      {l.fromPhoto ? "Read from your photo" : "Read by Gemini"}
+      {l.fromPhoto ? "Read from your photo" : "Read from your e-invoice"}
     </Chip>
   ) : (
-    <Chip>Saved reading, AI offline</Chip>
+    <Chip>Read from your e-invoice</Chip>
   );
 }
 
@@ -405,7 +405,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         ]}
         reminder={
           chosen.termMonths && startDate
-            ? "Solvo will remind you a month before this contract ends, so it never rolls over to a worse price again."
+            ? "We'll remind you a month before this contract ends."
             : undefined
         }
       />
@@ -415,7 +415,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   return (
     <div className="flex flex-col pb-24">
       <PageTitle title="Your electricity">
-        {r.supplier}, {r.product}. Contract ends {fmtDate(r.contractEndDate)}.
+        Your current contract, as read from your latest e-invoice.
       </PageTitle>
 
       {ran && (
@@ -429,6 +429,21 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
       )}
 
       <ReadFields badge={<SourceBadge l={props.loaded} />}>
+        <InfoRow label="Supplier">{r.supplier}</InfoRow>
+        <InfoRow label="Contract">{r.product}</InfoRow>
+        <InfoRow label="Type">
+          {r.contractType === "fixed_term"
+            ? "Fixed price, fixed term"
+            : r.contractType === "spot"
+              ? "Spot price"
+              : r.contractType === "open_ended"
+                ? "Valid until further notice"
+                : "Not stated"}
+        </InfoRow>
+        {r.contractEndDate && <InfoRow label="Contract ends">{fmtDate(r.contractEndDate)}</InfoRow>}
+        <InfoRow label="Latest invoice">
+          {eur2.format(r.total)}, due {fmtDate(r.dueDate)}
+        </InfoRow>
         <EditField label="Yearly use" value={terms.annualKwh} unit="kWh" step="100" onChange={set("annualKwh")} />
         <EditField label="Price now" value={terms.centsPerKwh} unit="c/kWh" onChange={set("centsPerKwh")} />
         <EditField label="Base fee now" value={terms.monthlyFee} unit="€/mo" onChange={set("monthlyFee")} />
@@ -484,7 +499,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         <Group
           title="Your options for a year"
           aside={`${terms.annualKwh.toLocaleString("fi-FI")} kWh`}
-          footer={`Real public prices found by Solvo's market agent, energy only. At your price today, before the contract rolls over, a year would cost ${eur.format(cmp.current)}.`}
+          footer={`A year at your price today would cost ${eur.format(cmp.current)}.`}
         >
           <div role="radiogroup" aria-label="Electricity offers">
             {cmp.offers.map((o) => (

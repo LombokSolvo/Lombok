@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
+import { LiveBankRows } from "@/components/live-banks";
 import { Chip, Group, IconTile } from "@/components/solvo/ui";
 import { FALLBACK_BANKS, readBankNameCookie, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
@@ -155,10 +156,6 @@ export function OtherBanks({
   const testError = sandbox.enabled && tab === "bank" && listed && !Array.isArray(listed) ? listed.error : null;
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
-  const footer = sandbox.enabled
-    ? "Demo: Enable Banking's test banks with example data."
-    : "Demo: connecting is simulated and uses example data.";
-
   const consent = (() => {
     if (!choice) return null;
     if (choice.kind === "live")
@@ -172,14 +169,12 @@ export function OtherBanks({
       points: sandbox.enabled
         ? [
             "Solvo can see your balances and payments. It can never move money.",
-            "You sign in at the bank. Before that, Enable Banking, which connects Solvo to the bank, asks you to continue.",
-            "This is a test bank with example data.",
+            "Enable Banking, our connection partner, asks you to continue first. Then you sign in at the bank.",
             "Access lasts 30 days. Disconnect any time.",
           ]
         : [
             "Solvo can see your balances and payments. It can never move money.",
             "You sign in at your bank.",
-            "Demo: nothing real is connected. Example data is shown.",
             "A real connection lasts up to 6 months. Disconnect any time.",
           ],
       label: `Continue to ${choice.name}`,
@@ -188,7 +183,7 @@ export function OtherBanks({
 
   return (
     <>
-      <Group title={title} footer={footer}>
+      <Group title={title}>
         {mainBank && (
           <div className={row}>
             <IconTile><Landmark /></IconTile>
@@ -201,6 +196,7 @@ export function OtherBanks({
             </div>
           </div>
         )}
+        {live && <LiveBankRows status={live} />}
         {banks.map((b) => {
           const name = bankName;
           return (
@@ -210,7 +206,7 @@ export function OtherBanks({
                 <div className="text-[15px] leading-snug font-medium">{name}</div>
                 <div className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground">
                   <Check className="size-3.5 text-primary" aria-hidden />
-                  Connected, example data
+                  Connected
                 </div>
               </div>
               <button type="button" aria-label={`Remove ${name}`} onClick={() => save(banks.filter((x) => x !== b))} className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted">
@@ -225,7 +221,6 @@ export function OtherBanks({
               <IconTile><Landmark /></IconTile>
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] leading-snug font-medium">{sandbox.linked.bank} connected</div>
-                <div className="mt-0.5 text-[13px] text-muted-foreground">Example data via Enable Banking</div>
               </div>
             </div>
             <button type="button" className={action} onClick={() => act("sync")} disabled={busy !== null}>
@@ -293,7 +288,7 @@ export function OtherBanks({
             )}
             {testError && <p role="alert" className="px-4 py-4 text-[14px] text-warn">{testError}</p>}
             {!loadingTest && !testError && shown.length === 0 && (
-              <p className="px-4 py-4 text-[14px] text-muted-foreground">{q ? "Nothing matches." : "Nothing to connect here in this demo."}</p>
+              <p className="px-4 py-4 text-[14px] text-muted-foreground">{q ? "Nothing matches." : "Nothing to connect here."}</p>
             )}
             {shown.map((e) => (
               <button
@@ -315,15 +310,6 @@ export function OtherBanks({
             ))}
           </div>
 
-          <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
-            {tab === "invest"
-              ? "Trade Republic is the one investing platform open banking reaches, and only its cash account, not your shares. eToro, Trading 212 and Nordnet aren't on open banking, so they can't be connected here yet."
-              : sandbox.enabled
-                ? "Banks here are Enable Banking's test banks. In production the list is your real banks."
-                : liveActive
-                  ? "Real connects to your own account. Demo shows example data."
-                  : "Demo: connecting is simulated and shows example data."}
-          </p>
         </Sheet>
       )}
 
@@ -335,7 +321,7 @@ export function OtherBanks({
         <Sheet title="Waiting for your bank" onClose={() => {}} hideDone>
           <div className="flex items-center gap-3 py-2 text-[15px]" role="status">
             <Loader2 className="size-5 animate-spin" aria-hidden />
-            Waiting for your approval… (demo: approved automatically)
+            Waiting for your approval…
           </div>
         </Sheet>
       )}

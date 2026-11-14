@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
+import { AddedCosts, IrregularRow, LiveFixedTotal, LiveIrregularTotal } from "@/components/budget-edit";
 import { Screen } from "@/components/solvo/screen";
 import { BackLink, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "@/components/solvo/ui";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { HOBBIES, SUBSCRIPTIONS, subscriptionsMonthly, type Subscription } from "@/data/subscriptions";
+import { safeToSpend } from "@/lib/coach";
 import { BASKET_LABELS, type Basket } from "@/lib/demo";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
@@ -48,9 +50,10 @@ const MCC_LABEL: Record<string, string> = {
   "5541": "fuel",
   "5542": "fuel",
   "7523": "parking",
+  "6300": "home insurance",
 };
 // Only the categories whose name doesn't already say what is in them get a line.
-const EXPLAIN = new Set(["Home & Tech", "Health", "Travel", "Entertainment", "Lifestyle", "Transportation"]);
+const EXPLAIN = new Set(["Insurance", "Home & Tech", "Health", "Travel", "Entertainment", "Lifestyle", "Transportation"]);
 
 const KIND_LABEL: Record<string, string> = {
   electricity_energy: "Electricity",
@@ -76,11 +79,13 @@ async function Costs() {
   const aino = mode === "aino";
   const total = ([1, 2, 3] as Basket[]).reduce((s, b) => s + c.summary.basketYear[b], 0) / 12;
   const window = new Set(c.summary.last12Months);
+  const s = safeToSpend(c);
 
   // What each category holds: its three biggest kinds of merchant over the last 12 months.
   const spendByMcc: Record<string, Record<string, number>> = {};
   for (const t of c.transactions) {
-    const label = t.mcc ? MCC_LABEL[t.mcc] : undefined;
+    // Named insurance payments from another bank say what they are (car insurance, travel insurance).
+    const label = (t.mcc ? MCC_LABEL[t.mcc] : undefined) ?? (t.category === "Insurance" && t.merchant ? t.merchant.toLowerCase() : undefined);
     if (t.amount >= 0 || !label || !window.has(t.date.slice(0, 7))) continue;
     const m = (spendByMcc[t.category] ??= {});
     m[label] = (m[label] ?? 0) - t.amount;
@@ -116,15 +121,27 @@ async function Costs() {
         <Group
           key={b}
           className={i ? "mt-6" : "mt-0"}
+          footer={
+            b === 2
+              ? "Costs that don't come every month: the dentist, a new phone or sofa, a trip, car repairs, yearly fees. Setting a little aside each month means they don't land on one month's budget."
+              : undefined
+          }
           title={
             <span className="flex items-center gap-2">
               <span className={`size-2.5 rounded-full ${BASKET_COLOR[b]}`} aria-hidden />
               {BASKET_LABELS[b].title}
             </span>
           }
-          aside={<span className="num">{eur.format(basketMonthly(b))}/mo</span>}
+          aside={<span className="num">{b === 1 ? (
+                <LiveFixedTotal base={basketMonthly(b)} />
+              ) : b === 2 ? (
+                <LiveIrregularTotal estimate={s.irregularSetAsidePerMonth} />
+              ) : (
+                `${eur.format(basketMonthly(b))}/mo`
+              )}</span>}
         >
-          {categories(b).map(([cat, perYear]) => (
+          {/* The irregular basket shows only what goes aside each month, not its categories (Pietu's call) */}
+          {b !== 2 && categories(b).map(([cat, perYear]) => (
             <div key={cat} className="[&+&]:border-t">
               <Row
                 title={cat === "Housing" ? "Rent" : cat}
@@ -141,6 +158,9 @@ async function Costs() {
               <FixedRow title="Hobbies" subs={HOBBIES} />
             </>
           )}
+          {/* The person's own corrections, edited where they belong: bills Solvo missed, and the irregular set-aside */}
+          {b === 1 && <AddedCosts everyday={s.everydayBudgetPerMonth} />}
+          {b === 2 && <IrregularRow estimate={s.irregularSetAsidePerMonth} everyday={s.everydayBudgetPerMonth} />}
         </Group>
       ))}
     </main>

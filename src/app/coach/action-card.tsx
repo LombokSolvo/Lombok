@@ -26,6 +26,7 @@ import {
   useSwitches,
   type SavingsPlan,
 } from "@/lib/switches";
+import { addTrimmed, readTrimmed, removeTrimmed } from "@/lib/trimmed-store";
 
 const weekly = (monthly: number) => (monthly * 12) / WEEKS_PER_YEAR;
 
@@ -42,6 +43,7 @@ export function chatState(mode: DemoMode): ChatState {
     planMonthly: currentPlan(mode, readSavingsPlan())?.monthly ?? null,
     switched: (["electricity", "telecom"] as const).filter((b) => sw[b]),
     goals: readGoals(mode).map(({ label, target, saved, monthly }) => ({ label, target, saved, monthly })),
+    trimmed: Object.keys(readTrimmed()),
   };
 }
 
@@ -142,6 +144,7 @@ function ChangePlan({ a, mode }: { a: Extract<ChatAction, { kind: "change_plan" 
       onUndo={() => {
         if (before?.plan) approveSavingsPlan(before.plan);
         else cancelSavingsPlan();
+        if (a.trim) removeTrimmed(a.trim.id);
         setBefore(null);
       }}
     >
@@ -151,6 +154,7 @@ function ChangePlan({ a, mode }: { a: Extract<ChatAction, { kind: "change_plan" 
         onClick={() => {
           setBefore({ plan: stored });
           approveSavingsPlan(next);
+          if (a.trim) addTrimmed(a.trim.id, a.trim.saving);
         }}
       >
         Approve {eur.format(a.monthly)} a month

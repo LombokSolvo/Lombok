@@ -44,12 +44,12 @@ test("a usual trip comes from travel payments close together", () => {
   assert.equal(t.basis, "history");
   assert.equal(t.amount, 400);
 });
-test("no match: meetings, repeating events, work trips, past events, far-away events, look-alike words", () => {
+test("no match: meetings, repeating events, conferences, past events, far-away events, look-alike words", () => {
   const items = forecast(
     [
       ev("1", "Team meeting", "2026-11-18T10:00:00+02:00", "2026-11-18T11:00:00+02:00"),
       ev("2", "Lunch", "2026-11-18T12:00:00+02:00", "2026-11-18T13:00:00+02:00", { recurring: true }),
-      ev("3", "Business trip to Oslo", "2026-11-20", "2026-11-22"),
+      ev("3", "Conference in Oslo", "2026-11-20", "2026-11-22"),
       ev("4", "Dinner", "2026-11-10T19:00:00+02:00", "2026-11-10T21:00:00+02:00"),
       ev("5", "Dinner", "2027-03-10T19:00:00+02:00", "2027-03-10T21:00:00+02:00"),
       ev("6", "Public holiday", "2026-11-25"),
@@ -79,4 +79,15 @@ test("choices change the amount and can switch an item off; the reserve spreads 
   assert.equal(Math.round(weeklyReserve(off, TODAY)), 250 / 5);
   assert.equal(totalWithin(counted, TODAY, 30), 60);
   assert.equal(monthTotal(counted, "2026-12"), 500);
+});
+
+test("a work trip counts, for meals and extras only, in any spelling", () => {
+  for (const title of ["Berlin worktrip", "Berlin work trip", "Business trip to Oslo", "Työmatka Tukholmaan"]) assert.equal(classify(title)?.kind.id, "worktrip", title);
+  assert.equal(classify("Berlin trip")?.kind.id, "trip", "a plain trip is still a trip");
+  const [one] = forecast([ev("w1", "Berlin worktrip", "2026-11-20", "2026-11-20")], none, TODAY, "file");
+  assert.deepEqual([one.kind, one.amount, one.basis], ["worktrip", 30, "default"]);
+  const [three] = forecast([ev("w2", "Berlin worktrip", "2026-11-20", "2026-11-23")], none, TODAY, "file");
+  assert.equal(three.amount, 90);
+  const [long] = forecast([ev("w3", "Berlin worktrip", "2026-11-20", "2026-11-30")], none, TODAY, "file");
+  assert.equal(long.amount, 150, "capped");
 });

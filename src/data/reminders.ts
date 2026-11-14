@@ -55,11 +55,10 @@ export const ESCALATION: EscalationStep[] = [
   },
 ];
 
-// Spoken by ElevenLabs (voice "Emily", eleven_v4) from this script by /api/call/audio. It is the fallback when the two-way call can't start
-// ("Can't talk? Play the message instead"), so it names no weekday, date or safe-to-spend amount: those move with the demo clock
+// The recording in public/audio/solvo-call-en.mp3 was made from this script with ElevenLabs (voice "Emily", eleven_v4); if the
+// script changes, make the recording again. It names no weekday, date or safe-to-spend amount: those move with the demo clock
 // and the person's switches, and a recording can't. "Five days ago" stays true because the call always happens on the demo's
-// "today", five days after the due date (see ESCALATION).
-export const CALL_AUDIO = "/api/call/audio";
-export const CALL_VOICE_ID = "zHGX9VSXpW8cGSDRCqy0"; // ElevenLabs "Emily: Trustworthy, Warm, Conversational"
+// "today", five days after the due date (see ESCALATION). If the file can't play, the phone's own voice reads the script.
+export const CALL_AUDIO = "/audio/solvo-call-en.mp3";
 export const CALL_SCRIPT =
   "Hi Aino, it's Solvo, your money coach from S-Pankki. Don't worry, this isn't a collection call. Your dentist bill from Hymy Hammasklinikka, 148 euros, was due five days ago and it's still open. If you pay it in the next few days, you won't get a reminder fee. And good news: it comes out of the money you've set aside for irregular costs, so your safe to spend this week stays exactly the same. After this message you can pay it, ask me to remind you on Monday, or tell me if now isn't a good time. You'll approve everything yourself in the app, as always. Talk soon!";

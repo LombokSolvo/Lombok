@@ -3,7 +3,7 @@
 //
 // Rules this file keeps (one home for each):
 //  - What counts as spending: KINDS below. Keyword matching only, Finnish and English, no model, so calendar text never leaves
-//    this process. Repeating events and work trips are skipped.
+//    this process. Repeating events are skipped. A work trip counts, but only for meals and extras: the employer pays the rest.
 //  - What an estimate is: the person's own history where there is enough of it (median or 75th percentile of their own payments,
 //    their usual trip cost), otherwise a small default table. Every item says which one it used (`basis`) and is editable.
 //  - What reaches the budget: only ForecastItem (kind, date, amount). The event title travels with it as `detail` for the
@@ -27,7 +27,7 @@ export type CalendarEvent = {
 export type ForecastSource = "google" | "link" | "file";
 export type CalendarMode = ForecastSource;
 export type ForecastCategory = "travel" | "dining" | "entertainment" | "gift";
-export type KindId = "trip" | "dinner" | "lunch" | "drinks" | "concert" | "cinema" | "birthday" | "wedding" | "party";
+export type KindId = "worktrip" | "trip" | "dinner" | "lunch" | "drinks" | "concert" | "cinema" | "birthday" | "wedding" | "party";
 
 type Kind = { id: KindId; category: ForecastCategory; label: string; words: RegExp; fallback: number };
 
@@ -36,6 +36,8 @@ type Kind = { id: KindId; category: ForecastCategory; label: string; words: RegE
 // Whole words only (Finnish endings are listed), so "public holiday" is not a pub and "stay" or "showroom" match nothing.
 const W = (s: string) => new RegExp(`(^|[^\\p{L}])(${s})(?![\\p{L}])`, "iu");
 export const KINDS: Kind[] = [
+  // First, so "Berlin work trip" is a work trip and not a trip. "worktrip" as one word counts too.
+  { id: "worktrip", category: "travel", label: "Work trip", fallback: 30, words: W("work ?trips?|business trips?|business travel|työmatka|työmatkalla|työmatkan|työmatkaan|työmatkalle|työmatkalta|työreissu|työreissulla|työreissulle|työreissun") },
   { id: "trip", category: "travel", label: "Trip", fallback: 0, words: W("trips?|flights?|hotel|hotels|hotelli|holiday|vacation|city break|weekend away|road trip|cruise|risteily|airbnb|matka|matkalle|matkalla|matkan|matkaan|matkalta|matkasta|matkoja|reissu|reissulle|reissulla|reissussa|reissulta|lento|lennot|lennolle|lennon|lennolla|lennolta|lentoon|loma|lomalle|lomalla|loman|lomalta|lomasta|lomalle|lomamatka|mökkireissu|mökille|viikonloppumatka|ulkomaille") },
   { id: "concert", category: "entertainment", label: "Concert or show", fallback: 70, words: W("concerts?|gig|festival|festivals|festivaali|theatre|theater|musical|teatteri|teatteriin|konsertti|konserttiin|konsertissa|konsertista|keikka|keikalle|keikalla|keikalta|oopperaan|ooppera|tickets?|liput") },
   { id: "cinema", category: "entertainment", label: "Cinema", fallback: 15, words: W("cinema|movie|movies|elokuva|elokuviin|elokuvissa|elokuvasta|leffa|leffaan") },
@@ -48,7 +50,7 @@ export const KINDS: Kind[] = [
 ];
 
 // Costs somebody else pays or that are not personal spending.
-const NOT_PERSONAL = W("business trip|work trip|business travel|työmatka|työmatkalla|työreissu|commute|sick leave|sairasloma|conference|konferenssi|public holiday|bank holiday|school holiday|arkipyhä|koululoma");
+const NOT_PERSONAL = W("commute|sick leave|sairasloma|conference|konferenssi|public holiday|bank holiday|school holiday|arkipyhä|koululoma");
 
 export const CATEGORY_LABEL: Record<ForecastCategory, string> = { travel: "Travel", dining: "Eating out", entertainment: "Entertainment", gift: "Gifts and parties" };
 
@@ -139,6 +141,10 @@ function estimate(kind: Kind, nights: number, b: Baselines, alsoDining: boolean)
       if (b.trip) return { amount: round5(b.trip.median), basis: "history", note: `Based on your ${b.trip.n} past trips.` };
       const d = TRIP_DEFAULTS.find((x) => days <= x.maxDays) as { amount: number };
       return { amount: d.amount, basis: "default", note: `A typical amount for ${days <= 3 ? "a weekend" : days <= 7 ? "a week" : "a long trip"}.` };
+    }
+    case "worktrip": {
+      // The employer pays travel and hotel. What the person pays is meals and extras: about EUR 30 a day, at most EUR 150.
+      return { amount: Math.min(150, kind.fallback * days), basis: "default", note: "Meals and extras. Your employer usually pays travel and hotel." };
     }
     case "dinner":
     case "lunch":

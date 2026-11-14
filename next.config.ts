@@ -13,6 +13,19 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: lanAddresses,
   /* config options here */
   cacheComponents: true,
+  // The service worker file must never be served from a cache, or phones keep running an old one. Allow it to control the whole site.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
   partialPrefetching: true,
   turbopack: {
     rules: {

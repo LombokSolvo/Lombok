@@ -4,7 +4,7 @@ import { ArrowUp, ArrowUpRight, Check, GraduationCap, ReceiptText, Sparkles } fr
 import { useEffect, useRef, useState } from "react";
 import { LearnPack } from "@/components/learn/learn-pack";
 import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
-import { LAST_PAGE_KEY, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
+import { LAST_PAGE_KEY, followUpsFor, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
 import type { DemoMode } from "@/lib/demo-mode";
 import { PACK_IDS, PACK_META, getPack, packFromText, type LearnContext, type PackId } from "@/lib/learn";
 import { useLearnProgress } from "@/lib/learn-store";
@@ -12,6 +12,12 @@ import type { SpendingResult } from "@/lib/spending";
 import type { WhatIfResult } from "@/lib/what-if";
 import { ActionCard, chatState } from "./action-card";
 import { WhatIfCard } from "./what-if-card";
+import { SavingsLines } from "./savings-card";
+import { PeerCard } from "./peer-card";
+import { SpenderCard } from "@/components/spender-card";
+import type { PeerCompare } from "@/lib/peer-compare";
+import type { SpenderProfile } from "@/lib/spender";
+import type { SavingsPlanResult } from "@/lib/find-savings";
 
 type Msg = {
   role: "user" | "coach";
@@ -19,6 +25,9 @@ type Msg = {
   checks?: SpendingResult[];
   actions?: ChatAction[]; // cards with a button; nothing happens until the person taps
   whatIfs?: WhatIfResult[]; // "what if" results, shown as cards
+  savings?: SavingsPlanResult[]; // "help me save €100 more a month": a plan card
+  compares?: PeerCompare[]; // "how do I compare" / "where could I save": spending lines against people like you
+  styles?: SpenderProfile[]; // "what kind of spender am I"
   source?: "gemini" | "offline";
   ms?: number;
   pack?: PackId; // a learning pack, played inside the chat
@@ -45,12 +54,17 @@ function MonthBars({ groups }: { groups: SpendingResult["groups"] }) {
   );
 }
 
+const bubble = "rounded-[22px] rounded-bl-md bg-card px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line shadow-[0_1px_3px_rgba(15,42,31,0.06)]";
+
 const isMonthly = (c: SpendingResult) => c.groups.length >= 3 && c.groups.every((g) => /^\d{4}-\d{2}$/.test(g.key));
 
 export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMode }) {
   const [from, setFrom] = useState("/");
-  const suggestions = suggestionsFor(from, mode === "aino");
   const [messages, setMessages] = useState<Msg[]>([]);
+  // After an answer the chips follow on from what it showed (src/lib/chat-actions.ts followUpsFor); otherwise they fit the page the person came from.
+  const lastAnswer = messages.at(-1);
+  const suggestions =
+    lastAnswer?.role === "coach" ? followUpsFor(lastAnswer, messages.filter((m) => m.role === "user").map((m) => m.text)) : suggestionsFor(from, mode === "aino");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
@@ -100,7 +114,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
       if (id !== chatId.current) return;
       setMessages([
         ...history,
-        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, source: d.source, ms: d.ms },
+        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, savings: d.savings, compares: d.compares, styles: d.styles, source: d.source, ms: d.ms },
       ]);
     } catch {
       if (id === chatId.current) setMessages([...history, { role: "coach", text: "I couldn't connect. Check your connection and try again." }]);
@@ -146,9 +160,6 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
                 <Sparkles className="size-6" aria-hidden />
               </span>
               <h1 className="mt-4 font-display text-[32px] leading-[1.05] font-semibold tracking-[-0.02em]">Ask Solvo</h1>
-              <p className="mt-2 text-[15px] leading-snug text-muted-foreground">
-                Answers come from your own S-Pankki transactions. Solvo never moves money without your approval.
-              </p>
             </div>
             <Group
               title="Learn with your own numbers"
@@ -195,9 +206,8 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
               key={i}
               className={`flex animate-in fade-in slide-in-from-bottom-2 flex-col gap-2 duration-200 ${m.pack ? "self-stretch [&>div:first-child]:mr-8 [&>div:first-child]:self-start" : "mr-8 self-start"}`}
             >
-              <div className="rounded-[22px] rounded-bl-md bg-card px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
-                {m.text}
-              </div>
+              {/* A comparison puts its table first, then the analysis, the suggestion and its button together in one message. A savings plan is one message too: the text, one row per change, the approval. */}
+              {!(m.compares?.length || m.styles?.length || m.savings?.length) && <div className={bubble}>{m.text}</div>}
               {m.pack && <LearnPack id={m.pack} ctx={learn} onAsk={(q) => void ask(q)} onOpen={(id) => openPack(id)} />}
               {m.checks?.map((c, j) => (
                 <div
@@ -219,15 +229,21 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
                   </div>
                 </div>
               ))}
+              {m.compares?.map((r, j) => <PeerCard key={j} r={r} />)}
+              {m.styles?.map((r, j) => <SpenderCard key={j} profile={r} compact className="mt-1" />)}
+              {(m.compares?.length || m.styles?.length || m.savings?.length) ? (
+                <div className={bubble}>
+                  {m.text}
+                  {m.savings?.map((r, j) => <SavingsLines key={j} r={r} />)}
+                  {!!m.actions?.length && (
+                    <div className="mt-3 flex flex-col gap-2 border-t pt-3 [&>*]:rounded-none! [&>*]:bg-transparent! [&>*]:p-0! [&>*]:shadow-none!">
+                      {m.actions.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
+                    </div>
+                  )}
+                </div>
+              ) : null}
               {m.whatIfs?.map((r, j) => <WhatIfCard key={j} r={r} />)}
-              {m.actions?.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
-              {m.source && (
-                <span className="px-1 text-[11px] text-muted-foreground">
-                  {m.source === "gemini"
-                    ? `Answered by Gemini in ${((m.ms ?? 0) / 1000).toFixed(1)} s`
-                    : "Offline answer, AI unavailable"}
-                </span>
-              )}
+              {!(m.compares?.length || m.styles?.length || m.savings?.length) && m.actions?.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
             </div>
           ),
         )}

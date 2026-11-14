@@ -21,7 +21,7 @@ export function AllBanksCard({ base, banks, view, bankName = "Nordea", real = []
   const insurance = f.nordea?.bills.find((b) => b.label === "Insurance");
 
   return (
-    <Group title="All your banks" className="mt-4" footer={real.length ? `Your real ${real.map((r) => r.name).join(", ")}, merged with the example S-Pankki data. Transfers between your own accounts are not counted as spending.` : "Demo: example data for the connected banks. Transfers between your own accounts are not counted as spending."}>
+    <Group title="All your banks" className="mt-4">
       <div className="p-3">
         <ViewToggle banks={banks} view={view} />
       </div>
@@ -59,7 +59,7 @@ export function AllBanksCard({ base, banks, view, bankName = "Nordea", real = []
           )}
         </>
       ) : (
-        <p className="px-4 pb-4 text-[14px] leading-snug text-muted-foreground">Showing S-Pankki only. Switch to All banks to include what your other banks add.</p>
+        <p className="px-4 pb-4 text-[14px] leading-snug text-muted-foreground">Showing S-Pankki only.</p>
       )}
     </Group>
   );

@@ -2,12 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import { clearBanksCookie } from "@/lib/banks";
+import { resetBudgetEdits } from "@/lib/budget-edits-store";
 import { clearCalendarFile } from "@/lib/calendar-file-store";
 import { resetCalendar } from "@/lib/calendar-store";
 import { resetForecast } from "@/lib/forecast-store";
 import { resetGoals } from "@/lib/goals-store";
 import { resetLearn } from "@/lib/learn-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
+import { resetTrimmed } from "@/lib/trimmed-store";
 import { DEMO_COOKIE, type DemoMode } from "@/lib/demo-mode";
 
 // What the user has approved in this browser: contract switches and a monthly fund savings plan.
@@ -193,8 +195,10 @@ export function resetDemo() {
   billStore.set(null);
   cancelledStore.set(null);
   resetGoals();
+  resetBudgetEdits();
   resetOnboarding();
   resetCalendar();
+  resetTrimmed();
   resetForecast();
   clearCalendarFile();
   clearBanksCookie();
