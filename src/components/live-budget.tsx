@@ -4,10 +4,17 @@ import Link from "next/link";
 import { useWeeklyReserve } from "@/components/forecast-ui";
 import { useLearnProgress } from "@/lib/learn-store";
 import { onboardingWeeklyDelta, useOnboarding } from "@/lib/onboarding-store";
-import { resetDemo, useBillActions, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
+import { SUBSCRIPTIONS } from "@/data/subscriptions";
+import { WEEKS_PER_YEAR, resetDemo, useBillActions, useCancelledSubs, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
 
 // Small client islands for the server-rendered home page: they add the effect of approved switches
 // to the safe-to-spend numbers without moving the page's layout into the client.
+
+/** What the subscriptions stopped from the chat free up each week. */
+export function useCancelledWeekly() {
+  const cancelled = useCancelledSubs();
+  return (SUBSCRIPTIONS.filter((x) => cancelled[x.id]).reduce((sum, x) => sum + x.monthly, 0) * 12) / WEEKS_PER_YEAR;
+}
 
 const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
@@ -15,7 +22,8 @@ const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR",
 export function LiveWeeklyEuro({ base, signed = false }: { base: number; signed?: boolean }) {
   // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume; what the person's
   // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why).
-  const value = base + weeklyBoost(useSwitches(), useSavingsPlan()) + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
+  const value =
+    base + weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
   return <>{signed && value < 0 ? `−${eur.format(-value)}` : eur.format(value)}</>;
 }
 
@@ -51,7 +59,8 @@ export function ResetDemoButton({ className }: { className?: string }) {
   const bills = useBillActions();
   const onboarding = useOnboarding();
   const learned = Object.keys(useLearnProgress().done).length > 0;
-  if (!learned && !Object.keys(switches).length && !plan && !Object.keys(bills).length && !onboarding.completedAt && !onboarding.skipped) return null;
+  const cancelled = Object.keys(useCancelledSubs()).length > 0;
+  if (!learned && !cancelled && !Object.keys(switches).length && !plan && !Object.keys(bills).length && !onboarding.completedAt && !onboarding.skipped) return null;
   return (
     <button type="button" className={className} onClick={resetDemo}>
       Reset demo
