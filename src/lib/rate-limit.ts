@@ -21,8 +21,8 @@ const env = (name: string, fallback: number) => {
 };
 
 const RULES: Record<LimitKind, Rule> = {
-  chat: { perVisitor: env("LIMIT_CHAT_PER_HOUR", 20), perIp: 400, perDay: env("LIMIT_CHAT_PER_DAY", 3000), windowMs: HOUR },
-  invoice: { perVisitor: 15, perIp: 300, perDay: env("LIMIT_INVOICE_PER_DAY", 400), windowMs: HOUR },
+  chat: { perVisitor: env("LIMIT_CHAT_PER_HOUR", 60), perIp: env("LIMIT_CHAT_PER_IP_HOUR", 1500), perDay: env("LIMIT_CHAT_PER_DAY", 3000), windowMs: HOUR },
+  invoice: { perVisitor: 15, perIp: 1000, perDay: env("LIMIT_INVOICE_PER_DAY", 400), windowMs: HOUR },
   photo: { perVisitor: 5, perIp: 100, perDay: env("LIMIT_PHOTO_PER_DAY", 200), windowMs: HOUR },
   agent: { perVisitor: env("LIMIT_AGENT_PER_HOUR", 3), perIp: 40, perDay: env("LIMIT_AGENT_PER_DAY", 60), windowMs: HOUR },
 };
