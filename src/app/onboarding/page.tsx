@@ -1,5 +1,7 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { CONNECTED_COOKIE } from "@/lib/banks";
 import { ForecastProvider } from "@/components/forecast-ui";
 import { PAGE } from "@/components/solvo/ui";
 import { getCalendarState } from "@/lib/calendar-source";
@@ -42,7 +44,7 @@ async function Onboarding({ searchParams }: { searchParams: Promise<{ calendar?:
   };
   return (
     <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
-      <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new"} banks={banks} view={view} calendar={{ google: googleStatus(), link: await linkStatus(), notice: calendarNotice ?? null }} />
+      <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new" && (await cookies()).get(CONNECTED_COOKIE)?.value !== "1"} banks={banks} view={view} calendar={{ google: googleStatus(), link: await linkStatus(), notice: calendarNotice ?? null }} />
     </ForecastProvider>
   );
 }

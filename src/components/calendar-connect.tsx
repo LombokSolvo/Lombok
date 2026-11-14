@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, CalendarDays, Check, ChevronRight, FileUp, Link2, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
+import { BrandLogo, BrandTile, ConnectOverlay, useStages } from "@/components/connect-motion";
 import { CategoryIcon, useForecast } from "@/components/forecast-ui";
 import { SignedAmount } from "@/components/solvo/money-badge";
 import { Sheet } from "@/components/solvo/sheet";
@@ -69,15 +70,36 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
   const googleHere = google.enabled && google.connected;
   const spin = <Loader2 className="animate-spin" />;
 
+  const [opening, setOpening] = useState(false);
+  const openDone = useStages(2, { running: opening, finished: false });
+  // Back from Google: play the connected moment once, then tidy the address so a reload doesn't play it again.
+  const [welcome, setWelcome] = useState(notice === "connected" && googleHere);
+  const welcomeStages = ["Approved at Google", `Reading the next ${WINDOW_DAYS} days`, `${google.events} upcoming ${google.events === 1 ? "event" : "events"} found`];
+  const welcomeDone = useStages(welcomeStages.length, { running: welcome, stepMs: 650 });
+  useEffect(() => {
+    if (!welcome || welcomeDone < welcomeStages.length) return;
+    const t = window.setTimeout(() => {
+      setWelcome(false);
+      window.history.replaceState(null, "", window.location.pathname);
+      document.getElementById("calendar")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 1600);
+    return () => window.clearTimeout(t);
+  }, [welcome, welcomeDone, welcomeStages.length]);
+
   const connectGoogle = async () => {
     setSheet(null);
     setBusy("connect");
     setError(null);
+    setOpening(true);
+    const began = Date.now();
     const r = await postJson("/api/google/start", { from });
     if (r.ok && typeof r.data.url === "string") {
-      window.location.assign(r.data.url); // Google's own page: the person approves there with their own login
+      const url = r.data.url;
+      // Google's own page: the person approves there with their own login. Held a moment so the hand-over reads as one motion.
+      window.setTimeout(() => window.location.assign(url), Math.max(0, 1400 - (Date.now() - began)));
       return;
     }
+    setOpening(false);
     setError(r.ok ? "Google gave no address to continue." : r.error);
     setBusy(null);
   };
@@ -172,7 +194,7 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
         {googleHere && (
           <>
             <Row
-              icon={<IconTile tone={google.reconnect ? "warn" : undefined}><CalendarDays /></IconTile>}
+              icon={google.reconnect ? <IconTile tone="warn"><CalendarDays /></IconTile> : <BrandTile brand="google-calendar" />}
               title={google.reconnect ? "Google Calendar needs approval again" : "Google Calendar connected"}
               subtitle={
                 google.reconnect
@@ -205,12 +227,15 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
         )}
       </Group>
 
+      {opening && <ConnectOverlay brand="google-calendar" title="Connecting Google Calendar" doneTitle="Connecting Google Calendar" stages={["Secure connection opened", "Opening Google sign-in"]} done={openDone} />}
+      {welcome && <ConnectOverlay brand="google-calendar" title="Connecting Google Calendar" doneTitle="Google Calendar connected" stages={welcomeStages} done={welcomeDone} />}
+
       {sheet === "pick" && (
         <Sheet title="Connect a calendar" onClose={() => setSheet(null)} hideDone>
           <div className="flex flex-col gap-2.5">
             <Choice icon={<FileUp />} title="Calendar file" sub="Export a .ics file from Google, Apple or Outlook and choose it." onClick={() => setSheet("file")} />
             {link.available && <Choice icon={<Link2 />} title="Calendar link" sub="Paste your calendar's private link from Google, iCloud or Outlook." onClick={() => setSheet("link")} />}
-            {google.enabled && google.configured && <Choice icon={<CalendarDays />} title="Google Calendar" sub="Sign in with Google and approve read-only access." onClick={() => setSheet("google")} />}
+            {google.enabled && google.configured && <Choice icon={<BrandLogo brand="google-calendar" className="size-6" />} title="Google Calendar" sub="Sign in with Google and approve read-only access." onClick={() => setSheet("google")} />}
             {google.enabled && !google.configured && <Row icon={<IconTile tone="warn"><CalendarDays /></IconTile>} title="Google sign-in needs setup" subtitle="Put GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local. Steps are at the top of src/lib/google-calendar.ts." className="rounded-2xl bg-muted/40" />}
           </div>
         </Sheet>

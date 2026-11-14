@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
+import { ConnectProgress, brandFor, useStages } from "@/components/connect-motion";
 import { BackLink, PAGE, PageTitle, TopBar, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
 
@@ -46,26 +47,30 @@ export function ConnectClient({ bank, bankName, error, hasSession }: { bank: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const brand = brandFor(bankName) ?? "bank";
+  const stages = ["Signed with your bank ID", `Downloading your ${bankName} transactions`, "Matching transfers between banks", "Adding it to your plan"];
+  const done = useStages(stages.length, { finished: state.kind === "done", running: state.kind !== "error" });
+
   return (
     <main className={PAGE}>
       <TopBar back={<BackLink href="/profile" label="Profile" />} />
-      <PageTitle title={state.kind === "done" ? `${bankName} is connected` : state.kind === "error" ? "Not connected" : `Connecting ${bankName}`} />
-      {state.kind === "working" && (
-        <p role="status" className="flex items-center gap-3 text-[15px]">
-          <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
-          Approved. Downloading your transactions, this takes a moment…
-        </p>
-      )}
-      {state.kind === "done" && (
-        <>
-          <p className="flex items-start gap-3 text-[15px] leading-snug">
-            <Check className="mt-0.5 size-5 shrink-0 text-primary" strokeWidth={2.75} aria-hidden />
-            {state.transactions.toLocaleString("en-GB")} transactions from {state.accounts} account{state.accounts === 1 ? "" : "s"}, up to {day(state.asOf)}. Solvo now includes your real {bankName}.
-          </p>
-          <button type="button" className={`${primaryButton} mt-6`} onClick={() => router.replace("/")}>
-            Open Solvo
-          </button>
-        </>
+      {state.kind === "error" ? (
+        <PageTitle title="Not connected" />
+      ) : (
+        <div className="pt-[12dvh]">
+          <ConnectProgress brand={brand} title={`Connecting ${bankName}`} doneTitle={`${bankName} connected`} stages={stages} done={done}>
+            {state.kind === "done" && (
+              <>
+                <p className="text-center text-[15px] leading-snug text-muted-foreground">
+                  {state.transactions.toLocaleString("en-GB")} transactions from {state.accounts} account{state.accounts === 1 ? "" : "s"}, up to {day(state.asOf)}.
+                </p>
+                <button type="button" className={`${primaryButton} mt-6`} onClick={() => router.replace("/")}>
+                  Open Solvo
+                </button>
+              </>
+            )}
+          </ConnectProgress>
+        </div>
       )}
       {state.kind === "error" && (
         <>
