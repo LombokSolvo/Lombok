@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { CalendarDays, Check, Landmark, Minus, PiggyBank, Plus, TrendingUp, X } from "lucide-react";
 import { PortfolioChart, type ChartLabels } from "@/components/portfolio-chart";
@@ -15,7 +14,6 @@ import {
   planFunds,
   useSavingsPlan,
   useSwitches,
-  weeklyBoost,
   type PlanFund,
   type SavingsPlan,
 } from "@/lib/switches";
@@ -26,6 +24,7 @@ const STEP = 10; // EUR, the +/- step of a fund's monthly amount
 const NEW_FUND = 50; // EUR a month for a fund added to the plan
 const pct = (n: number) => `${n.toLocaleString("fi-FI")} %`;
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const weekly = (n: number) => eur.format((n * 12) / 52);
 const shortName = (id: string) => fundById(id).name.replace("S-Pankki ", "");
 
 const PF = portfolio();
@@ -42,22 +41,42 @@ const RANGES: { key: string; label: string; phrase?: string; points: Point[]; la
   { key: "all", label: "All time", points: DAILY.filter((_, i) => i % 3 === (DAILY.length - 1) % 3), labels: { point: "date", axis: "month" } },
 ];
 
-/** The 10-year projection for a plan's funds, on a light card (the Slab is the portfolio). */
+/** The 10-year projection for a plan's funds, on a light card (the Slab is the portfolio), with how the number comes about. */
 function Projection({ funds }: { funds: PlanFund[] }) {
   const parts = funds.map((r) => projectFund(r.monthly, YEARS, fundById(r.fundId)));
   const sum = (k: "value" | "deposited" | "fees") => parts.reduce((s, p) => s + p[k], 0);
   const monthly = funds.reduce((s, r) => s + r.monthly, 0);
-  const single = funds.length === 1 ? fundById(funds[0].fundId) : null;
+  const value = sum("value");
+  const deposited = sum("deposited");
+  const fees = sum("fees");
+  const growth = value + fees - deposited; // returns before fees
+  const assumptions = funds
+    .map((r) => {
+      const f = fundById(r.fundId);
+      return `${pct(f.illustrativeReturnPct)} a year for ${shortName(f.id)}`;
+    })
+    .join(", ");
+  const line = (label: string, amount: string, strong = false) => (
+    <div className={`flex items-baseline justify-between gap-3 py-1.5 text-[14px] ${strong ? "border-t pt-2.5 font-semibold" : ""}`}>
+      <span className={strong ? "" : "text-muted-foreground"}>{label}</span>
+      <span className="num">{amount}</span>
+    </div>
+  );
   return (
     <section className="mt-4 rounded-2xl bg-card p-4 shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
       <p className="text-[13px] text-muted-foreground">
         {eur.format(monthly)} a month for {YEARS} years could become
       </p>
-      <p className="num mt-1 font-display text-[34px] leading-none font-semibold tracking-[-0.03em]">{eur.format(sum("value"))}</p>
+      <p className="num mt-1 font-display text-[34px] leading-none font-semibold tracking-[-0.03em]">{eur.format(value)}</p>
+      <div className="mt-3">
+        {line(`You put in, ${eur.format(monthly)} × ${YEARS * 12} months`, eur.format(deposited))}
+        {line("Growth, if the funds earn the rate below", `+${eur.format(growth)}`)}
+        {line("Fund fees over the years", `−${eur.format(fees)}`)}
+        {line("Could be worth", eur.format(value), true)}
+      </div>
       <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
-        {eur.format(sum("deposited"))} of your own money.{" "}
-        {single ? `Illustrative ${pct(single.illustrativeReturnPct)} a year before fees` : "Illustrative returns for each fund type, before fees"};
-        fees take about {eur.format(sum("fees"))} over {YEARS} years. Funds can also lose value.
+        Growth compounds: returns earn returns. Assumes {assumptions}, before fees, an illustrative rate for each type of
+        fund. It is an example, not a promise: funds can also lose value.
       </p>
     </section>
   );
@@ -107,8 +126,7 @@ function FundsSlab() {
           <>
             <span className="num font-semibold text-mint">
               {signed(PF.gain)} ({signedPct(PF.gainPct)})
-            </span>{" "}
-            on the {eur.format(PF.invested)} you put in
+            </span>
           </>
         )}
       </p>
@@ -183,26 +201,16 @@ export function SaveClient(props: Props) {
 
   if (plan && !editing) {
     const funds = planFunds(plan);
-    const fromGoal = plan.fromGoal ?? 0;
-    const fromBills = plan.fromBills ?? (plan.fromGoal === undefined ? plan.monthly : 0); // older plans: all from bills
     const fromBudget = plan.fromBudget ?? 0;
-    const sources = [
-      fromGoal > 0 && `${eur.format(fromGoal)} is your savings goal, already outside your weekly budget`,
-      fromBills > 0 && `${eur.format(fromBills)} comes from cheaper bills`,
-      fromBudget > 0 && `${eur.format(fromBudget)} comes from your weekly budget`,
-    ].filter(Boolean);
     return (
       <main className={PAGE}>
         <TopBar />
-        <PageTitle title="Your investments">
-          {eur.format(plan.monthly)} a month into {funds.length === 1 ? shortName(funds[0].fundId) : `${funds.length} funds`}, on the{" "}
-          {plan.dayOfMonth}nd. You can edit it any time.
-        </PageTitle>
+        <PageTitle title="Your investments" />
         {now}
         <Group
           title="Your saving plan"
           aside={`${eur.format(plan.monthly)} a month`}
-          footer={sources.length ? `${sources.join(". ")}.` : undefined}
+          footer={fromBudget > 0 ? `${weekly(fromBudget)} less to spend a week.` : undefined}
         >
           {funds.map((r) => (
             <Row
@@ -228,10 +236,6 @@ export function SaveClient(props: Props) {
             value={next}
           />
         </Group>
-        <Projection funds={funds} />
-        <p className="mt-4 px-1 text-[13px] leading-snug text-muted-foreground">
-          Safe to spend this week: {eur.format(props.remaining + weeklyBoost(switches, plan))}.
-        </p>
         <button type="button" onClick={() => setEditing(true)} className={`${primaryButton} mt-6`}>
           Edit plan
         </button>
@@ -275,7 +279,6 @@ function PlanEditor(
     setRows((rs) => (rs.some((r) => r.fundId === id) ? rs.filter((r) => r.fundId !== id) : [...rs, { fundId: id, monthly: NEW_FUND }]));
 
   const btn = "flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted active:scale-95 disabled:opacity-40";
-  const weekly = (n: number) => eur.format((n * 12) / 52);
 
   return (
     <main className={PAGE}>
@@ -300,24 +303,11 @@ function PlanEditor(
         title="Your plan"
         aside={`${eur.format(total)} a month`}
         footer={
-          rows.length === 0 ? (
-            "Add at least one fund below."
-          ) : (
-            <>
-              {eur.format(parts.fromGoal)} is your savings goal, already outside your weekly budget.
-              {parts.fromBills > 0 && ` ${eur.format(parts.fromBills)} comes from what cheaper bills free up.`}
-              {parts.fromBudget > 0 && ` ${eur.format(parts.fromBudget)} comes from your budget: ${weekly(parts.fromBudget)} less to spend a week.`}
-              {freed === 0 && (
-                <>
-                  {" "}
-                  Switch a bill to free up more.{" "}
-                  <Link href="/bills" className="-my-3 inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4">
-                    See your bills
-                  </Link>
-                </>
-              )}
-            </>
-          )
+          rows.length === 0
+            ? "Add at least one fund below."
+            : parts.fromBudget > 0
+              ? `${weekly(parts.fromBudget)} less to spend a week.`
+              : undefined
         }
       >
         {rows.map((r) => (

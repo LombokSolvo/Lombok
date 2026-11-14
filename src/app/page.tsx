@@ -146,39 +146,6 @@ async function HomeScreen() {
 
         <ConnectCalendarNudge />
 
-        {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
-        {!local && compareGroup && <CompareSummary group={compareGroup} />}
-
-        {/* Coach chat entry */}
-        <section className="mt-4">
-          <Link
-            href="/coach"
-            transitionTypes={["nav-forward"]}
-            className="flex h-14 items-center gap-3 rounded-2xl bg-card px-4 shadow-[0_1px_3px_rgba(15,42,31,0.06)] active:bg-muted"
-          >
-            <IconTile>
-              <MessageCircle />
-            </IconTile>
-            <span className="flex-1 text-[15px] text-muted-foreground">Ask Solvo about your money</span>
-          </Link>
-          <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-            {[
-              "How much did I spend on taxis?",
-              "Can I afford an €80 dinner this week?",
-              "Where could I save the most?",
-            ].map((q) => (
-              <Link
-                key={q}
-                href={`/coach?q=${encodeURIComponent(q)}`}
-                transitionTypes={["nav-forward"]}
-                className="flex h-11 shrink-0 items-center rounded-full border border-border bg-card/60 px-3.5 text-[13px] font-medium whitespace-nowrap text-foreground/80 active:bg-muted"
-              >
-                {q}
-              </Link>
-            ))}
-          </div>
-        </section>
-
         {/* Where the salary goes: the budget and the three baskets in one card */}
         <Group
           title="Your money each month"
@@ -238,6 +205,39 @@ async function HomeScreen() {
             <ArrowRight className="size-[18px]" aria-hidden />
           </Link>
         </Group>
+
+        {/* Coach chat entry */}
+        <section className="mt-4">
+          <Link
+            href="/coach"
+            transitionTypes={["nav-forward"]}
+            className="flex h-14 items-center gap-3 rounded-2xl bg-card px-4 shadow-[0_1px_3px_rgba(15,42,31,0.06)] active:bg-muted"
+          >
+            <IconTile>
+              <MessageCircle />
+            </IconTile>
+            <span className="flex-1 text-[15px] text-muted-foreground">Ask Solvo about your money</span>
+          </Link>
+          <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            {[
+              "How much did I spend on taxis?",
+              "Can I afford an €80 dinner this week?",
+              "Where could I save the most?",
+            ].map((q) => (
+              <Link
+                key={q}
+                href={`/coach?q=${encodeURIComponent(q)}`}
+                transitionTypes={["nav-forward"]}
+                className="flex h-11 shrink-0 items-center rounded-full border border-border bg-card/60 px-3.5 text-[13px] font-medium whitespace-nowrap text-foreground/80 active:bg-muted"
+              >
+                {q}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
+        {!local && compareGroup && <CompareSummary group={compareGroup} />}
 
         <footer className="mt-6 px-1 text-[13px]">
           <ResetDemoButton className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4" />

@@ -165,9 +165,13 @@ export function BillsClient(props: {
                   : "No e-invoices from your suppliers have reached your bank yet. When one arrives, Solvo reads it here and compares the contract."}
               </PageTitle>
 
-              {actionable.map((inv) => (
-                <FeaturedInvoice key={inv.id} meta={inv} loaded={loaded[inv.id]!} onOpen={() => setOpen(inv.id)} />
-              ))}
+              {actionable.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {actionable.map((inv) => (
+                    <FeaturedInvoice key={inv.id} meta={inv} loaded={loaded[inv.id]!} onOpen={() => setOpen(inv.id)} />
+                  ))}
+                </div>
+              )}
 
               {others.length > 0 && (
                 <Group

@@ -5,6 +5,7 @@ import { PAGE } from "@/components/solvo/ui";
 import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { SUBSCRIPTIONS, subscriptionCharges } from "@/data/subscriptions";
+import { namedBillsFor } from "@/lib/bill-names";
 import { safeToSpend } from "@/lib/coach";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
@@ -45,6 +46,15 @@ async function Bills() {
         supplier: inv ? SAVED_READINGS[inv.id]?.supplier : undefined,
       };
     });
+  // Name the unnamed ones too: each month has one payment per e-invoiced contract, in the same order through the month
+  // (grid fee, electricity, phone and internet), so the k-th utility payment of a month gets the k-th bill's name.
+  const named = mode === "aino" ? namedBillsFor("CUST01787") : [];
+  const byMonth = new Map<string, PaidBill[]>();
+  for (const b of history) if (b.kind === "utility") byMonth.set(b.date.slice(0, 7), [...(byMonth.get(b.date.slice(0, 7)) ?? []), b]);
+  for (const bills of byMonth.values()) {
+    if (bills.length !== named.length) continue; // only when the month clearly has one payment per contract
+    [...bills].sort((a, b) => a.date.localeCompare(b.date)).forEach((b, k) => (b.label = named[k].label));
+  }
   for (const s of subscriptionCharges(subscriptions, from, c.asOf)) {
     history.push({ date: s.date, kind: "subscription", amount: s.amount, supplier: s.name });
   }
