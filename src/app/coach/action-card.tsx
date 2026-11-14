@@ -175,8 +175,8 @@ function AddGoal({ a, mode }: { a: Extract<ChatAction, { kind: "add_goal" }>; mo
   return (
     <Card
       icon={<Target />}
-      title={`Add goal: ${a.label}, ${eur.format(a.target)}`}
-      subtitle={`${eur.format(a.monthly)} a month to your savings account for ${a.months} months.${lessPerWeek >= 0.5 ? ` ${eur.format(lessPerWeek)} less to spend a week.` : ""}`}
+      title={`Add goal: ${a.label}`}
+      subtitle={`${eur.format(a.target)} in ${a.months} months: ${eur.format(a.monthly)} a month to your savings account.${lessPerWeek >= 0.5 ? ` ${eur.format(lessPerWeek)} less to spend a week.` : ""}`}
       done={done}
       doneText={`${a.label} added to your goals`}
       onUndo={() => {
