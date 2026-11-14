@@ -18,7 +18,14 @@ const METRICS = [
 ] as const;
 
 export type CompareMetric = { id: string; label: string; you: number; median: number; pct: number; deciles: number[] };
-export type CompareGroup = { dim: "age" | "area" | "income"; tab: string; label: string; n: number; metrics: CompareMetric[] };
+export type CompareGroup = {
+  key: string; // e.g. "age:25–34"
+  dim: "age" | "area" | "income" | "all";
+  label: string; // "Aged 25–34"
+  short: string; // "25–34", for a picker chip
+  n: number;
+  metrics: CompareMetric[];
+};
 
 const AGE_BANDS: [number, number, string][] = [[18, 24, "18–24"], [25, 34, "25–34"], [35, 44, "35–44"], [45, 54, "45–54"], [55, 64, "55–64"], [65, 200, "65+"]];
 const INCOME_BANDS: [number, number, string][] = [[0, 2000, "0–2000"], [2000, 3000, "2000–3000"], [3000, 4000, "3000–4000"], [4000, 5000, "4000–5000"], [5000, Infinity, "5000+"]];
@@ -33,35 +40,48 @@ export function percentile(x: number, d: number[]) {
   return 95; // above the 90th percentile: the deciles can't say more
 }
 
-export function compareWith(c: DemoCustomer): CompareGroup[] {
-  const monthly = (cats: readonly string[]) => cats.reduce((s, k) => s + (c.summary.categoryYear[k] ?? 0), 0) / 12;
+const DIM_OF = (key: string): CompareGroup["dim"] => (key.split(":")[0] as CompareGroup["dim"]) ?? "all";
+const prettyLabel = (label: string) => label.replace(/(\d{4})/g, (n) => Number(n).toLocaleString("fi-FI"));
+
+/** The person's own group in each dimension: their age band, city and income band. */
+export function ownGroups(c: DemoCustomer): Record<"age" | "area" | "income", string | undefined> {
   const income = c.summary.salaryYear / 12;
   const age = AGE_BANDS.find(([lo, hi]) => c.age >= lo && c.age <= hi);
   const inc = INCOME_BANDS.find(([lo, hi]) => income >= lo && income <= hi);
   const area = AREA[c.postalCode.slice(0, 2)];
+  const has = (k: string | undefined) => (k && COHORTS[k] ? k : undefined);
+  return {
+    age: has(age && `age:${age[2]}`),
+    area: has(area && `area:${area}`),
+    income: has(inc && `income:${inc[2]}`),
+  };
+}
 
-  const picks: [CompareGroup["dim"], string, string | undefined][] = [
-    ["age", "Your age", age && `age:${age[2]}`],
-    ["area", "Your city", area && `area:${area}`],
-    ["income", "Your income", inc && `income:${inc[2]}`],
-  ];
-  return picks.flatMap(([dim, tab, key]) => {
-    const g = key ? COHORTS[key] : undefined;
-    if (!g) return [];
-    return [
-      {
-        dim,
-        tab,
-        label: g.label.replace(/(\d{4})/g, (n) => Number(n).toLocaleString("fi-FI")),
-        n: g.n,
-        metrics: METRICS.map((m) => {
-          const d = g.deciles[m.id];
-          const you = Math.round(monthly(m.cats));
-          return { id: m.id, label: m.label, you, median: d[4], pct: percentile(you, d), deciles: d };
-        }),
-      },
-    ];
-  });
+/** The person against one group (any key in cohorts.json). */
+export function compareAgainst(c: DemoCustomer, key: string): CompareGroup | null {
+  const g = COHORTS[key];
+  if (!g) return null;
+  const monthly = (cats: readonly string[]) => cats.reduce((s, k) => s + (c.summary.categoryYear[k] ?? 0), 0) / 12;
+  return {
+    key,
+    dim: DIM_OF(key),
+    label: prettyLabel(g.label),
+    short: prettyLabel(key === "all" ? "Everyone" : key.split(":")[1]),
+    n: g.n,
+    metrics: METRICS.map((m) => {
+      const d = g.deciles[m.id];
+      const you = Math.round(monthly(m.cats));
+      return { id: m.id, label: m.label, you, median: d[4], pct: percentile(you, d), deciles: d };
+    }),
+  };
+}
+
+/** Every group, in the order the picker shows them. */
+export function compareAll(c: DemoCustomer): CompareGroup[] {
+  const order = (k: string) => ["age", "area", "income", "all"].indexOf(DIM_OF(k));
+  return Object.keys(COHORTS)
+    .sort((a, b) => order(a) - order(b) || a.localeCompare(b, "en", { numeric: true }))
+    .flatMap((k) => compareAgainst(c, k) ?? []);
 }
 
 export const COHORT_WINDOW = data.window;

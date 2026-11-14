@@ -1,16 +1,16 @@
 import { Screen } from "@/components/solvo/screen";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CalendarDays, MessageCircle } from "lucide-react";
+import { ArrowRight, CalendarDays, MessageCircle } from "lucide-react";
 import { LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
-import { CompareCard } from "@/components/compare-card";
+import { CompareSummary } from "@/components/compare-card";
 import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
-import { compareWith } from "@/lib/cohorts";
+import { compareAgainst, ownGroups } from "@/lib/cohorts";
 import { safeToSpend, topCategories } from "@/lib/coach";
-import { BASKET_LABELS, type Basket } from "@/lib/demo";
+import type { Basket } from "@/lib/demo";
 import { inferSchedule } from "@/lib/schedule";
 import { getSource, pageMode } from "@/lib/source";
 
@@ -32,6 +32,7 @@ async function HomeScreen() {
   const { customer: c, local, mode } = getSource(await pageMode());
   const s = safeToSpend(c);
   const schedule = inferSchedule(c);
+  const compareGroup = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
   const baskets = [1, 2, 3] as Basket[];
   const yearTotal = baskets.reduce((sum, b) => sum + c.summary.basketYear[b], 0);
   const over = s.remaining < 0;
@@ -112,7 +113,7 @@ async function HomeScreen() {
         <UpcomingCard items={schedule.items} asOf={c.asOf} />
 
         {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
-        {!local && <CompareCard groups={compareWith(c)} />}
+        {!local && compareGroup && <CompareSummary group={compareGroup} />}
 
         {/* Coach chat entry */}
         <section className="mt-4">
@@ -144,10 +145,10 @@ async function HomeScreen() {
           </div>
         </section>
 
-        {/* How the number is built */}
+        {/* Where the salary goes: the budget and the three baskets in one card */}
         <Group
-          title="How your budget is built"
-          aside="per month"
+          title="Your money each month"
+          aside="last 12 months"
           footer={
             <>
               You usually spend {eur.format(s.usualWeeklyEveryday)} a week on everyday things.
@@ -157,30 +158,6 @@ async function HomeScreen() {
             </>
           }
         >
-          <dl className="num px-4 py-1 text-[15px]">
-            <div className="flex justify-between py-2.5">
-              <dt>Salary</dt>
-              <dd className="font-medium">{eur.format(s.incomePerMonth)}</dd>
-            </div>
-            {[
-              ["Fixed and regular bills", s.fixedRegularPerMonth],
-              ["Set aside for irregular costs", s.irregularSetAsidePerMonth],
-              ["Savings goal (you set this)", s.savingsGoalPerMonth],
-            ].map(([label, v]) => (
-              <div key={label} className="flex justify-between py-2.5 text-muted-foreground">
-                <dt>{label}</dt>
-                <dd>−{eur.format(v as number)}</dd>
-              </div>
-            ))}
-            <div className="flex justify-between border-t py-3 font-semibold">
-              <dt>Everyday budget</dt>
-              <dd>{eur.format(s.everydayBudgetPerMonth)}</dd>
-            </div>
-          </dl>
-        </Group>
-
-        {/* Three baskets */}
-        <Group title="Your three baskets" aside="last 12 months">
           <div className="px-4 pt-4 pb-1">
             <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
               {baskets.map((b) => (
@@ -192,21 +169,34 @@ async function HomeScreen() {
               ))}
             </div>
           </div>
-          {baskets.map((b) => {
-            const perYear = c.summary.basketYear[b];
-            return (
-              <Row
-                key={b}
-                icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[b]}`} aria-hidden />}
-                title={BASKET_LABELS[b].title}
-                subtitle={topCategories(c, b)
-                  .map((t) => t.category)
-                  .join(", ")}
-                value={`${eur.format(perYear / 12)}/mo`}
-                valueSub={`${Math.round((perYear / yearTotal) * 100)}%`}
-              />
-            );
-          })}
+          <Row title="Salary" value={eur.format(s.incomePerMonth)} />
+          <Row
+            icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[1]}`} aria-hidden />}
+            title="Fixed and regular bills"
+            subtitle={topCategories(c, 1).map((t) => t.category).join(", ")}
+            value={`−${eur.format(s.fixedRegularPerMonth)}`}
+          />
+          <Row
+            icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[2]}`} aria-hidden />}
+            title="Set aside for irregular costs"
+            subtitle={topCategories(c, 2).map((t) => t.category).join(", ")}
+            value={`−${eur.format(s.irregularSetAsidePerMonth)}`}
+          />
+          <Row title="Savings goal" subtitle="You set this" value={`−${eur.format(s.savingsGoalPerMonth)}`} />
+          <Row
+            icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[3]}`} aria-hidden />}
+            title={<span className="font-semibold">Everyday budget</span>}
+            subtitle={`You spend ${eur.format(c.summary.basketYear[3] / 12)}: ${topCategories(c, 3).map((t) => t.category).join(", ")}`}
+            value={<span className="font-semibold">{eur.format(s.everydayBudgetPerMonth)}</span>}
+          />
+          <Link
+            href="/costs"
+            transitionTypes={["nav-forward"]}
+            className="flex min-h-12 items-center justify-between border-t px-4 text-[15px] font-semibold text-primary active:bg-muted"
+          >
+            See every cost in detail
+            <ArrowRight className="size-[18px]" aria-hidden />
+          </Link>
         </Group>
 
         <footer className="mt-8 flex flex-col items-start gap-2 px-1 text-[12px] leading-snug text-muted-foreground">
