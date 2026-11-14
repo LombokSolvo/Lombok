@@ -25,6 +25,7 @@ const STEP = 10; // EUR, the +/- step of a fund's monthly amount
 const NEW_FUND = 50; // EUR a month for a fund added to the plan
 const pct = (n: number) => `${n.toLocaleString("fi-FI")} %`;
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const weekly = (n: number) => eur.format((n * 12) / 52);
 const shortName = (id: string) => fundById(id).name.replace("S-Pankki ", "");
 
 const PF = portfolio();
@@ -182,14 +183,7 @@ export function SaveClient(props: Props) {
 
   if (plan && !editing) {
     const funds = planFunds(plan);
-    const fromGoal = plan.fromGoal ?? 0;
-    const fromBills = plan.fromBills ?? (plan.fromGoal === undefined ? plan.monthly : 0); // older plans: all from bills
     const fromBudget = plan.fromBudget ?? 0;
-    const sources = [
-      fromGoal > 0 && `${eur.format(fromGoal)} is your savings goal, already outside your weekly budget`,
-      fromBills > 0 && `${eur.format(fromBills)} comes from cheaper bills`,
-      fromBudget > 0 && `${eur.format(fromBudget)} comes from your weekly budget`,
-    ].filter(Boolean);
     return (
       <main className={PAGE}>
         <TopBar />
@@ -201,7 +195,7 @@ export function SaveClient(props: Props) {
         <Group
           title="Your saving plan"
           aside={`${eur.format(plan.monthly)} a month`}
-          footer={sources.length ? `${sources.join(". ")}.` : undefined}
+          footer={fromBudget > 0 ? `${weekly(fromBudget)} less to spend a week.` : undefined}
         >
           {funds.map((r) => (
             <Row
@@ -274,7 +268,6 @@ function PlanEditor(
     setRows((rs) => (rs.some((r) => r.fundId === id) ? rs.filter((r) => r.fundId !== id) : [...rs, { fundId: id, monthly: NEW_FUND }]));
 
   const btn = "flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted active:scale-95 disabled:opacity-40";
-  const weekly = (n: number) => eur.format((n * 12) / 52);
 
   return (
     <main className={PAGE}>
@@ -299,15 +292,11 @@ function PlanEditor(
         title="Your plan"
         aside={`${eur.format(total)} a month`}
         footer={
-          rows.length === 0 ? (
-            "Add at least one fund below."
-          ) : (
-            <>
-              {eur.format(parts.fromGoal)} is your savings goal, already outside your weekly budget.
-              {parts.fromBills > 0 && ` ${eur.format(parts.fromBills)} comes from what cheaper bills free up.`}
-              {parts.fromBudget > 0 && ` ${eur.format(parts.fromBudget)} comes from your budget: ${weekly(parts.fromBudget)} less to spend a week.`}
-            </>
-          )
+          rows.length === 0
+            ? "Add at least one fund below."
+            : parts.fromBudget > 0
+              ? `${weekly(parts.fromBudget)} less to spend a week.`
+              : undefined
         }
       >
         {rows.map((r) => (
