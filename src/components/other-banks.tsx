@@ -141,6 +141,7 @@ export function OtherBanks({
   };
 
   const liveReady = !!live && live.enabled && live.configured && !live.connected;
+  const realNordea = (b: Bank) => liveReady && !sandbox.enabled && b.name === "Nordea" && b.country === "FI";
   const list = sandbox.enabled ? lists[country] : FALLBACK_BANKS.map((name): Bank => ({ name, country: "FI" }));
   const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase())) : [];
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
@@ -243,7 +244,7 @@ export function OtherBanks({
 
       {step === "pick" && (
         <Sheet title="Add a bank" onClose={() => setStep("closed")} hideDone>
-          {liveReady && (
+          {liveReady && sandbox.enabled && (
             <>
               <h3 className="mb-2 text-[13px] font-medium text-muted-foreground">Your own account</h3>
               <div className="mb-5 overflow-hidden rounded-2xl bg-muted/50">
@@ -282,15 +283,22 @@ export function OtherBanks({
             )}
             {list && !Array.isArray(list) && <p role="alert" className="px-4 py-4 text-[14px] text-warn">{list.error}</p>}
             {Array.isArray(list) && shown.length === 0 && <p className="px-4 py-4 text-[14px] text-muted-foreground">No bank matches.</p>}
-            {shown.map((b) => (
-              <button key={`${b.country}-${b.name}`} type="button" onClick={() => { setChoice({ kind: "bank", name: b.name, country: b.country }); setStep("consent"); }} className={row}>
-                <IconTile><Landmark /></IconTile>
-                <span className="text-[15px] font-medium">{b.name}</span>
-              </button>
-            ))}
+            {shown.map((b) => {
+              // With real Nordea set up here, the list's Nordea is the real one, not a simulated copy.
+              const real = realNordea(b);
+              return (
+                <button key={`${b.country}-${b.name}`} type="button" onClick={() => { setChoice(real ? { kind: "live" } : { kind: "bank", name: b.name, country: b.country }); setStep("consent"); }} className={row}>
+                  <IconTile><Landmark /></IconTile>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-medium">{b.name}</span>
+                    {real && <span className="block text-[13px] leading-snug text-muted-foreground">Your real account. Real data, only you, on this computer</span>}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <p className="mt-2 text-[13px] leading-snug text-muted-foreground">
-            {sandbox.enabled ? "These are Enable Banking's test banks. In production the list is your real banks." : "Finland's banks on Enable Banking. Demo: connecting is simulated."}
+            {sandbox.enabled ? "These are Enable Banking's test banks. In production the list is your real banks." : liveReady ? "Finland's banks on Enable Banking. Nordea is your real account; the others are simulated." : "Finland's banks on Enable Banking. Demo: connecting is simulated."}
           </p>
 
           {/* Real bank data is never merged with demo data, so no simulated platform is offered next to it. */}
