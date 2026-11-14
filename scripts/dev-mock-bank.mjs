@@ -1,6 +1,6 @@
 // Try the bank picker and the demo bank connection on your own computer, with no Enable Banking sandbox application.
 //
-//   npm run dev:mock-bank        then open http://localhost:3100/profile and tap "Add another bank"
+//   npm run dev:mock-bank        then open http://localhost:3100/profile and tap "Connect a bank or app"
 //
 // It starts a stand-in for api.enablebanking.com (a few banks per country, a bank approval page with Approve and Cancel, and
 // invented accounts and transactions) and the app on port 3100 pointed at it, bound to 127.0.0.1. Everything is made up:
@@ -148,5 +148,5 @@ server.listen(MOCK_PORT, "127.0.0.1", () => {
     server.close();
     process.exit(code ?? 0);
   });
-  console.log(`\nOpen http://localhost:${APP_PORT}/profile and tap "Add another bank". Ctrl+C stops everything.\n`);
+  console.log(`\nOpen http://localhost:${APP_PORT}/profile and tap "Connect a bank or app". Ctrl+C stops everything.\n`);
 });

@@ -136,7 +136,7 @@ export function ProfileClient(props: {
         />
       </Group>
 
-      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
+      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Banks and apps" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
       <CalendarConnect {...props.calendar} />
 

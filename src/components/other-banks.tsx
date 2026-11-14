@@ -23,15 +23,15 @@ import type { LiveStatus } from "@/lib/live-banks";
 type Bank = { name: string; country: string };
 type Choice = { kind: "bank"; name: string; country: string } | { kind: "live"; bank: LiveBankId };
 type Step = "closed" | "pick" | "consent" | "waiting";
-// The picker's three groups: ordinary banks, neobanks and money apps, and investing. One search field filters the group on screen.
+// The picker's three tabs, in this order: banks (neobanks too), investing, and other apps (Wise, Klarna, PayPal). One search field filters the tab on screen.
 type Group3 = "bank" | "app" | "invest";
 type Entry = { key: string; name: string; sub: string | null; group: Group3; live: LiveBankId | null; country: string };
 const GROUPS: { id: Group3; label: string }[] = [
   { id: "bank", label: "Banks" },
-  { id: "app", label: "Neobanks and apps" },
   { id: "invest", label: "Investing" },
+  { id: "app", label: "Other apps" },
 ];
-const groupOf = (kind: string): Group3 => (kind === "Bank" ? "bank" : kind === "Trading platform" ? "invest" : "app");
+const groupOf = (kind: string): Group3 => (kind === "Bank" || kind === "Neobank" ? "bank" : kind === "Trading platform" ? "invest" : "app");
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
 const COUNTRIES = ["FI", "SE", "NO", "DK", "EE", "DE", "NL", "FR"];
@@ -235,7 +235,7 @@ export function OtherBanks({
         )}
         <button type="button" onClick={() => { setError(null); setQuery(""); setStep("pick"); }} disabled={busy !== null} className={action}>
           <IconTile>{busy === "start" ? <Loader2 className="animate-spin" /> : <Plus />}</IconTile>
-          {busy === "start" ? "Opening your bank…" : "Add another bank"}
+          {busy === "start" ? "Opening your bank…" : "Connect a bank or app"}
         </button>
         {(error || message) && (
           <p role={error ? "alert" : "status"} className={`border-t px-4 py-3 text-[13px] leading-snug ${error ? "text-warn" : "text-muted-foreground"}`}>
@@ -245,7 +245,7 @@ export function OtherBanks({
       </Group>
 
       {step === "pick" && (
-        <Sheet title="Add a bank" onClose={() => setStep("closed")} hideDone>
+        <Sheet title="Connect a bank or app" onClose={() => setStep("closed")} hideDone>
           <label className="relative mb-3 block">
             <span className="sr-only">Search</span>
             <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
