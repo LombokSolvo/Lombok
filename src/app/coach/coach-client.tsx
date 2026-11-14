@@ -3,7 +3,7 @@
 import { ArrowUp, ArrowUpRight, Check, GraduationCap, ReceiptText, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { LearnPack } from "@/components/learn/learn-pack";
-import { Group, TopBar, eur } from "@/components/solvo/ui";
+import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
 import { LAST_PAGE_KEY, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
 import type { DemoMode } from "@/lib/demo-mode";
 import { PACK_IDS, PACK_META, getPack, packFromText, type LearnContext, type PackId } from "@/lib/learn";
@@ -56,6 +56,16 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
   const bottom = useRef<HTMLDivElement>(null);
   const progress = useLearnProgress();
 
+  // Bumped when the person goes back to the start, so a reply still on its way doesn't bring the old chat back.
+  const chatId = useRef(0);
+  function backToStart() {
+    chatId.current++;
+    setMessages([]);
+    setInput("");
+    setBusy(false);
+    window.scrollTo({ top: 0 });
+  }
+
   function openPack(id: PackId, asked?: string) {
     const p = getPack(id, learn);
     setInput("");
@@ -75,6 +85,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
     setMessages(history);
     setInput("");
     setBusy(true);
+    const id = chatId.current;
     try {
       const res = await fetch("/api/coach", {
         method: "POST",
@@ -86,14 +97,15 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
         }),
       });
       const d = await res.json();
+      if (id !== chatId.current) return;
       setMessages([
         ...history,
         { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, source: d.source, ms: d.ms },
       ]);
     } catch {
-      setMessages([...history, { role: "coach", text: "I couldn't connect. Check your connection and try again." }]);
+      if (id === chatId.current) setMessages([...history, { role: "coach", text: "I couldn't connect. Check your connection and try again." }]);
     } finally {
-      setBusy(false);
+      if (id === chatId.current) setBusy(false);
     }
   }
 
@@ -123,7 +135,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
   return (
     <main className="flex min-h-dvh flex-1 flex-col">
       <header className="sticky top-0 z-10 bg-background/85 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl">
-        <TopBar />
+        <TopBar back={messages.length ? <BackButton onClick={backToStart} label="Ask Solvo" /> : undefined} />
       </header>
 
       <div className="flex flex-1 flex-col gap-3 px-4 pt-3 pb-4">
