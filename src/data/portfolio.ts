@@ -47,13 +47,6 @@ export const AINO_GOALS: SavingsGoal[] = [
   { id: "aino-japan", kind: "trip", label: "Trip to Japan", target: 2000, saved: 1100, monthly: 20 },
 ];
 
-/**
- * Aino's plan as Home's "Your plan" card shows it before she changes anything in onboarding: €140 a month to the
- * savings account and €60 to invest. Together they are the default €200 savings goal Home's weekly numbers already take
- * off, so showing it changes no sum.
- */
-export const AINO_PLAN_SPLIT = { savingsMonthly: 140, investMonthly: 60 };
-
 /** What is in Aino's savings account: the money her goals have saved so far. DEMO DATA. */
 export const AINO_SAVINGS_BALANCE = AINO_GOALS.reduce((s, g) => s + g.saved, 0);
 
