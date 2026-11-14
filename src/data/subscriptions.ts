@@ -18,6 +18,12 @@ export const SUBSCRIPTIONS: Subscription[] = [
   { id: "icloud", name: "iCloud+", what: "Cloud storage, 200 GB", monthly: 2.99, day: 21, since: "2023-01" },
 ];
 
+// DEMO DATA as well: Aino's gym membership, a fixed monthly hobby. The dataset's recreation payments have no merchant
+// names, so this is invented; the costs page carves it, and the subscriptions, out of Entertainment.
+export const HOBBIES: Subscription[] = [
+  { id: "gym", name: "Gym membership", what: "Gym, 12-month contract", monthly: 39.9, day: 1, since: "2024-01" },
+];
+
 export const subscriptionsMonthly = (subs: Subscription[]) => subs.reduce((s, x) => s + x.monthly, 0);
 
 /** Every monthly charge between two dates (inclusive), newest first. */
