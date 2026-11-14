@@ -41,7 +41,8 @@ function realBanksAsSecond(base: DemoCustomer, real: RealBank[]): SecondBanks["n
 /**
  * Money a person moves between their own banks shows up twice: out of one bank, into another. Left alone, the "out" would count as
  * spending and the spending at the other end would count again. Pair each outgoing payment with an incoming one of the same amount in
- * a different bank within three days and mark both as a transfer. Saving (deposits to an investing platform) and pay are left as they are.
+ * a different bank within three days and mark both as a transfer. A deposit to an investing platform stays saving at the sending end,
+ * and pay is never paired.
  */
 function matchOwnTransfers(rows: Tx[]) {
   const bankOf = (t: Tx) => t.account.split("-")[0];
@@ -52,11 +53,12 @@ function matchOwnTransfers(rows: Tx[]) {
   }
   const used = new Set<Tx>();
   for (const out of rows) {
-    if (out.amount >= 0 || out.category === "Transfer" || out.category === "Invest Deposit") continue;
+    if (out.amount >= 0 || out.category === "Transfer") continue;
     const match = credits.get(cents(out))?.find((c) => !used.has(c) && bankOf(c) !== bankOf(out) && Math.abs(daysBetween(out.date, c.date)) <= 3);
     if (!match) continue;
     used.add(match);
-    out.category = "Transfer";
+    // A deposit to an investing platform stays saving at the sending end; what arrives at the other end is just the same money.
+    if (out.category !== "Invest Deposit") out.category = "Transfer";
     match.category = "Transfer";
   }
 }
