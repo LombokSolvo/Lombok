@@ -5,6 +5,7 @@ import { clearBanksCookie } from "@/lib/banks";
 import { clearCalendarFile } from "@/lib/calendar-file-store";
 import { resetCalendar } from "@/lib/calendar-store";
 import { resetForecast } from "@/lib/forecast-store";
+import { resetGoals } from "@/lib/goals-store";
 import { resetLearn } from "@/lib/learn-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
 import { DEMO_COOKIE, type DemoMode } from "@/lib/demo-mode";
@@ -28,7 +29,7 @@ export type SwitchRecord = {
 export type Switches = Partial<Record<BillKey, SwitchRecord>>;
 
 export type SavingsPlan = {
-  monthly: number; // EUR moved to the fund each month, in total
+  monthly: number; // EUR moved to the funds and the savings account each month, in total
   fromGoal?: number; // part of it that is the savings goal, already outside the weekly budget
   fromBills?: number; // part of it that cheaper bills free up (older plans: all of monthly)
   fromBudget?: number; // part of it beyond the goal and the bill savings, taken from the weekly budget
@@ -191,6 +192,7 @@ export function resetDemo() {
   planStore.set(null);
   billStore.set(null);
   cancelledStore.set(null);
+  resetGoals();
   resetOnboarding();
   resetCalendar();
   resetForecast();
