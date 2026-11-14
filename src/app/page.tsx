@@ -14,7 +14,7 @@ import { UpcomingCard } from "@/components/upcoming-card";
 import { CompareSummary } from "@/components/compare-card";
 import { Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
 import { compareAgainst, ownGroups } from "@/lib/cohorts";
-import { safeToSpend, topCategories } from "@/lib/coach";
+import { safeToSpend } from "@/lib/coach";
 import type { Basket } from "@/lib/demo";
 import { todayIso } from "@/lib/demo-clock";
 import { getCalendarState } from "@/lib/calendar-source";
@@ -150,14 +150,6 @@ async function HomeScreen() {
         <Group
           title="Your money each month"
           aside="last 12 months"
-          footer={
-            <>
-              You usually spend {eur.format(s.usualWeeklyEveryday)} a week on everyday things.
-              {s.usualWeeklyEveryday > s.weeklyBudget
-                ? ` That's ${eur.format(Math.round(s.usualWeeklyEveryday) - Math.round(s.weeklyBudget))} more than your budget allows.`
-                : " That fits your budget."}
-            </>
-          }
         >
           {/* The salary split: bills, irregular set-aside, savings goal, and what is left for everyday */}
           <div className="px-4 pt-4 pb-1">
@@ -171,28 +163,24 @@ async function HomeScreen() {
           <Row
             icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[1]}`} aria-hidden />}
             title="Fixed and regular bills"
-            subtitle={topCategories(c, 1).map((t) => t.category).join(", ")}
             value={`−${eur.format(s.fixedRegularPerMonth)}`}
             valueSub={share(s.fixedRegularPerMonth)}
           />
           <Row
             icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[2]}`} aria-hidden />}
             title="Set aside for irregular costs"
-            subtitle={topCategories(c, 2).map((t) => t.category).join(", ")}
             value={`−${eur.format(s.irregularSetAsidePerMonth)}`}
             valueSub={share(s.irregularSetAsidePerMonth)}
           />
           <Row
             icon={<span className={`size-2.5 shrink-0 rounded-full ${SAVINGS_COLOR}`} aria-hidden />}
             title="Savings goal"
-            subtitle="You set this"
             value={`−${eur.format(s.savingsGoalPerMonth)}`}
             valueSub={share(s.savingsGoalPerMonth)}
           />
           <Row
             icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[3]}`} aria-hidden />}
             title={<span className="font-semibold">Everyday budget</span>}
-            subtitle={`You spend ${eur.format(c.summary.basketYear[3] / 12)}: ${topCategories(c, 3).map((t) => t.category).join(", ")}`}
             value={<span className="font-semibold">{eur.format(s.everydayBudgetPerMonth)}</span>}
             valueSub={share(s.everydayBudgetPerMonth)}
           />
