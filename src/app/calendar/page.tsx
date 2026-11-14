@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { ForecastProvider } from "@/components/forecast-ui";
 import { PAGE } from "@/components/solvo/ui";
+import { getCalendarState } from "@/lib/calendar-source";
 import { offsetDays, todayIso } from "@/lib/demo-clock";
 import { scheduleFor } from "@/lib/schedule-server";
 import { pageMode } from "@/lib/source";
@@ -22,5 +24,10 @@ async function Calendar() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
   const { customer: c } = await getEffective(await pageMode());
-  return <CalendarClient items={scheduleFor(c).items} today={todayIso()} offset={offsetDays()} />;
+  const calendar = await getCalendarState();
+  return (
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
+      <CalendarClient items={scheduleFor(c).items} today={todayIso()} offset={offsetDays()} />
+    </ForecastProvider>
+  );
 }
