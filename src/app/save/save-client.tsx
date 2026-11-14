@@ -188,18 +188,11 @@ export function SaveClient(props: Props) {
   const goals = useGoals(props.mode);
   const inSavings = goals.reduce((s, g) => s + g.saved, 0); // demo: the savings account holds what the goals have saved
   const savesToAccount = plan ? planFunds(plan).some((f) => isSavingsAccount(f.fundId)) : false;
-  const account = (
-    <>
-      <Row
-        icon={
-          <IconTile tone="grey">
-            <Landmark />
-          </IconTile>
-        }
-        title="On your account"
-        value={eur.format(props.balance)}
-      />
-      {(goals.length > 0 || savesToAccount) && (
+  // Her accounts in their own group, under the funds: the savings account (what her goals have saved) and the current account.
+  const hasSavings = goals.length > 0 || savesToAccount;
+  const accounts = (
+    <Group title="Your accounts">
+      {hasSavings && (
         <Row
           icon={
             <IconTile>
@@ -210,12 +203,21 @@ export function SaveClient(props: Props) {
           value={eur.format(inSavings)}
         />
       )}
-    </>
+      <Row
+        icon={
+          <IconTile tone="grey">
+            <Landmark />
+          </IconTile>
+        }
+        title="Current account"
+        value={eur.format(props.balance)}
+      />
+    </Group>
   );
   const goalsGroup = <Goals mode={props.mode} goals={goals} plan={plan} freed={freed} />;
 
   const now = !props.hasFunds ? (
-    <Group title="Your money">{account}</Group>
+    accounts
   ) : (
     <>
       <FundsSlab />
@@ -233,8 +235,8 @@ export function SaveClient(props: Props) {
             valueSub={signedPct(h.yearChangePct)}
           />
         ))}
-        {account}
       </Group>
+      {accounts}
     </>
   );
 
