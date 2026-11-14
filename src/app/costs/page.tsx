@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
+import { MoneyMonthCard } from "@/components/money-month-card";
 import { Screen } from "@/components/solvo/screen";
 import { BackLink, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "@/components/solvo/ui";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { HOBBIES, SUBSCRIPTIONS, subscriptionsMonthly, type Subscription } from "@/data/subscriptions";
+import { safeToSpend } from "@/lib/coach";
 import { BASKET_LABELS, type Basket } from "@/lib/demo";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
@@ -77,6 +79,7 @@ async function Costs() {
   const aino = mode === "aino";
   const total = ([1, 2, 3] as Basket[]).reduce((s, b) => s + c.summary.basketYear[b], 0) / 12;
   const window = new Set(c.summary.last12Months);
+  const s = safeToSpend(c);
 
   // What each category holds: its three biggest kinds of merchant over the last 12 months.
   const spendByMcc: Record<string, Record<string, number>> = {};
@@ -113,6 +116,18 @@ async function Costs() {
       <PageTitle title="Your costs">
         {eur.format(total)} a month on average over the last 12 months, in S-Pankki&apos;s three baskets.
       </PageTitle>
+
+      {/* Home's monthly split, here with the controls: change the irregular set-aside, add bills Solvo did not find */}
+      <MoneyMonthCard
+        className="mt-2"
+        editable
+        income={s.incomePerMonth}
+        fixed={s.fixedRegularPerMonth}
+        irregular={s.irregularSetAsidePerMonth}
+        savings={s.savingsGoalPerMonth}
+        everyday={s.everydayBudgetPerMonth}
+      />
+      <h2 className="mt-8 mb-3 px-1 font-display text-[17px] font-semibold tracking-[-0.01em]">Where it went, by basket</h2>
 
       {([1, 2, 3] as Basket[]).map((b, i) => (
         <Group
