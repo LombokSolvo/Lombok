@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
-import { MoneyMonthCard } from "@/components/money-month-card";
+import { AddedCosts, IrregularRow, LiveFixedTotal } from "@/components/budget-edit";
 import { Screen } from "@/components/solvo/screen";
 import { BackLink, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "@/components/solvo/ui";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
@@ -117,18 +117,6 @@ async function Costs() {
         {eur.format(total)} a month on average over the last 12 months, in S-Pankki&apos;s three baskets.
       </PageTitle>
 
-      {/* Home's monthly split, here with the controls: change the irregular set-aside, add bills Solvo did not find */}
-      <MoneyMonthCard
-        className="mt-2"
-        editable
-        income={s.incomePerMonth}
-        fixed={s.fixedRegularPerMonth}
-        irregular={s.irregularSetAsidePerMonth}
-        savings={s.savingsGoalPerMonth}
-        everyday={s.everydayBudgetPerMonth}
-      />
-      <h2 className="mt-8 mb-3 px-1 font-display text-[17px] font-semibold tracking-[-0.01em]">Where it went, by basket</h2>
-
       {([1, 2, 3] as Basket[]).map((b, i) => (
         <Group
           key={b}
@@ -139,7 +127,7 @@ async function Costs() {
               {BASKET_LABELS[b].title}
             </span>
           }
-          aside={<span className="num">{eur.format(basketMonthly(b))}/mo</span>}
+          aside={<span className="num">{b === 1 ? <LiveFixedTotal base={basketMonthly(b)} /> : `${eur.format(basketMonthly(b))}/mo`}</span>}
         >
           {categories(b).map(([cat, perYear]) => (
             <div key={cat} className="[&+&]:border-t">
@@ -158,6 +146,9 @@ async function Costs() {
               <FixedRow title="Hobbies" subs={HOBBIES} />
             </>
           )}
+          {/* The person's own corrections, edited where they belong: bills Solvo missed, and the irregular set-aside */}
+          {b === 1 && <AddedCosts everyday={s.everydayBudgetPerMonth} />}
+          {b === 2 && <IrregularRow estimate={s.irregularSetAsidePerMonth} everyday={s.everydayBudgetPerMonth} />}
         </Group>
       ))}
     </main>
