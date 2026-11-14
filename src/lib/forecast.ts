@@ -41,7 +41,7 @@ export const KINDS: Kind[] = [
   { id: "cinema", category: "entertainment", label: "Cinema", fallback: 15, words: W("cinema|movie|movies|elokuva|elokuviin|elokuvissa|elokuvasta|leffa|leffaan") },
   { id: "wedding", category: "gift", label: "Wedding", fallback: 100, words: W("wedding|häät|hääjuhla|häihin|häissä|häistä|hääjuhlaan|kihlajaiset") },
   { id: "birthday", category: "gift", label: "Birthday", fallback: 50, words: W("birthday|bday|b-day|synttärit|synttäri|synttäreille|synttäreillä|synttäreiltä|synttäreistä|syntymäpäivä|syntymäpäivät|nimipäivä|valmistujaiset|graduation") },
-  { id: "party", category: "gift", label: "Party", fallback: 30, words: W("party|bachelor|bachelorette|housewarming|juhlat|juhlaan|juhliin|juhlissa|juhlista|juhla|polttarit|läksiäiset|kotijuhlat") },
+  { id: "party", category: "gift", label: "Party", fallback: 30, words: W("party|bachelor|bachelorette|housewarming|juhlat|juhlaan|hippalot|hippaloille|bileet|bileisiin|kekkerit|sitsit|appro|juhliin|juhlissa|juhlista|juhla|polttarit|läksiäiset|kotijuhlat") },
   { id: "dinner", category: "dining", label: "Dinner out", fallback: 60, words: W("dinner|dinners|illallinen|illallisella|illalliselle|illallista|illallisille|illallisilla|illallisen|illalliselta|illalliselle|date night|supper") },
   { id: "lunch", category: "dining", label: "Lunch out", fallback: 25, words: W("lunch|lounas|lounaalle|lounaalla|lounasta|lounaaksi|lounaan|brunch") },
   { id: "drinks", category: "dining", label: "Drinks", fallback: 30, words: W("drinks|drinkit|drinkeille|drinkeillä|drinkkejä|beer|beers|oluet|oluella|olut|after work|afterwork|pub|baari|cocktail|cocktails") },
