@@ -1,5 +1,5 @@
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
-import { portfolio } from "@/data/portfolio";
+import { AINO_PLAN, portfolio } from "@/data/portfolio";
 import { UNPAID } from "@/data/reminders";
 import { SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
 import { fundById } from "@/lib/funds";
@@ -94,7 +94,7 @@ Card subscriptions (demo data): ${SUBSCRIPTIONS.map((x) => `${x.name} ${x.monthl
 
 Unpaid bill: ${UNPAID.supplier}, ${eur(UNPAID.amount)} (${UNPAID.what}), was due ${toShown(UNPAID.dueDate)} and is still open. It belongs to basket 2 (irregular costs), so paying it comes from the irregular set-aside and doesn't lower this week's safe-to-spend. Paying before the reminder avoids a reminder fee. If the user can't pay now, suggest calling the clinic to ask for a later due date or an instalment plan, and that an S-Pankki advisor can help. Solvo is a coach, not a debt collector.
 
-Fund holdings (S-Pankki funds, demo values): ${pf.holdings.map((h) => `${fundById(h.fundId).name}, put in ${eur(h.invested)} since ${h.since}, worth ${eur(h.value)} (${h.yearChangePct.toFixed(1)} % in 12 months)`).join("; ")}. Total worth ${eur(pf.value)} on ${eur(pf.invested)} put in (${pf.gainPct.toFixed(1)} %), ${pf.yearChangePct.toFixed(1)} % in the last 12 months. No new fund deposits since 2023. The Save tab can set up a monthly plan. Never recommend a specific fund or predict returns: Solvo doesn't give investment advice.`;
+Fund holdings (S-Pankki funds, demo values): ${pf.holdings.map((h) => `${fundById(h.fundId).name}, put in ${eur(h.invested)} since ${h.since}, worth ${eur(h.value)} (${h.yearChangePct.toFixed(1)} % in 12 months)`).join("; ")}. Total worth ${eur(pf.value)} on ${eur(pf.invested)} put in (${pf.gainPct.toFixed(1)} %), ${pf.yearChangePct.toFixed(1)} % in the last 12 months. She has a monthly saving plan (demo): ${AINO_PLAN.funds!.map((f) => `${eur(f.monthly)} into ${fundById(f.fundId).name}`).join(" and ")} on the ${AINO_PLAN.dayOfMonth}nd; she can edit it in the Save tab. Never recommend a specific fund or predict returns: Solvo doesn't give investment advice.`;
 }
 
 const system = (c: DemoCustomer, mode: DemoMode, banksNote: string) => `You are Solvo, a friendly money coach inside the S-Pankki bank app. You talk to one customer about their own money.

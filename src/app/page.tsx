@@ -11,7 +11,7 @@ import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
 import { CompareSummary } from "@/components/compare-card";
-import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
+import { Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
 import { compareAgainst, ownGroups } from "@/lib/cohorts";
 import { safeToSpend, topCategories } from "@/lib/coach";
 import type { Basket } from "@/lib/demo";
@@ -232,12 +232,8 @@ async function HomeScreen() {
           </Link>
         </Group>
 
-        <footer className="mt-8 flex flex-col items-start gap-2 px-1 text-[12px] leading-snug text-muted-foreground">
-          <Chip>{c.age > 0 ? `Demo customer ${c.id}, age ${c.age}, ${c.postalCode}` : `Customer ${c.id}`}</Chip>
-          <p>
-            S-Pankki&apos;s synthetic Junction 2026 dataset. The savings goal is an assumption.{" "}
-            <ResetDemoButton className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4" />
-          </p>
+        <footer className="mt-6 px-1 text-[13px]">
+          <ResetDemoButton className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4" />
         </footer>
       </main>
     </Screen>

@@ -36,14 +36,7 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
     key: `${b.date}-${i}`,
     date: b.date,
     title: b.kind === "rent" ? "Rent" : (b.supplier ?? "Utility bill"),
-    subtitle:
-      b.kind === "rent"
-        ? `Paid ${fmtDay(b.date)}`
-        : b.kind === "subscription"
-          ? `Paid ${fmtDay(b.date)} by card, every month`
-          : b.supplier
-          ? `Paid ${fmtDay(b.date)}, read from the e-invoice`
-          : `Paid ${fmtDay(b.date)}, no supplier name in the payment`,
+    subtitle: `Paid ${fmtDay(b.date)}`,
     amount: b.amount,
     badge: b.kind === "subscription" ? "Subscription" : b.supplier ? "E-invoice" : undefined,
   }));
@@ -61,7 +54,7 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
           key: "dental",
           date: UNPAID.dueDate,
           title: UNPAID.supplier,
-          subtitle: `${UNPAID.what}. Due ${fmtDay(UNPAID.dueDate)}`,
+          subtitle: `Due ${fmtDay(UNPAID.dueDate)}`,
           amount: UNPAID.amount,
           open: true,
         },

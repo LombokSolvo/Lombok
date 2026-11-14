@@ -226,7 +226,6 @@ function SourceBadge({ l }: { l: Loaded }) {
     <Chip tone="green">
       <Sparkles className="size-3" aria-hidden />
       {l.fromPhoto ? "Read from your photo" : "Read by Gemini"}
-      {l.cached || !l.ms ? "" : ` in ${(l.ms / 1000).toFixed(1)} s`}
     </Chip>
   ) : (
     <Chip>Saved reading, AI offline</Chip>
@@ -263,7 +262,6 @@ function FeaturedInvoice({ meta, loaded, onOpen }: { meta: InvoiceMeta; loaded: 
           You could save <span className="num text-primary">{eur.format(saving)}</span> a year
         </p>
       )}
-      <p className="mt-2 text-[14px] leading-snug text-muted-foreground">{r.summary}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <SourceBadge l={loaded} />
@@ -314,12 +312,6 @@ function InvoiceRow({ meta, loaded, switched }: { meta: InvoiceMeta; loaded?: Lo
         <p className="text-[13px] text-muted-foreground">
           {KIND_LABEL[r.kind]}, {r.product}
         </p>
-        <p className="mt-2 text-[14px] leading-snug">{r.summary}</p>
-        {r.kind === "electricity_transmission" && (
-          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">
-            Transmission can&apos;t be switched, but cutting your kWh lowers this bill too.
-          </p>
-        )}
         {switched && (
           <p className="mt-2.5 flex items-start gap-2 rounded-xl bg-accent px-3 py-2.5 text-[13px] leading-snug text-accent-foreground">
             <Check className="mt-px size-4 shrink-0" strokeWidth={2.75} aria-hidden />

@@ -2,37 +2,62 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CalendarDays, Landmark, PiggyBank, Receipt, Target, TrendingUp } from "lucide-react";
-import { PortfolioChart } from "@/components/portfolio-chart";
-import { PORTFOLIO_MONTHS, portfolio } from "@/data/portfolio";
+import { CalendarDays, Check, Landmark, Minus, PiggyBank, Plus, TrendingUp, X } from "lucide-react";
+import { PortfolioChart, type ChartLabels } from "@/components/portfolio-chart";
+import { AINO_PLAN, portfolio, portfolioDaily, portfolioToday, type Point } from "@/data/portfolio";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { LearnChip } from "@/components/learn/learn-chip";
 import { Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { FUND_TYPES, FUNDS, FUNDS_SOURCE, fundById, projectFund, type FundType } from "@/lib/funds";
-import { approveSavingsPlan, cancelSavingsPlan, monthlyFreed, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
+import {
+  approveSavingsPlan,
+  monthlyFreed,
+  planFunds,
+  useSavingsPlan,
+  useSwitches,
+  weeklyBoost,
+  type PlanFund,
+  type SavingsPlan,
+} from "@/lib/switches";
 
 const YEARS = 10;
 const DAY_OF_MONTH = 2; // the day after a typical salary day
+const STEP = 10; // EUR, the +/- step of a fund's monthly amount
+const NEW_FUND = 50; // EUR a month for a fund added to the plan
 const pct = (n: number) => `${n.toLocaleString("fi-FI")} %`;
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const shortName = (id: string) => fundById(id).name.replace("S-Pankki ", "");
 
 const PF = portfolio();
+const DAILY = portfolioDaily();
 const signed = (n: number) => `${n >= 0 ? "+" : "−"}${eur.format(Math.abs(n))}`;
 const signedPct = (n: number) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toLocaleString("fi-FI", { maximumFractionDigits: 1 })} %`;
 
-/** The 10-year projection for a monthly amount, on a light card (the Slab is the portfolio). */
-function Projection({ monthly, fundId }: { monthly: number; fundId: string }) {
-  const f = fundById(fundId);
-  const p = projectFund(monthly, YEARS, f);
+// The chart's time ranges. Daily and intraday values are demo data pinned to the monthly values (src/data/portfolio.ts).
+const RANGES: { key: string; label: string; phrase?: string; points: Point[]; labels: ChartLabels }[] = [
+  { key: "1d", label: "Today", phrase: "today", points: portfolioToday(DAILY), labels: { point: "time", axis: "time" } },
+  { key: "1w", label: "Week", phrase: "in the past week", points: DAILY.slice(-8), labels: { point: "day", axis: "day" } },
+  { key: "1m", label: "Month", phrase: "in the past month", points: DAILY.slice(-31), labels: { point: "day", axis: "day" } },
+  { key: "1y", label: "Year", phrase: "in the past year", points: DAILY.slice(-366), labels: { point: "date", axis: "month" } },
+  { key: "all", label: "All time", points: DAILY.filter((_, i) => i % 3 === (DAILY.length - 1) % 3), labels: { point: "date", axis: "month" } },
+];
+
+/** The 10-year projection for a plan's funds, on a light card (the Slab is the portfolio). */
+function Projection({ funds }: { funds: PlanFund[] }) {
+  const parts = funds.map((r) => projectFund(r.monthly, YEARS, fundById(r.fundId)));
+  const sum = (k: "value" | "deposited" | "fees") => parts.reduce((s, p) => s + p[k], 0);
+  const monthly = funds.reduce((s, r) => s + r.monthly, 0);
+  const single = funds.length === 1 ? fundById(funds[0].fundId) : null;
   return (
     <section className="mt-4 rounded-2xl bg-card p-4 shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
       <p className="text-[13px] text-muted-foreground">
         {eur.format(monthly)} a month for {YEARS} years could become
       </p>
-      <p className="num mt-1 font-display text-[34px] leading-none font-semibold tracking-[-0.03em]">{eur.format(p.value)}</p>
+      <p className="num mt-1 font-display text-[34px] leading-none font-semibold tracking-[-0.03em]">{eur.format(sum("value"))}</p>
       <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
-        {eur.format(p.deposited)} of your own money. Illustrative {pct(f.illustrativeReturnPct)} a year before fees; fees take
-        about {eur.format(p.fees)} over {YEARS} years. Funds can also lose value.
+        {eur.format(sum("deposited"))} of your own money.{" "}
+        {single ? `Illustrative ${pct(single.illustrativeReturnPct)} a year before fees` : "Illustrative returns for each fund type, before fees"};
+        fees take about {eur.format(sum("fees"))} over {YEARS} years. Funds can also lose value.
       </p>
     </section>
   );
@@ -44,6 +69,13 @@ function nextInvestDate(asOf: string) {
   return dateFmt.format(next);
 }
 
+/** Where a plan's monthly total comes from: the savings goal first, then money cheaper bills free up, then the budget. */
+function split(total: number, goal: number, freed: number) {
+  const fromGoal = Math.min(total, goal);
+  const fromBills = Math.min(freed, total - fromGoal);
+  return { fromGoal, fromBills, fromBudget: total - fromGoal - fromBills };
+}
+
 type Props = {
   remaining: number;
   asOf: string;
@@ -51,22 +83,66 @@ type Props = {
   inFunds: number;
   fundDeposits: number;
   savingsGoal: number;
-  hasFunds: boolean; // Aino's fund holdings are demo data; the new customer has none
+  hasFunds: boolean; // Aino's fund holdings and saving plan are demo data; the new customer has neither
 };
+
+function FundsSlab() {
+  const [rangeKey, setRangeKey] = useState("all");
+  const range = RANGES.find((r) => r.key === rangeKey)!;
+  const first = range.points[0].value;
+  const change = PF.value - first;
+  return (
+    <Slab>
+      <p className="text-[15px] text-white/70">Your funds are worth</p>
+      <p className="num mt-1 font-display text-[56px] leading-none font-semibold tracking-[-0.035em]">{eur.format(PF.value)}</p>
+      <p className="mt-2 text-[15px] text-white/80">
+        {range.phrase ? (
+          <>
+            <span className={`num font-semibold ${change < 0 ? "text-white" : "text-mint"}`}>
+              {signed(change)} ({signedPct((change / first) * 100)})
+            </span>{" "}
+            {range.phrase}
+          </>
+        ) : (
+          <>
+            <span className="num font-semibold text-mint">
+              {signed(PF.gain)} ({signedPct(PF.gainPct)})
+            </span>{" "}
+            on the {eur.format(PF.invested)} you put in
+          </>
+        )}
+      </p>
+      <div className="mt-4 flex gap-1 rounded-full bg-white/[0.07] p-1" role="tablist" aria-label="Time range">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            role="tab"
+            aria-selected={r.key === rangeKey}
+            onClick={() => setRangeKey(r.key)}
+            className={`h-11 flex-1 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors ${r.key === rangeKey ? "bg-white/15 text-white" : "text-white/60"}`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+      <PortfolioChart
+        key={range.key}
+        points={range.points}
+        invested={range.key === "all" ? PF.invested : undefined}
+        labels={range.labels}
+      />
+    </Slab>
+  );
+}
 
 export function SaveClient(props: Props) {
   const switches = useSwitches();
-  const plan = useSavingsPlan();
+  const stored = useSavingsPlan();
+  // Aino already has a saving plan into her two funds (demo data); a plan she edits and approves replaces it.
+  const plan: SavingsPlan | null = stored ?? (props.hasFunds ? AINO_PLAN : null);
+  const [editing, setEditing] = useState(false);
   const freed = Math.floor(monthlyFreed(switches));
-  const [billShare, setBillShare] = useState<"all" | "half" | "none">("all");
-  const [fundId, setFundId] = useState(FUNDS[0].id);
-  const [fundType, setFundType] = useState<FundType>("Equity");
-  const typeInfo = FUND_TYPES.find((t) => t.type === fundType)!;
-  const [confirming, setConfirming] = useState(false);
-
-  const fromBills = billShare === "all" ? freed : billShare === "half" ? Math.round(freed / 2) : 0;
-  const monthly = props.savingsGoal + fromBills;
-  const fund = fundById(fundId);
   const next = nextInvestDate(props.asOf);
 
   const account = (
@@ -77,7 +153,6 @@ export function SaveClient(props: Props) {
         </IconTile>
       }
       title="On your account"
-      subtitle={`Cash, ${dateFmt.format(new Date(`${props.asOf}T00:00:00Z`))}`}
       value={eur.format(props.balance)}
     />
   );
@@ -86,80 +161,63 @@ export function SaveClient(props: Props) {
     <Group title="Your money">{account}</Group>
   ) : (
     <>
-      <Slab>
-        <p className="text-[15px] text-white/70">Your funds are worth</p>
-        <p className="num mt-1 font-display text-[56px] leading-none font-semibold tracking-[-0.035em]">{eur.format(PF.value)}</p>
-        <p className="mt-2 text-[15px] text-white/80">
-          <span className="num font-semibold text-mint">
-            {signed(PF.gain)} ({signedPct(PF.gainPct)})
-          </span>{" "}
-          on the {eur.format(PF.invested)} you put in
-        </p>
-        <PortfolioChart months={PORTFOLIO_MONTHS} values={PF.total} invested={PF.invested} />
-        <p className="mt-4 border-t border-white/10 pt-3 text-[13px] leading-snug text-white/65">
-          Last 12 months {signedPct(PF.yearChangePct)}.{" "}
-          {plan ? `Your monthly plan starts on ${next}.` : "You haven't added to your funds since 2023."}
-        </p>
-      </Slab>
+      <FundsSlab />
       <Group title="Your funds" aside="value · last 12 months">
-        {PF.holdings.map((h) => {
-          const f = fundById(h.fundId);
-          return (
-            <Row
-              key={h.fundId}
-              icon={
-                <IconTile>
-                  <TrendingUp />
-                </IconTile>
-              }
-              title={f.name.replace("S-Pankki ", "")}
-              subtitle={`Since ${h.since}, you put in ${eur.format(h.invested)}`}
-              value={eur.format(h.value)}
-              valueSub={signedPct(h.yearChangePct)}
-            />
-          );
-        })}
+        {PF.holdings.map((h) => (
+          <Row
+            key={h.fundId}
+            icon={
+              <IconTile>
+                <TrendingUp />
+              </IconTile>
+            }
+            title={shortName(h.fundId)}
+            value={eur.format(h.value)}
+            valueSub={signedPct(h.yearChangePct)}
+          />
+        ))}
         {account}
       </Group>
     </>
   );
 
-  if (plan) {
-    const pf = fundById(plan.fundId);
-    const billsPart = plan.fromBills ?? (plan.fromGoal === undefined ? plan.monthly : 0); // older plans: all from bills
+  if (plan && !editing) {
+    const funds = planFunds(plan);
+    const fromGoal = plan.fromGoal ?? 0;
+    const fromBills = plan.fromBills ?? (plan.fromGoal === undefined ? plan.monthly : 0); // older plans: all from bills
+    const fromBudget = plan.fromBudget ?? 0;
+    const sources = [
+      fromGoal > 0 && `${eur.format(fromGoal)} is your savings goal, already outside your weekly budget`,
+      fromBills > 0 && `${eur.format(fromBills)} comes from cheaper bills`,
+      fromBudget > 0 && `${eur.format(fromBudget)} comes from your weekly budget`,
+    ].filter(Boolean);
     return (
       <main className={PAGE}>
         <TopBar />
         <PageTitle title="Your investments">
-          Plus {eur.format(plan.monthly)} a month into {pf.name.replace("S-Pankki ", "")}, on the {plan.dayOfMonth}nd. Change
-          or stop it any time.
+          {eur.format(plan.monthly)} a month into {funds.length === 1 ? shortName(funds[0].fundId) : `${funds.length} funds`}, on the{" "}
+          {plan.dayOfMonth}nd. You can edit it any time.
         </PageTitle>
         {now}
-        <Group title="Each month">
-          {(plan.fromGoal ?? 0) > 0 && (
+        <Group
+          title="Your saving plan"
+          aside={`${eur.format(plan.monthly)} a month`}
+          footer={sources.length ? `${sources.join(". ")}.` : undefined}
+        >
+          {funds.map((r) => (
             <Row
+              key={r.fundId}
               icon={
                 <IconTile>
-                  <Target />
+                  <PiggyBank />
                 </IconTile>
               }
-              title="Your savings goal"
-              subtitle="Already outside your weekly budget"
-              value={eur.format(plan.fromGoal ?? 0)}
+              title={shortName(r.fundId)}
+              subtitle={`Fee ${pct(fundById(r.fundId).ongoingFeePct)} a year`}
+              value={eur.format(r.monthly)}
+              valueSub="a month"
             />
-          )}
-          {billsPart > 0 && (
-            <Row
-              icon={
-                <IconTile>
-                  <Receipt />
-                </IconTile>
-              }
-              title="From cheaper bills"
-              subtitle="Money your old contracts used to take"
-              value={eur.format(billsPart)}
-            />
-          )}
+          ))}
           <Row
             icon={
               <IconTile>
@@ -167,102 +225,139 @@ export function SaveClient(props: Props) {
               </IconTile>
             }
             title="Next investment"
-            subtitle={`Ongoing fee ${pct(pf.ongoingFeePct)} a year`}
             value={next}
           />
         </Group>
-        <Projection monthly={plan.monthly} fundId={plan.fundId} />
+        <Projection funds={funds} />
         <p className="mt-4 px-1 text-[13px] leading-snug text-muted-foreground">
           Safe to spend this week: {eur.format(props.remaining + weeklyBoost(switches, plan))}.
         </p>
-        <button type="button" onClick={cancelSavingsPlan} className={`${secondaryButton} mt-6`}>
-          Change plan
+        <button type="button" onClick={() => setEditing(true)} className={`${primaryButton} mt-6`}>
+          Edit plan
         </button>
       </main>
     );
   }
 
   return (
+    <PlanEditor
+      {...props}
+      plan={plan}
+      freed={freed}
+      next={next}
+      now={now}
+      onDone={() => {
+        setEditing(false);
+        window.scrollTo({ top: 0 });
+      }}
+    />
+  );
+}
+
+/** Pick funds and monthly amounts, then approve. Starts from the current plan when editing one. */
+function PlanEditor(
+  props: Props & { plan: SavingsPlan | null; freed: number; next: string; now: React.ReactNode; onDone: () => void },
+) {
+  const { plan, freed } = props;
+  const [rows, setRows] = useState<PlanFund[]>(() =>
+    plan ? planFunds(plan) : [{ fundId: FUNDS[0].id, monthly: props.savingsGoal + freed }],
+  );
+  const [fundType, setFundType] = useState<FundType>(fundById(rows[0]?.fundId ?? FUNDS[0].id).type);
+  const typeInfo = FUND_TYPES.find((t) => t.type === fundType)!;
+  const [confirming, setConfirming] = useState(false);
+
+  const total = rows.reduce((s, r) => s + r.monthly, 0);
+  const parts = split(total, props.savingsGoal, freed);
+  const inPlan = (id: string) => rows.some((r) => r.fundId === id);
+  const setAmount = (id: string, monthly: number) =>
+    setRows((rs) => rs.map((r) => (r.fundId === id ? { ...r, monthly: Math.max(STEP, monthly) } : r)));
+  const toggle = (id: string) =>
+    setRows((rs) => (rs.some((r) => r.fundId === id) ? rs.filter((r) => r.fundId !== id) : [...rs, { fundId: id, monthly: NEW_FUND }]));
+
+  const btn = "flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted active:scale-95 disabled:opacity-40";
+  const weekly = (n: number) => eur.format((n * 12) / 52);
+
+  return (
     <main className={PAGE}>
       <TopBar />
-      <PageTitle title="Your investments">
-        {props.hasFunds
-          ? "How your S-Pankki funds are doing, and a monthly plan to keep them growing."
-          : "You don't have funds yet. A small monthly plan is an easy way to start."}
+      <PageTitle title={plan ? "Edit your plan" : "Your investments"}>
+        {plan
+          ? "Change the amounts, add a fund or take one out. Nothing changes until you approve."
+          : props.hasFunds
+            ? "How your S-Pankki funds are doing, and a monthly plan to keep them growing."
+            : "You don't have funds yet. A small monthly plan is an easy way to start."}
       </PageTitle>
 
-      {now}
+      {!plan && props.now}
 
-      <h2 className="mt-9 px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">
-        {props.hasFunds ? "Start investing again" : "Start investing"}
-      </h2>
-      <p className="mt-1 px-1 text-[15px] leading-snug text-muted-foreground">
-        Your monthly savings goal, plus what your cheaper bills free up.
-      </p>
+      {!plan && (
+        <h2 className="mt-9 px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">
+          {props.hasFunds ? "Start investing again" : "Start investing"}
+        </h2>
+      )}
 
       <Group
-        title="How much each month?"
+        title="Your plan"
+        aside={`${eur.format(total)} a month`}
         footer={
-          freed > 0 ? (
-            fromBills < freed ? (
-              `The rest of the bill savings, ${eur.format(((freed - fromBills) * 12) / 52)} a week, stays in your budget.`
-            ) : (
-              `Your cheaper bills had added ${eur.format((freed * 12) / 52)} a week to your budget. That now goes to your fund instead.`
-            )
+          rows.length === 0 ? (
+            "Add at least one fund below."
           ) : (
             <>
-              Switch a bill to add more.{" "}
-              <Link href="/bills" className="-my-3 inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4">
-                See your bills
-              </Link>
+              {eur.format(parts.fromGoal)} is your savings goal, already outside your weekly budget.
+              {parts.fromBills > 0 && ` ${eur.format(parts.fromBills)} comes from what cheaper bills free up.`}
+              {parts.fromBudget > 0 && ` ${eur.format(parts.fromBudget)} comes from your budget: ${weekly(parts.fromBudget)} less to spend a week.`}
+              {freed === 0 && (
+                <>
+                  {" "}
+                  Switch a bill to free up more.{" "}
+                  <Link href="/bills" className="-my-3 inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4">
+                    See your bills
+                  </Link>
+                </>
+              )}
             </>
           )
         }
       >
-        <Row
-          icon={
-            <IconTile>
-              <Target />
-            </IconTile>
-          }
-          title="Your savings goal"
-          subtitle="Already outside your weekly budget"
-          value={eur.format(props.savingsGoal)}
-        />
-        {freed > 0 && (
-          <div className="border-t px-4 py-3">
-            <div className="flex items-center gap-3">
-              <IconTile>
-                <Receipt />
-              </IconTile>
+        {rows.map((r) => (
+          <div key={r.fundId} className="px-4 py-3 [&+&]:border-t">
+            <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-medium">From cheaper bills</p>
-                <p className="text-[13px] text-muted-foreground">{eur.format(freed)} a month freed up</p>
+                <p className="text-[15px] leading-snug font-medium">{shortName(r.fundId)}</p>
+                <p className="text-[13px] text-muted-foreground">Fee {pct(fundById(r.fundId).ongoingFeePct)} a year</p>
               </div>
-              <p className="num text-[15px] font-medium">{eur.format(fromBills)}</p>
-            </div>
-            <div className="mt-3 flex gap-2">
-              {(["all", "half", "none"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setBillShare(k)}
-                  className={`h-11 flex-1 rounded-xl text-[15px] font-semibold ${billShare === k ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                >
-                  {k === "all" ? "All" : k === "half" ? "Half" : "None"}
+              {rows.length > 1 && (
+                <button type="button" className={btn} onClick={() => toggle(r.fundId)} aria-label={`Take ${shortName(r.fundId)} out of the plan`}>
+                  <X className="size-4" aria-hidden />
                 </button>
-              ))}
+              )}
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                className={btn}
+                onClick={() => setAmount(r.fundId, r.monthly - STEP)}
+                disabled={r.monthly <= STEP}
+                aria-label={`${STEP} euros less into ${shortName(r.fundId)}`}
+              >
+                <Minus className="size-4" aria-hidden />
+              </button>
+              <span className="num flex-1 text-center text-[17px] font-semibold">{eur.format(r.monthly)} a month</span>
+              <button
+                type="button"
+                className={btn}
+                onClick={() => setAmount(r.fundId, r.monthly + STEP)}
+                aria-label={`${STEP} euros more into ${shortName(r.fundId)}`}
+              >
+                <Plus className="size-4" aria-hidden />
+              </button>
             </div>
           </div>
-        )}
+        ))}
       </Group>
 
-      <div className="mt-7 flex items-baseline justify-between gap-3 px-1">
-        <h2 className="font-display text-[17px] font-semibold tracking-[-0.01em]">Which fund?</h2>
-        {fund.type !== fundType && (
-          <span className="truncate text-[13px] text-muted-foreground">Chosen: {fund.name.replace("S-Pankki ", "")}</span>
-        )}
-      </div>
+      <h2 className="mt-7 px-1 font-display text-[17px] font-semibold tracking-[-0.01em]">Add a fund</h2>
       <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="tablist" aria-label="Fund type">
         {FUND_TYPES.map((t) => (
           <button
@@ -281,64 +376,74 @@ export function SaveClient(props: Props) {
         className="mt-3"
         footer={`${typeInfo.note ? `${typeInfo.note} ` : ""}You choose: Solvo doesn't give investment advice. ${FUNDS_SOURCE}`}
       >
-        {FUNDS.filter((f) => f.type === fundType).map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFundId(f.id)}
-            aria-pressed={f.id === fundId}
-            className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t"
-          >
-            <span
-              className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${f.id === fundId ? "border-primary bg-primary" : "border-border"}`}
-              aria-hidden
+        {FUNDS.filter((f) => f.type === fundType).map((f) => {
+          const on = inPlan(f.id);
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => (on && rows.length === 1 ? undefined : toggle(f.id))}
+              aria-pressed={on}
+              className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t"
             >
-              {f.id === fundId && <span className="size-2 rounded-full bg-white" />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] leading-snug font-medium">{f.name}</span>
-              <span className="block text-[13px] leading-snug text-muted-foreground">
-                {f.description}. Fee {pct(f.ongoingFeePct)} a year
-                {f.subscriptionFeePct ? `, ${pct(f.subscriptionFeePct)} per purchase` : ""}
+              <span
+                className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 ${on ? "border-primary bg-primary" : "border-border"}`}
+                aria-hidden
+              >
+                {on && <Check className="size-3.5 text-white" strokeWidth={3} />}
               </span>
-            </span>
-            {f.subscriptionFeePct >= 1 && <Chip tone="warn">Special</Chip>}
-          </button>
-        ))}
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] leading-snug font-medium">{f.name}</span>
+                <span className="block text-[13px] leading-snug text-muted-foreground">
+                  {f.description}. Fee {pct(f.ongoingFeePct)} a year
+                  {f.subscriptionFeePct ? `, ${pct(f.subscriptionFeePct)} per purchase` : ""}
+                </span>
+              </span>
+              {f.subscriptionFeePct >= 1 && <Chip tone="warn">Special</Chip>}
+            </button>
+          );
+        })}
       </Group>
       <LearnChip pack="fees" className="mt-3 self-start">
         Learn why: how fund fees add up
       </LearnChip>
 
-      <Projection monthly={monthly} fundId={fund.id} />
+      {rows.length > 0 && <Projection funds={rows} />}
 
-      <div className="mt-4">
-        <button type="button" className={primaryButton} onClick={() => setConfirming(true)}>
+      <div className="mt-4 flex flex-col gap-3">
+        <button type="button" className={primaryButton} onClick={() => setConfirming(true)} disabled={rows.length === 0}>
           <PiggyBank className="size-[18px]" aria-hidden />
-          Start investing {eur.format(monthly)} a month
+          {plan ? `Save plan, ${eur.format(total)} a month` : `Start investing ${eur.format(total)} a month`}
         </button>
+        {plan && (
+          <button type="button" className={secondaryButton} onClick={props.onDone}>
+            Keep current plan
+          </button>
+        )}
       </div>
 
       {confirming && (
         <ApproveSheet
-          title="You approve this investment plan"
+          title={plan ? "You approve the new plan" : "You approve this investment plan"}
           points={[
-            `${eur.format(monthly)} from your account to ${fund.name} on the ${DAY_OF_MONTH}nd of every month, first on ${next}.`,
-            `Fund fee ${pct(fund.ongoingFeePct)} a year${fund.subscriptionFeePct ? ` and ${pct(fund.subscriptionFeePct)} per purchase` : ""}. Pause, change or stop any time.`,
-            "Demo: no real fund order is placed.",
+            ...rows.map((r) => `${eur.format(r.monthly)} a month to ${fundById(r.fundId).name}.`),
+            `From your account on the ${DAY_OF_MONTH}nd of every month, first on ${props.next}.${parts.fromBudget > 0 ? ` Your weekly budget goes down by ${weekly(parts.fromBudget)}.` : ""}`,
+            "Pause, change or stop any time. Demo: no real fund order is placed.",
           ]}
           confirmLabel="Approve"
-          onConfirm={() =>
+          onConfirm={() => {
             approveSavingsPlan({
-              monthly,
-              fromGoal: props.savingsGoal,
-              fromBills,
-              fundId: fund.id,
-              fundName: fund.name,
+              monthly: total,
+              ...parts,
+              funds: rows,
+              fundId: rows[0].fundId,
+              fundName: rows.length === 1 ? fundById(rows[0].fundId).name : `${rows.length} funds`,
               dayOfMonth: DAY_OF_MONTH,
               approvedAt: new Date().toISOString(),
-            })
-          }
+            });
+            setConfirming(false);
+            props.onDone();
+          }}
           onCancel={() => setConfirming(false)}
         />
       )}

@@ -29,11 +29,20 @@ export type SavingsPlan = {
   monthly: number; // EUR moved to the fund each month, in total
   fromGoal?: number; // part of it that is the savings goal, already outside the weekly budget
   fromBills?: number; // part of it that cheaper bills free up (older plans: all of monthly)
-  fundId: string;
-  fundName: string;
+  fromBudget?: number; // part of it beyond the goal and the bill savings, taken from the weekly budget
+  funds?: PlanFund[]; // one or more funds and their monthly amounts (older plans: fundId and all of monthly)
+  fundId: string; // the first fund, kept for older readers
+  fundName: string; // the fund's name, or "2 funds"
   dayOfMonth: number;
   approvedAt: string;
 };
+
+export type PlanFund = { fundId: string; monthly: number };
+
+/** The funds in a plan and their monthly amounts, also for plans saved before plans could hold several funds. */
+export function planFunds(plan: SavingsPlan): PlanFund[] {
+  return plan.funds?.length ? plan.funds : [{ fundId: plan.fundId, monthly: plan.monthly }];
+}
 
 function createStore<T extends object>(key: string, empty: T) {
   const listeners = new Set<() => void>();
@@ -174,8 +183,8 @@ export function monthlyFreed(s: Switches) {
   return Object.values(s).reduce((sum, r) => sum + Math.max(0, r?.yearlySaving ?? 0), 0) / 12;
 }
 
-/** How much more the user can spend each week: freed money minus what goes to the fund. */
+/** How much more (or less) the user can spend each week: freed money minus what goes to the fund. */
 export function weeklyBoost(s: Switches, plan: SavingsPlan | null = null) {
-  const toSpend = Math.max(0, monthlyFreed(s) - (plan ? (plan.fromBills ?? plan.monthly) : 0));
+  const toSpend = Math.max(0, monthlyFreed(s) - (plan ? (plan.fromBills ?? plan.monthly) : 0)) - (plan?.fromBudget ?? 0);
   return (toSpend * 12) / WEEKS_PER_YEAR;
 }
