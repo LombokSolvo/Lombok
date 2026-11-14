@@ -6,8 +6,8 @@
 //    this process. Repeating events and work trips are skipped.
 //  - What an estimate is: the person's own history where there is enough of it (median or 75th percentile of their own payments,
 //    their usual trip cost), otherwise a small default table. Every item says which one it used (`basis`) and is editable.
-//  - What reaches the budget: only ForecastItem (kind, date, amount), never the event title. Titles are kept for the demo
-//    calendar's fictional events only (`detail`).
+//  - What reaches the budget: only ForecastItem (kind, date, amount). The event title travels with it as `detail` for the
+//    person's own screen (so the calendar can say "Dinner @ Cella"); it is never sent to a model and never logged.
 //  - How the budget uses it: weeklyReserve() and monthTotal() at the bottom.
 
 export type CalendarEvent = {
@@ -114,7 +114,7 @@ export type ForecastItem = {
   basis: "history" | "default";
   basisNote: string; // one plain sentence saying where the number comes from
   source: ForecastSource;
-  detail?: string; // the event title. Set for the demo calendar's fictional events only.
+  detail?: string; // the event title, shown on the person's own screen. Never sent to a model.
 };
 
 const isoOf = (s: string) => s.slice(0, 10);
@@ -174,7 +174,7 @@ export function classify(title: string): { kind: Kind; alsoDining: boolean } | n
 
 /**
  * Upcoming events in, forecast items out, soonest first. `today` is the real date. Events before today or after `horizonDays`
- * are ignored. `keepTitle` is for fictional demo events only.
+ * are ignored. `keepTitle` puts the event title on the item, for the person's own screen.
  */
 export function forecast(events: CalendarEvent[], baselines: Baselines, today: string, source: ForecastSource, { horizonDays = 45, keepTitle = false } = {}): ForecastItem[] {
   const until = addDay(today, horizonDays);

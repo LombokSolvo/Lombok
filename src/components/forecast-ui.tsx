@@ -135,7 +135,7 @@ export function ForecastEditSheet({ item, onClose }: { item: CountedItem; onClos
   // In a portal: the Home note sits inside the dark slab, and a sheet drawn there would inherit its white text.
   return createPortal(
     <Sheet
-      title={item.label}
+      title={item.detail ?? item.label}
       onClose={onClose}
       doneLabel="Save amount"
       doneDisabled={amount <= 0}
@@ -148,7 +148,7 @@ export function ForecastEditSheet({ item, onClose }: { item: CountedItem; onClos
       <div className="flex flex-col gap-4">
         <div>
           <p className="text-[15px] font-medium">{when}</p>
-          {item.detail && <p className="text-[13px] text-muted-foreground">{item.detail}</p>}
+          {item.detail && <p className="text-[13px] text-muted-foreground">{item.label}</p>}
           <p className="mt-1 text-[12px] font-medium text-muted-foreground">{sourceNote(mode)}</p>
         </div>
         <div className="rounded-2xl bg-muted/50 p-4">

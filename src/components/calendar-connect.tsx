@@ -106,9 +106,9 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
   const footer = mode === "file"
     ? "Your file stays on this phone: it was read here and never uploaded. Solvo kept only the events that look like spending."
     : mode === "link"
-      ? "Local only: the link and the events kept from it stay on this computer. Event titles never go to the coach or any model."
+      ? "Local only: the link and the events kept from it stay on this computer. Event titles are shown here and never go to the coach or any model."
       : googleHere && mode === "google"
-        ? "Local only: Solvo reads event titles and times on this computer, read-only. Titles never go to the coach or any model, and are not shown. Only an estimate per trip or dinner reaches your budget."
+        ? "Local only: Solvo reads event titles and times on this computer, read-only. Titles are shown here and never go to the coach or any model. Only an estimate per trip or dinner reaches your budget."
         : undefined;
 
   return (

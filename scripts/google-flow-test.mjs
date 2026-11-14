@@ -110,18 +110,18 @@ try {
     assert.equal(JSON.parse(readFileSync("data/private/google/token.json", "utf8")).refreshToken, "mock-refresh");
     assert.equal(JSON.parse(readFileSync("data/private/google/events.json", "utf8")).events.length, 4);
   });
-  await check("Home explains the effect in one line; the calendar shows the icons; no event title or location reaches either page", async () => {
+  await check("Home explains the effect in one line; the calendar shows the items with their own titles; locations, attendees and non-spending events never reach a page", async () => {
     const home = await (await go("/")).text();
     assert.ok(home.includes("set aside for your calendar"), "forecast line on Home");
     const cal = await (await go("/calendar")).text();
-    assert.ok(cal.includes("From your Google Calendar") && cal.includes("Dinner out"), "calendar page with generic labels");
+    assert.ok(cal.includes("From your Google Calendar") && cal.includes("Dinner out"), "calendar page with labels");
+    assert.ok(cal.includes("Dinner at the new place") || home.includes("Dinner at the new place"), "the event's own title is shown on this computer's screen");
     for (const html of [home, cal])
-      for (const secret of ["Dinner at the new place", "Trip to the lake", "Fictional Street", "Pat Example", "Standup", "Dentist"]) assert.ok(!html.includes(secret), `leaked: ${secret}`);
+      for (const secret of ["Fictional Street", "Pat Example", "Standup", "Dentist"]) assert.ok(!html.includes(secret), `leaked: ${secret}`);
   });
-  await check("Profile shows it connected, with a count and no titles", async () => {
+  await check("Profile shows it connected, with a count", async () => {
     const html = await (await go("/profile?calendar=connected")).text();
     assert.ok(html.includes("Google Calendar connected") && html.includes("4 upcoming events"));
-    assert.ok(!html.includes("Dinner at the new place"));
   });
   await check("sync reads again; the mock saw only Bearer calls and a fields filter", async () => {
     const before = mock.log.eventRequests.length;
@@ -156,16 +156,17 @@ try {
     const d = JSON.parse(text);
     assert.equal(d.counted, 4);
     assert.ok(d.found >= 5);
-    assert.ok(!/Eero|Lauran|Lisbon|Housewarming/.test(text), "no titles in the answer");
+    assert.ok(/Eero/.test(text) && !/Quarterly review|Gym/.test(text), "titles of the spending events only, for the person's own screen");
     assert.equal(statSync("data/private/calendar/link.json").mode & 0o777, 0o600);
     assert.equal(JSON.parse(readFileSync("data/private/calendar/link.json", "utf8")).events.length, 4, "only the spending events are kept");
   });
-  await check("calendar link: Home and Calendar show it, titles stay out of the pages", async () => {
+  await check("calendar link: Home and Calendar show it, with the events' titles but not the ones that cost nothing", async () => {
     const home = await (await go("/")).text();
     const cal = await (await go("/calendar")).text();
     assert.ok(home.includes("set aside for your calendar"));
     assert.ok(cal.includes("From your calendar link"));
-    for (const html of [home, cal]) assert.ok(!/Eero|Lauran|Lisbon|Housewarming|Quarterly review|Gym/.test(html), "a title leaked");
+    assert.ok(/Eero|Lauran|Lisbon|Housewarming/.test(cal), "the events' titles are shown");
+    for (const html of [home, cal]) assert.ok(!/Quarterly review|Gym/.test(html), "an event that costs nothing was kept");
   });
   await check("calendar link: disconnect deletes the saved link and events", async () => {
     assert.equal((await post("/api/calendar/link/disconnect")).status, 200);

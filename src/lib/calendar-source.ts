@@ -1,8 +1,9 @@
 // Where the forecast items come from on the server: the person's own Google Calendar or a calendar link (both local only, never
 // on Vercel). There is no simulated calendar: nothing is shown until the person connects a real one. A calendar FILE is read in the browser and never reaches the server
 // (see calendar-file-store.ts), which is why the state also carries the person's baselines: the browser needs them to estimate.
-// Pages call getCalendarState() and pass only forecast items and numbers to the browser: kind, date and an amount, never the event
-// titles of a real calendar.
+// Pages call getCalendarState() and pass only forecast items and numbers to the browser: kind, date, an amount and the event title,
+// which is shown on this computer's own screen (the calendar says "Dinner @ Cella", like the person's own calendar does). Titles
+// never go to the coach or any model, and are never logged.
 import "server-only";
 import { todayIso } from "@/lib/demo-clock";
 import { baselinesFrom, forecast, type Baselines, type ForecastItem } from "@/lib/forecast";
@@ -30,7 +31,7 @@ export async function getCalendarState(): Promise<CalendarState> {
   const google = await loadGoogleEvents();
   const link = google ? null : await loadLinkEvents();
   const baselines = await baselinesFor();
-  if (google) return { mode: "google", items: forecast(google, baselines, today, "google"), today, baselines };
-  if (link) return { mode: "link", items: forecast(link, baselines, today, "link"), today, baselines };
+  if (google) return { mode: "google", items: forecast(google, baselines, today, "google", { keepTitle: true }), today, baselines };
+  if (link) return { mode: "link", items: forecast(link, baselines, today, "link", { keepTitle: true }), today, baselines };
   return { mode: null, items: [], today, baselines };
 }
