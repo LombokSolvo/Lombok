@@ -1,5 +1,9 @@
 "use client";
 
+import { LiveNordea } from "@/components/live-nordea";
+import { OtherBanks } from "@/components/other-banks";
+import type { BankId, View } from "@/lib/banks";
+import type { LiveStatus } from "@/lib/live-nordea";
 
 import {
   Bell,
@@ -46,6 +50,11 @@ export function ProfileClient(props: {
   age: number;
   postalCode: string;
   savingsGoal: number;
+  banks: BankId[];
+  view: View;
+  showBanks: boolean; // the Other banks picker; always on (real Nordea merges into the same picture as any other bank)
+  live: LiveStatus; // the real, local-only Nordea connection; renders nothing unless the app runs with SOLVO_LIVE=1
+  linkedBank: { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null }; // Enable Banking sandbox bank
 }) {
   const mode = useDemoMode();
   const switches = Object.values(useSwitches()).filter((s) => !!s);
@@ -228,6 +237,10 @@ export function ProfileClient(props: {
           Read my {readCount} e-invoices again with Gemini
         </button>
       )}
+
+      <LiveNordea status={props.live} />
+
+      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
       <Group
         title="Your data"

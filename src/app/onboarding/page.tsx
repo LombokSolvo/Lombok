@@ -1,8 +1,10 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { PAGE } from "@/components/solvo/ui";
 import { inferProfile } from "@/lib/profile";
-import { inferSchedule } from "@/lib/schedule";
-import { getSource, pageMode } from "@/lib/source";
+import { scheduleFor } from "@/lib/schedule-server";
+import { pageMode } from "@/lib/source";
+import { getEffective } from "@/lib/source-banks";
 import { OnboardingClient } from "./onboarding-client";
 
 export const metadata = { title: "Your plan · Solvo" };
@@ -18,9 +20,11 @@ export default function OnboardingPage() {
 }
 
 async function Onboarding() {
-  const { customer: c, local, mode } = getSource(await pageMode());
+  // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
+  await connection();
+  const { customer: c, local, mode, cookieBanks: banks, view } = await getEffective(await pageMode());
   const profile = inferProfile(c);
-  const schedule = inferSchedule(c);
+  const schedule = scheduleFor(c);
   const base = {
     // Same inputs as the home page's safe-to-spend, so the plan and the headline number agree.
     incomeMonthly: Math.round(c.summary.salaryYear / 12),
@@ -30,5 +34,5 @@ async function Onboarding() {
     cashBalance: profile.cashBalance === null ? null : Math.round(profile.cashBalance),
     investsMonthlyToday: Math.round(profile.investsMonthly),
   };
-  return <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new"} />;
+  return <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new"} banks={banks} view={view} />;
 }

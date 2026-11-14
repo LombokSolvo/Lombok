@@ -6,7 +6,8 @@ import { BackLink, Chip, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
 import { BASKET_LABELS, type Basket } from "@/lib/demo";
-import { getSource, pageMode } from "@/lib/source";
+import { pageMode } from "@/lib/source";
+import { getEffective } from "@/lib/source-banks";
 
 export const metadata = { title: "Your costs · Solvo" };
 
@@ -30,7 +31,8 @@ export default function CostsPage() {
 // Every spending category, by basket, from the last 12 months. For Aino it also opens up the utility payments with
 // what Solvo read from her e-invoices (electricity, transmission, phone and internet) and her card subscriptions.
 async function Costs() {
-  const { customer: c, mode } = getSource(await pageMode());
+  // The merged customer, so the costs agree with Home when other banks are connected.
+  const { customer: c, mode } = await getEffective(await pageMode());
   const aino = mode === "aino";
   const total = ([1, 2, 3] as Basket[]).reduce((s, b) => s + c.summary.basketYear[b], 0) / 12;
   const lastMonth = c.summary.last12Months.at(-1)!;

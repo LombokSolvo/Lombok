@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, Check, ExternalLink, Home, Landmark, LoaderCircle, Pencil, PiggyBank, Plane, Plus, ReceiptText, ShieldCheck, Sprout, Trash2, Wallet } from "lucide-react";
 import { ApproveSheet, StickyAction } from "@/app/bills/switch-ui";
+import { OtherBanks } from "@/components/other-banks";
+import type { BankId, View } from "@/lib/banks";
 import { NumberField, Stepper } from "@/components/solvo/fields";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
 import { Sheet } from "@/components/solvo/sheet";
@@ -29,7 +31,7 @@ const LEARN = [
 const ASP_LINK = { title: "How to get your own home", href: "https://www.taloustaito.fi/nuoret-ja-raha/nain-voit-paasta-kiinni-omaan-asuntoon/" };
 
 const GOAL_PRESETS: Record<GoalKind, { label: string; target: number; months: number }> = {
-  asp: { label: "Home savings (ASP)", target: 20000, months: 36 },
+  property: { label: "Home or property", target: 20000, months: 36 },
   trip: { label: "A trip", target: 800, months: 12 },
   other: { label: "Something else", target: 500, months: 12 },
 };
@@ -120,18 +122,28 @@ function ExternalCard({ title, by, href }: { title: string; by: string; href: st
 
 type SheetName = "situation" | "income" | "bills" | null;
 
+// "Helvi Energia Oy · Around the 25th" when the company is known, otherwise just the usual day.
+const billSub = (i: Item) => {
+  const when = `Around the ${ordinal(i.day)}`;
+  return i.detail && !/^Bank data/.test(i.detail) ? `${i.detail} · ${when}` : when;
+};
+
 export function OnboardingClient({
   profile,
   base,
   schedule,
   local,
   askConnect,
+  banks,
+  view,
 }: {
   profile: Profile;
   base: Base;
   schedule: Schedule;
   local: boolean;
   askConnect: boolean;
+  banks: BankId[];
+  view: View;
 }) {
   const router = useRouter();
   const [connect, setConnect] = useState<"ask" | "connecting" | "done">(askConnect ? "ask" : "done");
@@ -293,7 +305,7 @@ export function OnboardingClient({
             footer={`${eur.format(fixed)} a month. On payday Solvo sets this aside so the bills are covered.`}
           >
             {outItems.length ? (
-              outItems.map((i) => <Row key={i.id} icon={<MoneyBadge kind="out" />} title={i.label} subtitle={`Around the ${ordinal(i.day)}`} value={<SignedAmount kind="out" value={i.amount} />} />)
+              outItems.map((i) => <Row key={i.id} icon={<MoneyBadge kind="out" />} title={i.label} subtitle={billSub(i)} value={<SignedAmount kind="out" value={i.amount} />} />)
             ) : (
               <p className="px-4 py-4 text-[14px] text-muted-foreground">No fixed bills found. Add yours with the pencil.</p>
             )}
@@ -302,6 +314,8 @@ export function OnboardingClient({
           <Group title="Everyday spending">
             <Row icon={<IconTile tone="grey"><Wallet /></IconTile>} title="What you usually spend" subtitle="Food, transport, fun" value={eur.format(base.everydayMonthly)} valueSub="a month" />
           </Group>
+
+          <OtherBanks banks={banks} view={view} compact />
 
           <details className="mt-5 rounded-2xl bg-card px-4 py-3 text-[14px] shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
             <summary className="flex min-h-11 cursor-pointer items-center font-medium">Why we think so</summary>
@@ -389,10 +403,10 @@ export function OnboardingClient({
           <PageTitle title="Saving for something?">Add what you are saving for. Solvo works out how much to move each month.</PageTitle>
           <Group>
             <div className="flex flex-wrap gap-2 p-4">
-              {(["asp", "trip", "other"] as GoalKind[]).map((k) => (
+              {(["property", "trip", "other"] as GoalKind[]).map((k) => (
                 <button key={k} type="button" onClick={() => addGoal(k)} className="flex h-11 items-center gap-1.5 rounded-xl bg-muted px-3 text-[15px] font-semibold active:scale-[0.98]">
                   <Plus className="size-4" aria-hidden />
-                  {k === "asp" ? "Home (ASP)" : k === "trip" ? "A trip" : "Something else"}
+                  {k === "property" ? "Home or property" : k === "trip" ? "A trip" : "Something else"}
                 </button>
               ))}
             </div>
@@ -405,7 +419,7 @@ export function OnboardingClient({
                 key={g.id}
                 title={
                   <span className="flex items-center gap-2">
-                    {g.kind === "asp" ? <Home className="size-4" aria-hidden /> : g.kind === "trip" ? <Plane className="size-4" aria-hidden /> : <PiggyBank className="size-4" aria-hidden />}
+                    {g.kind === "property" ? <Home className="size-4" aria-hidden /> : g.kind === "trip" ? <Plane className="size-4" aria-hidden /> : <PiggyBank className="size-4" aria-hidden />}
                     {g.label}
                   </span>
                 }
@@ -415,9 +429,9 @@ export function OnboardingClient({
                   </button>
                 }
                 footer={
-                  g.kind === "asp" ? (
+                  g.kind === "property" ? (
                     <>
-                      ASP rules changed in June 2026. Banks have typically wanted about 10% of the price saved. Check current terms with your bank.{" "}
+                      A home or a cabin usually needs a down payment from your own savings, and your bank sets how much. Buying a first home? Look at ASP: its rules changed in June 2026.{" "}
                       <a href={ASP_LINK.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
                         {ASP_LINK.title}
                       </a>
@@ -633,7 +647,7 @@ export function OnboardingClient({
         {outItems.length > 0 && (
           <Group title="Bills Solvo keeps safe">
             {outItems.map((i) => (
-              <Row key={i.id} icon={<MoneyBadge kind="out" />} title={i.label} subtitle={`Around the ${ordinal(i.day)}`} value={<SignedAmount kind="out" value={i.amount} />} />
+              <Row key={i.id} icon={<MoneyBadge kind="out" />} title={i.label} subtitle={billSub(i)} value={<SignedAmount kind="out" value={i.amount} />} />
             ))}
           </Group>
         )}

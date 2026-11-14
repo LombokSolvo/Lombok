@@ -4,9 +4,12 @@ import { UNPAID } from "@/data/reminders";
 import { SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
 import { fundById } from "@/lib/funds";
 import { safeToSpend } from "@/lib/coach";
+import { banksNoteFor } from "@/lib/combine";
 import { BASKET_LABELS, type Basket, type DemoCustomer } from "@/lib/demo";
+import { todayIso, toDemo, toShown } from "@/lib/demo-clock";
 import type { DemoMode } from "@/lib/demo-mode";
-import { getSource, requestMode } from "@/lib/source";
+import { requestMode } from "@/lib/source";
+import { getDemoEffective } from "@/lib/source-banks";
 import { compare } from "@/lib/offers";
 import { MERCHANT_TYPE_NAMES, spending, type SpendingQuery, type SpendingResult } from "@/lib/spending";
 
@@ -24,6 +27,23 @@ const MAX_TOOL_ROUNDS = 4;
 type ChatMessage = { role: "user" | "coach"; text: string };
 type Part = { text?: string; functionCall?: { name: string; args?: SpendingQuery; id?: string }; thoughtSignature?: string };
 type Content = { role: "user" | "model"; parts: Record<string, unknown>[] };
+
+// The demo clock (src/lib/demo-clock.ts) shows real dates. The data and the spending tool work in the demo's own dates, so the
+// model is told real dates, its dates are mapped back for the tool, and the tool's dates are mapped forward for the model.
+const realDaysLeft = () => 7 - ((new Date(`${todayIso()}T00:00:00Z`).getUTCDay() + 6) % 7);
+
+function spendingForModel(q: SpendingQuery, c: DemoCustomer) {
+  const raw = spending(c, { ...q, from: q.from ? toDemo(q.from) : undefined, to: q.to ? toDemo(q.to) : undefined });
+  const shown = {
+    ...raw,
+    from: toShown(raw.from),
+    to: toShown(raw.to),
+    // A demo month stands for the real month that holds its middle after the shift, so "last full month" reads as real.
+    groups: raw.groups.map((g) => (q.groupBy === "month" ? { ...g, key: toShown(`${g.key}-15`).slice(0, 7) } : g)),
+    largest: raw.largest.map((l) => ({ ...l, date: toShown(l.date) })),
+  };
+  return { raw, shown };
+}
 
 const eur = (n: number) => `€${Math.round(n).toLocaleString("en-US")}`;
 
@@ -50,9 +70,9 @@ function customerContext(c: DemoCustomer, mode: DemoMode) {
     .map((r) => `- ${r.supplier}, ${r.product}: ${eur(r.monthlyCost)}/month. ${r.summary}`)
     .join("\n");
 
-  const common = `Customer: age ${c.age}, postal code ${c.postalCode} (Espoo). Today is ${c.asOf}. Data covers ${c.transactions[0].date} to ${c.asOf}.
+  const common = `Customer: age ${c.age}, postal code ${c.postalCode} (Espoo). Today is ${toShown(c.asOf)}. Data covers ${toShown(c.transactions[0].date)} to ${toShown(c.asOf)}.
 
-Safe to spend this week (Monday ${s.weekStart} to Sunday): ${eur(s.remaining)} left of a ${eur(s.weeklyBudget)} weekly everyday budget, ${eur(s.spentThisWeek)} spent so far, ${s.daysLeft} days left. Built from: salary ${eur(s.incomePerMonth)}/month, minus fixed and regular bills ${eur(s.fixedRegularPerMonth)}, minus set-aside for irregular costs ${eur(s.irregularSetAsidePerMonth)}, minus savings goal ${eur(s.savingsGoalPerMonth)} (an assumption the user can change). They usually spend ${eur(s.usualWeeklyEveryday)} a week on everyday things.
+Safe to spend this week (Monday to Sunday): ${eur(s.remaining)} left of a ${eur(s.weeklyBudget)} weekly everyday budget, ${eur(s.spentThisWeek)} spent so far, ${realDaysLeft()} days left. Built from: salary ${eur(s.incomePerMonth)}/month, minus fixed and regular bills ${eur(s.fixedRegularPerMonth)}, minus set-aside for irregular costs ${eur(s.irregularSetAsidePerMonth)}, minus savings goal ${eur(s.savingsGoalPerMonth)} (an assumption the user can change). They usually spend ${eur(s.usualWeeklyEveryday)} a week on everyday things.
 
 Three baskets, last 12 months:
 ${baskets}
@@ -72,12 +92,12 @@ Electricity: doing nothing costs ${eur(cmp.doNothing)}/year after the rollover. 
 
 Card subscriptions (demo data): ${SUBSCRIPTIONS.map((x) => `${x.name} ${x.monthly.toFixed(2)} €/month on the ${x.day}.`).join(" ")} Together ${eur(subscriptionsMonthly(SUBSCRIPTIONS))}/month. Solvo can't cancel them; the user cancels in each service's own settings.
 
-Unpaid bill: ${UNPAID.supplier}, ${eur(UNPAID.amount)} (${UNPAID.what}), was due ${UNPAID.dueDate} and is still open. It belongs to basket 2 (irregular costs), so paying it comes from the irregular set-aside and doesn't lower this week's safe-to-spend. Paying before the reminder avoids a reminder fee. If the user can't pay now, suggest calling the clinic to ask for a later due date or an instalment plan, and that an S-Pankki advisor can help. Solvo is a coach, not a debt collector.
+Unpaid bill: ${UNPAID.supplier}, ${eur(UNPAID.amount)} (${UNPAID.what}), was due ${toShown(UNPAID.dueDate)} and is still open. It belongs to basket 2 (irregular costs), so paying it comes from the irregular set-aside and doesn't lower this week's safe-to-spend. Paying before the reminder avoids a reminder fee. If the user can't pay now, suggest calling the clinic to ask for a later due date or an instalment plan, and that an S-Pankki advisor can help. Solvo is a coach, not a debt collector.
 
 Fund holdings (S-Pankki funds, demo values): ${pf.holdings.map((h) => `${fundById(h.fundId).name}, put in ${eur(h.invested)} since ${h.since}, worth ${eur(h.value)} (${h.yearChangePct.toFixed(1)} % in 12 months)`).join("; ")}. Total worth ${eur(pf.value)} on ${eur(pf.invested)} put in (${pf.gainPct.toFixed(1)} %), ${pf.yearChangePct.toFixed(1)} % in the last 12 months. No new fund deposits since 2023. The Save tab can set up a monthly plan. Never recommend a specific fund or predict returns: Solvo doesn't give investment advice.`;
 }
 
-const system = (c: DemoCustomer, mode: DemoMode) => `You are Solvo, a friendly money coach inside the S-Pankki bank app. You talk to one customer about their own money.
+const system = (c: DemoCustomer, mode: DemoMode, banksNote: string) => `You are Solvo, a friendly money coach inside the S-Pankki bank app. You talk to one customer about their own money.
 
 Rules:
 - Answer in the language the user writes in (Finnish or English).
@@ -89,7 +109,7 @@ Rules:
 - You never move money or switch contracts yourself. Switches happen only when the user approves them in the app.
 - No investment, loan or tax advice. Say a human advisor at S-Pankki can help.
 
-${customerContext(c, mode)}`;
+${customerContext(c, mode)}${banksNote}`;
 
 const tools = (c: DemoCustomer) => [
   {
@@ -113,14 +133,15 @@ const tools = (c: DemoCustomer) => [
   },
 ];
 
-type Ctx = { c: DemoCustomer; mode: DemoMode };
+// banksNote: what the other connected banks add (empty when there are none).
+type Ctx = { c: DemoCustomer; mode: DemoMode; banksNote: string };
 
 async function gemini(ctx: Ctx, model: string, contents: Content[], key: string, signal: AbortSignal) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system(ctx.c, ctx.mode) }] },
+      systemInstruction: { parts: [{ text: system(ctx.c, ctx.mode, ctx.banksNote) }] },
       contents,
       tools: tools(ctx.c),
       generationConfig: { temperature: 0.3, thinkingConfig: { thinkingLevel: "low" } },
@@ -172,9 +193,9 @@ async function converse(ctx: Ctx, model: string, messages: ChatMessage[], key: s
     contents.push({
       role: "user",
       parts: calls.map(({ functionCall }) => {
-        const result = spending(ctx.c, functionCall!.args ?? {});
-        checks.push(result);
-        return { functionResponse: { name: functionCall!.name, id: functionCall!.id, response: { result } } };
+        const { raw, shown } = spendingForModel(functionCall!.args ?? {}, ctx.c);
+        checks.push(raw); // the screen formats these through the demo clock, so they stay in demo dates
+        return { functionResponse: { name: functionCall!.name, id: functionCall!.id, response: { result: shown } } };
       }),
     });
   }
@@ -225,12 +246,14 @@ export async function POST(request: Request) {
   const last = messages.at(-1);
   if (!last || last.role !== "user") return Response.json({ error: "No question" }, { status: 400 });
 
-  const { customer: c, mode } = getSource(await requestMode());
+  // The customer as chosen in the app, always from the synthetic demo data (never real bank data), with a note on connected banks.
+  const { customer: c, base, banks, view, platform, bankName, mode } = await getDemoEffective(await requestMode());
+  const banksNote = banks.length && view === "all" ? banksNoteFor(base, banks, platform, bankName) : "";
   const started = Date.now();
   const key = process.env.GEMINI_API_KEY;
   if (key) {
     try {
-      const out = await askGemini({ c, mode }, messages, key);
+      const out = await askGemini({ c, mode, banksNote }, messages, key);
       return Response.json({ ...out, source: "gemini", ms: Date.now() - started });
     } catch (e) {
       return Response.json({ ...offlineAnswer(c, last.text), source: "offline", ms: Date.now() - started, error: String(e) });

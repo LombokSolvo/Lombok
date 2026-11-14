@@ -34,6 +34,8 @@ export type DemoCustomer = {
   };
   monthly: Record<string, Record<string, number>>;
   transactions: Tx[];
+  /** Real bank data only: the current balance per account id (A, B, ...), from the bank's balances call. */
+  balances?: Record<string, number>;
 };
 
 export const DEMO_CUSTOMERS = {

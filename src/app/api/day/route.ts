@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSource, requestMode } from "@/lib/source";
+import { isLoopbackRequest } from "@/lib/loopback";
+import { requestMode } from "@/lib/source";
+import { getEffective } from "@/lib/source-banks";
 
 // What actually happened on one day, for the calendar's day view. Only the asked-for day leaves the server, so the
 // phone never holds the whole transaction history.
@@ -13,7 +15,9 @@ export async function GET(req: Request) {
   const date = new URL(req.url).searchParams.get("date") ?? "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Use ?date=YYYY-MM-DD" }, { status: 400 });
 
-  const { customer: c } = getSource(await requestMode());
+  const { customer: c, local } = await getEffective(await requestMode());
+  // Real bank data answers only to this computer.
+  if (local && !isLoopbackRequest(req)) return NextResponse.json({ error: "Live bank data only works on this computer." }, { status: 403 });
   const rows: DayRow[] = c.transactions
     .filter((t) => t.date === date && t.category !== "Transfer")
     .map((t) => {

@@ -1,8 +1,12 @@
 import { Screen } from "@/components/solvo/screen";
 import Link from "next/link";
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { ArrowRight, CalendarDays, MessageCircle } from "lucide-react";
 import { LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
+import { AllBanksCard } from "@/components/all-banks-card";
+import { LinkedBankCard } from "@/components/linked-bank-card";
+import { LiveNordnetCard } from "@/components/live-nordnet-card";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
@@ -11,8 +15,10 @@ import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/
 import { compareAgainst, ownGroups } from "@/lib/cohorts";
 import { safeToSpend, topCategories } from "@/lib/coach";
 import type { Basket } from "@/lib/demo";
-import { inferSchedule } from "@/lib/schedule";
-import { getSource, pageMode } from "@/lib/source";
+import { todayIso } from "@/lib/demo-clock";
+import { scheduleFor } from "@/lib/schedule-server";
+import { pageMode } from "@/lib/source";
+import { getEffective } from "@/lib/source-banks";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
@@ -29,15 +35,20 @@ export default function Home() {
 }
 
 async function HomeScreen() {
-  const { customer: c, local, mode } = getSource(await pageMode());
+  // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
+  await connection();
+  const { base, customer: c, local, real, banks, view, platform, bankName, mode } = await getEffective(await pageMode());
   const s = safeToSpend(c);
-  const schedule = inferSchedule(c);
+  const schedule = scheduleFor(c);
   const compareGroup = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
   const baskets = [1, 2, 3] as Basket[];
   const yearTotal = baskets.reduce((sum, b) => sum + c.summary.basketYear[b], 0);
   const over = s.remaining < 0;
   const usedShare = Math.min(1, Math.max(0, s.spentThisWeek / s.weeklyBudget));
-  const today = Math.min(6, Math.max(0, 7 - s.daysLeft));
+  // The week strip follows the REAL weekday. The demo data's own "today" is a Wednesday, which would show on a Saturday.
+  const realToday = todayIso();
+  const today = (new Date(`${realToday}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
+  const daysLeft = 7 - today;
 
   return (
     <Screen>
@@ -71,8 +82,8 @@ async function HomeScreen() {
             <LiveWeeklyEuro base={s.remaining} signed />
           </p>
           <p className="mt-2 text-[15px] text-white/70">
-            of your <LiveWeeklyEuro base={s.weeklyBudget} /> weekly budget, {s.daysLeft}{" "}
-            {s.daysLeft === 1 ? "day" : "days"} left
+            of your <LiveWeeklyEuro base={s.weeklyBudget} /> weekly budget, {daysLeft}{" "}
+            {daysLeft === 1 ? "day" : "days"} left
           </p>
 
           <div className="mt-5">
@@ -101,7 +112,7 @@ async function HomeScreen() {
           </div>
 
           <p className="mt-4 border-t border-white/10 pt-3 text-[13px] text-white/60">
-            {eur.format(s.spentThisWeek)} spent since {fmtDate(s.weekStart)}
+            {eur.format(s.spentThisWeek)} spent so far this week
           </p>
         </Slab>
 
@@ -110,7 +121,15 @@ async function HomeScreen() {
 
         <PlanCard />
 
-        <UpcomingCard items={schedule.items} asOf={c.asOf} />
+        <AllBanksCard base={base} banks={banks} view={view} platform={platform} bankName={bankName} real={real} />
+
+        {local && <LiveNordnetCard />}
+
+        <Suspense fallback={null}>
+          <LinkedBankCard />
+        </Suspense>
+
+        <UpcomingCard items={schedule.items} today={realToday} />
 
         {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
         {!local && compareGroup && <CompareSummary group={compareGroup} />}

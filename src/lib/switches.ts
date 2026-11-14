@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { clearBanksCookie } from "@/lib/banks";
 import { resetCalendar } from "@/lib/calendar-store";
 import { resetLearn } from "@/lib/learn-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
@@ -162,6 +163,7 @@ export function resetDemo() {
   billStore.set(null);
   resetOnboarding();
   resetCalendar();
+  clearBanksCookie();
   resetLearn();
 }
 

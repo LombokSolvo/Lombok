@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:nordea": "SOLVO_SOURCE=nordea next dev -H 127.0.0.1",
+    "dev:mock-bank": "node scripts/dev-mock-bank.mjs",
+    "dev:live": "SOLVO_LIVE=1 next dev -H 127.0.0.1 --experimental-https",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

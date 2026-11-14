@@ -1,8 +1,10 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { DEFAULT_SAVINGS_GOAL_PER_MONTH, safeToSpend } from "@/lib/coach";
-import { getSource, pageMode } from "@/lib/source";
+import { pageMode } from "@/lib/source";
+import { getEffective } from "@/lib/source-banks";
 import { SaveClient } from "./save-client";
 
 export const metadata = { title: "Invest · Solvo" };
@@ -18,8 +20,11 @@ export default function SavePage() {
 }
 
 async function Save() {
-  const { customer: c, mode } = getSource(await pageMode());
-  const last = c.transactions[c.transactions.length - 1];
+  // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
+  await connection();
+  const { base, customer: c, mode } = await getEffective(await pageMode());
+  // The balance shown is S-Pankki's own, whichever other banks are merged in.
+  const last = base.transactions[base.transactions.length - 1];
   // Fund deposits and withdrawals in the data (neither demo customer has any; Aino's holdings are demo data).
   const fundTx = c.transactions.filter((t) => t.category === "Invest Deposit" || t.category === "Invest Withdraw");
   const inFunds = -fundTx.reduce((sum, t) => sum + t.amount, 0);

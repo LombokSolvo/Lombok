@@ -1,11 +1,13 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { SUBSCRIPTIONS, subscriptionCharges } from "@/data/subscriptions";
 import { safeToSpend } from "@/lib/coach";
-import { getSource, pageMode } from "@/lib/source";
+import { pageMode } from "@/lib/source";
+import { getEffective } from "@/lib/source-banks";
 import type { PaidBill } from "./bill-history";
 import { BillsClient } from "./bills-client";
 
@@ -22,7 +24,9 @@ export default function BillsPage() {
 }
 
 async function Bills() {
-  const { customer: c, mode } = getSource(await pageMode());
+  // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
+  await connection();
+  const { customer: c, mode } = await getEffective(await pageMode());
   // The synthetic e-invoices (and the dentist bill) belong to Aino's demo story. The new customer has none yet.
   const invoices = mode === "aino" ? INVOICES : [];
   const subscriptions = mode === "aino" ? SUBSCRIPTIONS : []; // demo data, see src/data/subscriptions.ts
