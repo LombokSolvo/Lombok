@@ -38,6 +38,7 @@ import {
 } from "@/lib/switches";
 import { MarketAgentCard, agentHasRun } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
+import { OfferFacts } from "./offer-facts";
 import { PhotoUpload } from "./photo-upload";
 import { TelecomDetail } from "./telecom-detail";
 
@@ -510,23 +511,29 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
                 title={`${o.supplier} ${o.product}`}
                 yearly={o.yearly}
                 detail={
-                  <>
-                    {o.pricing === "spot"
-                      ? `Spot, about ${dec2(o.centsPerKwh)} c/kWh (margin ${dec2(o.marginCents ?? 0)})`
-                      : `${dec2(o.centsPerKwh)} c/kWh`}
-                    {` + ${dec2(o.monthlyFee)} €/mo`}
-                    {o.termMonths ? `, fixed ${o.termMonths} months` : ""}
-                    {o.note ? `. ${o.note}` : ""}
-                    {o.renewable && (
-                      <span className="mt-0.5 flex items-center gap-1 font-medium text-primary">
-                        <Leaf className="size-3.5" aria-hidden />
-                        Renewable electricity
-                      </span>
-                    )}
-                    <span className="mt-0.5 block">
-                      Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
-                    </span>
-                  </>
+                  <OfferFacts
+                    rows={[
+                      ["Type", o.pricing === "spot" ? "Spot price, no fixed term" : `Fixed price, ${o.termMonths ? `${o.termMonths} months` : "no fixed term"}`],
+                      [
+                        "Energy",
+                        o.pricing === "spot"
+                          ? `about ${dec2(o.centsPerKwh)} c/kWh (spot + ${dec2(o.marginCents ?? 0)} margin)`
+                          : `${dec2(o.centsPerKwh)} c/kWh`,
+                      ],
+                      ["Monthly fee", `${dec2(o.monthlyFee)} €`],
+                      ...(o.renewable
+                        ? [[
+                            "Origin",
+                            <span key="o" className="inline-flex items-center gap-1 font-medium text-primary">
+                              <Leaf className="size-3.5" aria-hidden />
+                              Renewable
+                            </span>,
+                          ] as [string, React.ReactNode]]
+                        : []),
+                      ...(o.note ? [["Good to know", o.note] as [string, React.ReactNode]] : []),
+                      ["Source", `${domainOf(o.sourceUrl)}, ${fmtDate(o.checkedAt)}`],
+                    ]}
+                  />
                 }
                 pick={o.id === cmp.recommended.id ? cmp.pickReason : undefined}
               />
