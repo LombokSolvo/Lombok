@@ -561,8 +561,8 @@ export async function POST(request: Request) {
   if (!last || last.role !== "user") return Response.json({ error: "No question" }, { status: 400 });
 
   // The customer as chosen in the app, always from the synthetic demo data (never real bank data), with a note on connected banks.
-  const { customer: c, base, banks, view, platform, bankName, mode } = await getDemoEffective(await requestMode());
-  const banksNote = banks.length && view === "all" ? banksNoteFor(base, banks, platform, bankName) : "";
+  const { customer: c, base, banks, view, bankName, mode } = await getDemoEffective(await requestMode());
+  const banksNote = banks.length && view === "all" ? banksNoteFor(base, banks, bankName) : "";
   const ctx: Ctx = { c, mode, banksNote, state: readState(body.state) };
   const started = Date.now();
   const key = process.env.GEMINI_API_KEY;

@@ -2,38 +2,25 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, TrendingUp, X } from "lucide-react";
+import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
 import { Group, IconTile } from "@/components/solvo/ui";
-import {
-  BANK_INFO,
-  FALLBACK_BANKS,
-  PLATFORMS,
-  PLATFORM_HOW,
-  readBankNameCookie,
-  readPlatformCookie,
-  writeBankNameCookie,
-  writeBanksCookie,
-  writePlatformCookie,
-  type BankId,
-  type Platform,
-  type View,
-} from "@/lib/banks";
+import { FALLBACK_BANKS, readBankNameCookie, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
 import { LIVE_BANKS, liveBankOf, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
 import type { LiveStatus } from "@/lib/live-banks";
 
 // Other banks: opt-in, never assumed. The picker lists every bank Enable Banking offers, per country, with search, plus the person's
-// own banks on this computer (Nordea, Trade Republic, Revolut) and the investing platforms.
+// own banks, neobanks and trading platform on this computer.
 //  - With the demo bank connection set up (src/lib/linked-bank.ts): picking a bank is a REAL Enable Banking connection with
 //    example data (their sandbox test banks). Read on Home in its own card.
 //  - Without it: the list is Finland's banks and connecting is simulated with example data (src/lib/second-bank.ts).
-//  - Local only, when real banks are set up (src/lib/live-banks.ts): the person's own Nordea, Trade Republic and Revolut connect for real.
-//  - Investing platforms are not part of PSD2, so they are always simulated here, and each says how a real connection would work.
+//  - Local only, when real banks are set up (src/lib/live-banks.ts): the person's own accounts at the banks listed in
+//    src/lib/live-bank-ids.ts connect for real, in their own section at the top.
 
 type Bank = { name: string; country: string };
-type Choice = { kind: "bank"; name: string; country: string } | { kind: "platform"; name: Platform } | { kind: "live"; bank: LiveBankId };
+type Choice = { kind: "bank"; name: string; country: string } | { kind: "live"; bank: LiveBankId };
 type Step = "closed" | "pick" | "consent" | "waiting";
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
@@ -44,13 +31,12 @@ const NOTICES: Record<string, string> = {
   failed: "That connection didn't finish. Try again.",
 };
 
-// The chosen platform and simulated bank name live in cookies. Read them without a flash: the default on the server, the choice in the browser.
+// The simulated bank's name lives in a cookie. Read it without a flash: the default on the server, the choice in the browser.
 const cookieEvent = "solvo-cookie";
 const subscribeCookie = (cb: () => void) => {
   window.addEventListener(cookieEvent, cb);
   return () => window.removeEventListener(cookieEvent, cb);
 };
-const usePlatform = () => useSyncExternalStore(subscribeCookie, readPlatformCookie, (): Platform => "Nordnet");
 const useBankName = () => useSyncExternalStore(subscribeCookie, readBankNameCookie, () => "Nordea");
 
 const row = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t";
@@ -80,7 +66,6 @@ export function OtherBanks({
   const [lists, setLists] = useState<Record<string, Bank[] | { error: string }>>({});
   const [busy, setBusy] = useState<null | "start" | "sync" | "disconnect">(null);
   const [error, setError] = useState<string | null>(null);
-  const platform = usePlatform();
   const bankName = useBankName();
 
   const wantsList = step === "pick" && sandbox.enabled && !lists[country];
@@ -129,30 +114,18 @@ export function OtherBanks({
   const confirm = () => {
     if (!choice) return;
     if (choice.kind === "live") return void go("/api/live/start", { bank: choice.bank });
-    if (choice.kind === "platform") {
-      writePlatformCookie(choice.name);
-      window.dispatchEvent(new Event(cookieEvent));
-      return simulate("nordnet");
-    }
     if (sandbox.enabled) return void go("/api/banks/start", { bank: choice.name, country: choice.country });
     writeBankNameCookie(choice.name);
     window.dispatchEvent(new Event(cookieEvent));
     simulate("nordea");
   };
 
-  // The real banks not yet connected. With no demo-bank list, a bank-list entry that is one of them connects for real.
+  // The real banks not yet connected get their own section at the top. In the plain Finland list (no demo-bank list) those names are left
+  // out, so no bank appears twice, once real and once simulated.
   const liveOpen = live && live.enabled && live.configured ? live.banks.filter((b) => !b.connected).map((b) => b.id) : [];
-  const liveReady = liveOpen.length > 0;
-  const realBankOf = (b: Bank): LiveBankId | null => {
-    const id = sandbox.enabled ? null : liveBankOf(b.name, b.country);
-    return id && liveOpen.includes(id) ? id : null;
-  };
-  const connectedReal = (b: Bank) => {
-    const id = sandbox.enabled ? null : liveBankOf(b.name, b.country);
-    return !!id && !!live?.banks.find((x) => x.id === id)?.connected;
-  };
+  const hideLive = !sandbox.enabled && !!live?.enabled && live.configured;
   const list = sandbox.enabled ? lists[country] : FALLBACK_BANKS.map((name): Bank => ({ name, country: "FI" }));
-  const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase()) && !connectedReal(b)) : [];
+  const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase()) && !(hideLive && liveBankOf(b.name, b.country))) : [];
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
   const footer = sandbox.enabled
@@ -167,26 +140,20 @@ export function OtherBanks({
         points: liveConsentPoints(choice.bank),
         label: `Continue to ${LIVE_BANKS[choice.bank].name}`,
       };
-    if (choice.kind === "platform")
-      return {
-        title: `Add ${choice.name}`,
-        points: [PLATFORM_HOW[choice.name], "Solvo shows what you hold there next to your S-Pankki funds. It can't trade.", "Demo: shows example holdings."],
-        label: "Use example holdings",
-      };
     return {
       title: `Connect ${choice.name}`,
       points: sandbox.enabled
         ? [
-            "Solvo reads your accounts, balances and transactions. Read-only: it can't move money.",
-            "You approve at the bank. The connection runs through Enable Banking (PSD2).",
-            "Demo: a test bank with example data.",
-            "Access lasts 30 days. Disconnect here any time.",
+            "Solvo can see your balances and payments. It can never move money.",
+            "You sign in at the bank. Before that, Enable Banking, which connects Solvo to the bank, asks you to continue.",
+            "This is a test bank with example data.",
+            "Access lasts 30 days. Disconnect any time.",
           ]
         : [
-            "Solvo reads your accounts, balances and transactions. Read-only: it can't move money.",
-            "You approve at your bank, with its own ID. Solvo never sees your codes.",
-            "Access lasts 90 days. Remove it here or at your bank any time.",
-            "Demo: simulated, with example data.",
+            "Solvo can see your balances and payments. It can never move money.",
+            "You sign in at your bank.",
+            "Demo: nothing real is connected. Example data is shown.",
+            "A real connection lasts up to 6 months. Disconnect any time.",
           ],
       label: `Continue to ${choice.name}`,
     };
@@ -208,10 +175,10 @@ export function OtherBanks({
           </div>
         )}
         {banks.map((b) => {
-          const name = b === "nordnet" ? platform : bankName;
+          const name = bankName;
           return (
             <div key={b} className="flex min-h-14 items-center gap-3 py-2 pr-2 pl-4 [&+&]:border-t">
-              <IconTile>{BANK_INFO[b].kind === "bank" ? <Landmark /> : <TrendingUp />}</IconTile>
+              <IconTile><Landmark /></IconTile>
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] leading-snug font-medium">{name}</div>
                 <div className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground">
@@ -257,14 +224,17 @@ export function OtherBanks({
 
       {step === "pick" && (
         <Sheet title="Add a bank" onClose={() => setStep("closed")} hideDone>
-          {liveReady && sandbox.enabled && (
+          {liveOpen.length > 0 && (
             <>
               <h3 className="mb-2 text-[13px] font-medium text-muted-foreground">Your own accounts</h3>
               <div className="mb-5 overflow-hidden rounded-2xl bg-muted/50">
                 {liveOpen.map((id) => (
                   <button key={id} type="button" onClick={() => { setChoice({ kind: "live", bank: id }); setStep("consent"); }} className={row}>
                     <IconTile><Landmark /></IconTile>
-                    <span className="text-[15px] font-medium">{LIVE_BANKS[id].name}, your real account</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px] font-medium">{LIVE_BANKS[id].name}</span>
+                      <span className="block text-[13px] leading-snug text-muted-foreground">{LIVE_BANKS[id].kind}</span>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -296,10 +266,8 @@ export function OtherBanks({
             {list && !Array.isArray(list) && <p role="alert" className="px-4 py-4 text-[14px] text-warn">{list.error}</p>}
             {Array.isArray(list) && shown.length === 0 && <p className="px-4 py-4 text-[14px] text-muted-foreground">No bank matches.</p>}
             {shown.map((b) => {
-              // With real banks set up here, the list's Nordea, Trade Republic and Revolut are the real ones, not simulated copies.
-              const real = realBankOf(b);
               return (
-                <button key={`${b.country}-${b.name}`} type="button" onClick={() => { setChoice(real ? { kind: "live", bank: real } : { kind: "bank", name: b.name, country: b.country }); setStep("consent"); }} className={row}>
+                <button key={`${b.country}-${b.name}`} type="button" onClick={() => { setChoice({ kind: "bank", name: b.name, country: b.country }); setStep("consent"); }} className={row}>
                   <IconTile><Landmark /></IconTile>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-medium">{b.name}</span>
@@ -309,21 +277,9 @@ export function OtherBanks({
             })}
           </div>
           <p className="mt-2 text-[13px] leading-snug text-muted-foreground">
-            {sandbox.enabled ? "These are Enable Banking's test banks. In production the list is your real banks." : liveReady ? "Finland's banks on Enable Banking. Nordea, Trade Republic and Revolut connect for real here; the others are simulated." : "Finland's banks on Enable Banking. Demo: connecting is simulated."}
+            {sandbox.enabled ? "These are Enable Banking's test banks. In production the list is your real banks." : hideLive ? "Finland's banks on Enable Banking. These are simulated: only your own accounts above connect for real." : "Finland's banks on Enable Banking. Demo: connecting is simulated."}
           </p>
 
-          <>
-          <h3 className="mt-5 mb-2 text-[13px] font-medium text-muted-foreground">Investing platform</h3>
-          <div className="overflow-hidden rounded-2xl bg-muted/50">
-            {PLATFORMS.map((p) => (
-              <button key={p} type="button" onClick={() => { setChoice({ kind: "platform", name: p }); setStep("consent"); }} className={row}>
-                <IconTile><TrendingUp /></IconTile>
-                <span className="text-[15px] font-medium">{p}</span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">Investing platforms aren&apos;t part of open banking. Demo: example holdings.</p>
-          </>
         </Sheet>
       )}
 
@@ -332,10 +288,10 @@ export function OtherBanks({
       )}
 
       {step === "waiting" && (
-        <Sheet title={choice?.kind === "platform" ? `Reading ${choice.name}` : "Waiting for your bank"} onClose={() => {}} hideDone>
+        <Sheet title="Waiting for your bank" onClose={() => {}} hideDone>
           <div className="flex items-center gap-3 py-2 text-[15px]" role="status">
             <Loader2 className="size-5 animate-spin" aria-hidden />
-            {choice?.kind === "platform" ? "Reading your holdings… (demo: example data)" : "Waiting for your approval… (demo: approved automatically)"}
+            Waiting for your approval… (demo: approved automatically)
           </div>
         </Sheet>
       )}

@@ -8,7 +8,7 @@ import type { DemoCustomer, Tx } from "./demo";
 
 export type RawTx = {
   credit_debit_indicator?: string;
-  transaction_amount: { amount: string };
+  transaction_amount: { amount: string; currency?: string };
   booking_date?: string;
   transaction_date?: string;
   value_date?: string;
@@ -75,7 +75,10 @@ export type BuildResult = {
 
 /** `accounts` is one array of transactions per account, in the order the bank listed the accounts. */
 export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | null)[] = [], id = "ME-NORDEA"): BuildResult {
-  const raw = accounts.flatMap((txs, i) => txs.map((t) => ({ ...t, _acc: letter(i) })));
+  // Euro only. A neobank account can hold other currencies, and adding dollars to euros would make every sum wrong, so those are left out.
+  const raw = accounts.flatMap((txs, i) =>
+    txs.filter((t) => !t.transaction_amount.currency || t.transaction_amount.currency === "EUR").map((t) => ({ ...t, _acc: letter(i) })),
+  );
 
   const rows: Tx[] = raw
     .map((t) => {
