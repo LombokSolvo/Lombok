@@ -36,6 +36,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   const [year, setYear] = useState(today.getUTCFullYear());
   const [month, setMonth] = useState(today.getUTCMonth());
   const [openDay, setOpenDay] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<CountedItem | null>(null);
 
   const { items: forecast, mode, reserve } = useForecast();
   const countedForecast = forecast.filter((f) => f.counted && f.date >= asOf);
@@ -150,6 +151,29 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
         </div>
       </section>
 
+      {/* Everything coming from the calendar in the next 45 days, across months: the grid only shows the month you are looking at. */}
+      {forecast.some((f) => f.date >= asOf) && (
+        <Group title="From your calendar" aside="next 45 days" footer="Estimates. Tap one to change the amount or stop counting it.">
+          {forecast
+            .filter((f) => f.date >= asOf)
+            .map((f) => (
+              <button key={f.id} type="button" onClick={() => setEditItem(f)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t ${f.counted ? "" : "opacity-55"}`}>
+                <CategoryIcon category={f.category} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] leading-snug font-medium">{f.detail ?? f.label}</span>
+                  <span className="block text-[13px] text-muted-foreground">
+                    {f.detail ? `${f.label} · ` : ""}
+                    {shortDay.format(parse(f.date))}
+                    {f.endDate ? ` to ${shortDay.format(parse(f.endDate))}` : ""}
+                    {f.counted ? " · estimate" : " · not counted"}
+                  </span>
+                </span>
+                <SignedAmount kind="out" value={f.amount} />
+              </button>
+            ))}
+        </Group>
+      )}
+
       <Group title="This month" footer="Tap a line or any day to open it.">
         {events.length ? (
           events.map((e) => (
@@ -172,6 +196,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
         )}
       </Group>
 
+      {editItem && <ForecastEditSheet item={editItem} onClose={() => setEditItem(null)} />}
       {openDay && <DaySheet key={openDay} date={openDay} asOf={asOf} offset={offset} events={byDate.get(openDay) ?? []} custom={custom} onClose={() => setOpenDay(null)} />}
     </main>
   );
