@@ -1,6 +1,7 @@
 "use client";
 
 
+import { useOnboarding } from "@/lib/onboarding-store";
 import {
   Bell,
   Check,
@@ -50,6 +51,7 @@ export function ProfileClient(props: {
   const mode = useDemoMode();
   const switches = Object.values(useSwitches()).filter((s) => !!s);
   const plan = useSavingsPlan();
+  const onboarding = useOnboarding();
   const readCount = Object.keys(useCachedReadings()).length;
   const bills = useBillActions();
   const paid = bills[UNPAID.id]?.action === "paid";
@@ -214,8 +216,8 @@ export function ProfileClient(props: {
             </IconTile>
           }
           title="Savings goal"
-          subtitle="Kept out of your weekly budget"
-          value={eur.format(props.savingsGoal)}
+          subtitle={onboarding.completedAt ? "From your plan, kept out of your weekly budget" : "Kept out of your weekly budget"}
+          value={eur.format(onboarding.completedAt ? (onboarding.savingsMonthly ?? 0) : props.savingsGoal)}
           valueSub="a month"
         />
       </Group>

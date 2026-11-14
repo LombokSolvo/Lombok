@@ -56,3 +56,57 @@ export function ResetDemoButton({ className }: { className?: string }) {
     </button>
   );
 }
+
+/**
+ * The "How your budget is built" rows on Home. The server's numbers assume the default savings goal; once the
+ * person approves their own plan (onboarding) or a cheaper bill, these rows follow it, so they add up to the same
+ * weekly budget the slab at the top shows.
+ */
+export function LiveBudgetRows(props: { income: number; fixed: number; irregular: number; defaultGoal: number }) {
+  const onboarding = useOnboarding();
+  const switches = useSwitches();
+  const plan = useSavingsPlan();
+  const ownPlan = !!onboarding.completedAt;
+  const goal = ownPlan ? (onboarding.savingsMonthly ?? 0) + (onboarding.investMonthly ?? 0) : props.defaultGoal;
+  const corrections = ownPlan ? (onboarding.monthlyAdjust ?? 0) : 0;
+  const cheaperBills = (weeklyBoost(switches, plan) * 52) / 12;
+  const everyday = props.income - props.fixed - props.irregular - goal + corrections + cheaperBills;
+  const rows: [string, number][] = [
+    ["Fixed and regular bills", -props.fixed],
+    ["Set aside for irregular costs", -props.irregular],
+    [ownPlan ? "Savings and investing (your plan)" : "Savings goal (you set this)", -goal],
+  ];
+  if (Math.round(corrections) !== 0) rows.push(["Your corrections to income and bills", corrections]);
+  if (Math.round(cheaperBills) !== 0) rows.push(["Cheaper bills", cheaperBills]);
+  const signed = (v: number) => (Math.round(v) < 0 ? `−${eur.format(-v)}` : Math.round(v) > 0 ? `+${eur.format(v)}` : eur.format(0));
+  return (
+    <dl className="num px-4 py-1 text-[15px]">
+      <div className="flex justify-between py-2.5">
+        <dt>Salary</dt>
+        <dd className="font-medium">{eur.format(props.income)}</dd>
+      </div>
+      {rows.map(([label, v]) => (
+        <div key={label} className="flex justify-between py-2.5 text-muted-foreground">
+          <dt>{label}</dt>
+          <dd>{signed(v)}</dd>
+        </div>
+      ))}
+      <div className="flex justify-between border-t py-3 font-semibold">
+        <dt>Everyday budget</dt>
+        <dd>{eur.format(everyday)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+/** "You usually spend X a week…": compared with the live weekly budget, so it agrees with the slab. */
+export function LiveBudgetGap({ usualWeekly, baseWeekly }: { usualWeekly: number; baseWeekly: number }) {
+  const budget = baseWeekly + weeklyBoost(useSwitches(), useSavingsPlan()) + onboardingWeeklyDelta(useOnboarding());
+  const gap = Math.round(usualWeekly) - Math.round(budget);
+  return (
+    <>
+      You usually spend {eur.format(usualWeekly)} a week on everyday things.
+      {gap > 0 ? ` That's ${eur.format(gap)} more than your budget allows.` : " That fits your budget."}
+    </>
+  );
+}

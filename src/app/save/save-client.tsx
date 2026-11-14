@@ -10,6 +10,7 @@ import { LearnChip } from "@/components/learn/learn-chip";
 import { Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { FUND_TYPES, FUNDS, FUNDS_SOURCE, fundById, projectFund, type FundType } from "@/lib/funds";
 import { approveSavingsPlan, cancelSavingsPlan, monthlyFreed, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
+import { useOnboarding } from "@/lib/onboarding-store";
 
 const YEARS = 10;
 const DAY_OF_MONTH = 2; // the day after a typical salary day
@@ -65,7 +66,12 @@ export function SaveClient(props: Props) {
   const [confirming, setConfirming] = useState(false);
 
   const fromBills = billShare === "all" ? freed : billShare === "half" ? Math.round(freed / 2) : 0;
-  const monthly = props.savingsGoal + fromBills;
+  // Once the person has approved their own plan, its investing budget replaces the default savings goal.
+  const onboarding = useOnboarding();
+  const ownPlan = !!onboarding.completedAt;
+  const goal = ownPlan ? (onboarding.investMonthly ?? 0) : props.savingsGoal;
+  const goalTitle = ownPlan ? "Investing budget, your plan" : "Your savings goal";
+  const monthly = goal + fromBills;
   const fund = fundById(fundId);
   const next = nextInvestDate(props.asOf);
 
@@ -197,7 +203,7 @@ export function SaveClient(props: Props) {
         {props.hasFunds ? "Start investing again" : "Start investing"}
       </h2>
       <p className="mt-1 px-1 text-[15px] leading-snug text-muted-foreground">
-        Your monthly savings goal, plus what your cheaper bills free up.
+        {ownPlan ? "The investing budget from your plan" : "Your monthly savings goal"}, plus what your cheaper bills free up.
       </p>
 
       <Group
@@ -225,9 +231,9 @@ export function SaveClient(props: Props) {
               <Target />
             </IconTile>
           }
-          title="Your savings goal"
+          title={goalTitle}
           subtitle="Already outside your weekly budget"
-          value={eur.format(props.savingsGoal)}
+          value={eur.format(goal)}
         />
         {freed > 0 && (
           <div className="border-t px-4 py-3">
@@ -331,7 +337,7 @@ export function SaveClient(props: Props) {
           onConfirm={() =>
             approveSavingsPlan({
               monthly,
-              fromGoal: props.savingsGoal,
+              fromGoal: goal,
               fromBills,
               fundId: fund.id,
               fundName: fund.name,

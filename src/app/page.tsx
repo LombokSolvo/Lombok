@@ -2,7 +2,7 @@ import { Screen } from "@/components/solvo/screen";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CalendarDays, MessageCircle } from "lucide-react";
-import { LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
+import { LiveBudgetGap, LiveBudgetRows, LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
@@ -149,34 +149,15 @@ async function HomeScreen() {
           title="How your budget is built"
           aside="per month"
           footer={
-            <>
-              You usually spend {eur.format(s.usualWeeklyEveryday)} a week on everyday things.
-              {s.usualWeeklyEveryday > s.weeklyBudget
-                ? ` That's ${eur.format(Math.round(s.usualWeeklyEveryday) - Math.round(s.weeklyBudget))} more than your budget allows.`
-                : " That fits your budget."}
-            </>
+            <LiveBudgetGap usualWeekly={s.usualWeeklyEveryday} baseWeekly={s.weeklyBudget} />
           }
         >
-          <dl className="num px-4 py-1 text-[15px]">
-            <div className="flex justify-between py-2.5">
-              <dt>Salary</dt>
-              <dd className="font-medium">{eur.format(s.incomePerMonth)}</dd>
-            </div>
-            {[
-              ["Fixed and regular bills", s.fixedRegularPerMonth],
-              ["Set aside for irregular costs", s.irregularSetAsidePerMonth],
-              ["Savings goal (you set this)", s.savingsGoalPerMonth],
-            ].map(([label, v]) => (
-              <div key={label} className="flex justify-between py-2.5 text-muted-foreground">
-                <dt>{label}</dt>
-                <dd>−{eur.format(v as number)}</dd>
-              </div>
-            ))}
-            <div className="flex justify-between border-t py-3 font-semibold">
-              <dt>Everyday budget</dt>
-              <dd>{eur.format(s.everydayBudgetPerMonth)}</dd>
-            </div>
-          </dl>
+          <LiveBudgetRows
+            income={s.incomePerMonth}
+            fixed={s.fixedRegularPerMonth}
+            irregular={s.irregularSetAsidePerMonth}
+            defaultGoal={s.savingsGoalPerMonth}
+          />
         </Group>
 
         {/* Three baskets */}

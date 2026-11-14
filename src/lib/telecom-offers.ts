@@ -42,7 +42,9 @@ export const OPERATOR_CLIMATE: Record<string, { claim: string; sourceUrl: string
 /** What the person wants. It decides the coach's pick; every option stays selectable. */
 export type SpeedWish = "slower" | "same" | "faster";
 export type TelecomPreference = { speed: SpeedWish; priority: "price" | "sustainable" };
-export const DEFAULT_TELECOM_PREFERENCE: TelecomPreference = { speed: "same", priority: "price" };
+// "A bit slower" by default: with today's prices a same-speed plan costs more than Aino pays now, so the default
+// would open on a loss. 450 Mbit/s is still plenty for video calls and 4K, and it's the saving the Bills card shows.
+export const DEFAULT_TELECOM_PREFERENCE: TelecomPreference = { speed: "slower", priority: "price" };
 
 export const TELECOM_OFFERS_UPDATED = SAVED_TELECOM_DB.ranAt.slice(0, 10);
 
