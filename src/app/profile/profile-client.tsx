@@ -23,13 +23,11 @@ import {
 } from "@/components/solvo/ui";
 import { useLearnProgress } from "@/lib/learn-store";
 import {
-  clearCachedReadings,
   resetDemo,
   setDemoMode,
   useDemoMode,
   type DemoMode,
   useBillActions,
-  useCachedReadings,
   useSavingsPlan,
   useSwitches,
 } from "@/lib/switches";
@@ -49,7 +47,6 @@ export function ProfileClient(props: {
   const mode = useDemoMode();
   const switches = Object.values(useSwitches()).filter((s) => !!s);
   const plan = useSavingsPlan();
-  const readCount = Object.keys(useCachedReadings()).length;
   const bills = useBillActions();
   const learned = Object.keys(useLearnProgress().done).length > 0;
   const anything =
@@ -138,16 +135,6 @@ export function ProfileClient(props: {
           value={<Toggle label="Contract end dates" />}
         />
       </Group>
-
-      {readCount > 0 && (
-        <button
-          type="button"
-          onClick={clearCachedReadings}
-          className="mt-2 flex min-h-11 items-center px-1 text-[13px] font-medium text-primary underline underline-offset-4"
-        >
-          Read my {readCount} e-invoices again
-        </button>
-      )}
 
       {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
