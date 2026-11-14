@@ -8,13 +8,14 @@ import { Check, ChevronDown, Globe, Loader2, RefreshCw, X, Search } from "lucide
 import { Chip, dec2, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import type { ReactNode } from "react";
 import { domainOf } from "@/lib/market";
+import { plainFormat } from "@/lib/demo-clock";
 import type { AgentDb, AgentEvent, AgentStep } from "@/lib/market-agent-events";
 
 const STEPS: { step: AgentStep; label: string }[] = [
-  { step: "search", label: "Search the market" },
-  { step: "read", label: "Read prices from the pages" },
-  { step: "check", label: "Check and clean" },
-  { step: "segment", label: "Rank per customer group" },
+  { step: "search", label: "Search public prices" },
+  { step: "read", label: "Read the prices" },
+  { step: "check", label: "Check them" },
+  { step: "segment", label: "Pick the best for you" },
 ];
 
 type StepState = { status: "waiting" | "running" | "done" | "failed"; detail?: string };
@@ -67,7 +68,8 @@ function foundRows(db: AgentDb): FoundRow[] {
 const ranThisVisit = new Set<AgentDb["agent"]>();
 export const agentHasRun = (agent: AgentDb["agent"]) => ranThisVisit.has(agent);
 
-const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+// A real date (when a price was checked), so it must not go through the demo clock: "checked 1 Nov", not "16 Dec".
+const dayFmt = plainFormat({ day: "numeric", month: "short" });
 
 /**
  * forYou: what the agent's result means for this customer, e.g. their group and consumption.
@@ -93,13 +95,20 @@ export function MarketAgentCard<D extends AgentDb>(props: {
   const [fresh, setFresh] = useState(() => !agentHasRun(db.agent));
   const sellers = new Set(db.offers.map((o) => ("supplier" in o ? o.supplier : o.operator))).size;
 
+  // No fresh search (no key, a limit, a network error): the saved prices stand, shown as a finished check with one
+  // plain line, never an error text.
+  function savedRun() {
+    setSteps(Object.fromEntries(STEPS.map((s) => [s.step, { status: "done" }])) as Record<AgentStep, StepState>);
+    setNote(`Showing prices last checked ${timeFmt.format(new Date(db.ranAt))}.`);
+  }
+
   async function run() {
     setRunning(true);
     setNote(null);
     setSteps(Object.fromEntries(STEPS.map((s) => [s.step, { status: "waiting" }])) as Record<AgentStep, StepState>);
     try {
       const res = await fetch("/api/market-agent", { method: "POST", body: JSON.stringify({ agent: db.agent }) });
-      if (!res.body) throw new Error("no stream");
+      if (!res.ok || !res.body) throw new Error("no stream");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -115,12 +124,12 @@ export function MarketAgentCard<D extends AgentDb>(props: {
           if (e.type === "step") setSteps((prev) => (prev ? { ...prev, [e.step]: { status: e.status, detail: e.detail } } : prev));
           else {
             if (e.live) props.onResult(e.db as D);
-            else setNote(`Showing the saved run from ${timeFmt.format(new Date(e.db.ranAt))}.${e.error ? ` (${e.error.slice(0, 120)})` : ""}`);
+            else savedRun();
           }
         }
       }
-    } catch (err) {
-      setNote(`Couldn't reach the agent (${String(err).slice(0, 80)}). Showing the saved run.`);
+    } catch {
+      savedRun();
     } finally {
       setRunning(false);
       ranThisVisit.add(db.agent);
@@ -133,7 +142,7 @@ export function MarketAgentCard<D extends AgentDb>(props: {
     <section className="mt-7 rounded-2xl bg-card p-4 shadow-[0_1px_0_rgba(15,42,31,0.04),0_1px_3px_rgba(15,42,31,0.06)]">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-display text-[17px] font-semibold tracking-[-0.01em]">
-          {fresh ? "Put it out to tender" : "How Solvo found these prices"}
+          {fresh ? "Compare offers" : "How Solvo found these prices"}
         </h2>
         {!fresh && (
           <Chip tone="green">
@@ -155,8 +164,8 @@ export function MarketAgentCard<D extends AgentDb>(props: {
           from{" "}
           <span className="num font-medium text-foreground">
             {sellers} {noun.sellers}
-          </span>{" "}
-          on {db.pagesRead} websites. {props.forYou}
+          </span>
+          . {props.forYou}
         </p>
       )}
 
@@ -198,12 +207,12 @@ export function MarketAgentCard<D extends AgentDb>(props: {
       {fresh ? (
         <button type="button" className={`${primaryButton} mt-4`} onClick={run} disabled={running}>
           {running ? <Loader2 className="size-[18px] animate-spin" aria-hidden /> : <Search className="size-[18px]" aria-hidden />}
-          {running ? "Agent is searching…" : "Find better offers"}
+          {running ? "Searching…" : "Find better offers"}
         </button>
       ) : (
         <button type="button" className={`${secondaryButton} mt-3 h-11 text-[15px]`} onClick={run} disabled={running}>
           <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} aria-hidden />
-          {running ? "Agent is working…" : "Run the agent again"}
+          {running ? "Checking prices…" : "Check prices again"}
         </button>
       )}
 
@@ -212,13 +221,9 @@ export function MarketAgentCard<D extends AgentDb>(props: {
 
     <details className="group/found mt-2" open={showFound} onToggle={(e) => setShowFound(e.currentTarget.open)}>
             <summary className="flex h-11 cursor-pointer list-none items-center justify-between text-[14px] font-medium text-primary">
-              What the agent found ({rows.length})
+              Offers found ({rows.length})
               <ChevronDown className="size-4 transition-transform group-open/found:rotate-180" aria-hidden />
             </summary>
-            <p className="text-[12px] leading-snug text-muted-foreground">
-              Searched for: {db.queries.map((q) => `“${q}”`).join(", ")}. {db.mode === "exa" ? "Last run" : "Saved run"} {timeFmt.format(new Date(db.ranAt))}. Offers
-              not seen in the latest run keep their older check date.
-            </p>
             {groups.map((g) => (
               <div key={g} className="mt-3">
                 <h3 className="text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">{g}</h3>
@@ -237,7 +242,7 @@ export function MarketAgentCard<D extends AgentDb>(props: {
                           <a href={r.sourceUrl} className="text-primary underline-offset-2 active:underline">
                             {domainOf(r.sourceUrl)}
                           </a>
-                          , checked {dayFmt.format(new Date(`${r.checkedAt}T00:00:00Z`))}
+                          , checked {dayFmt(r.checkedAt.slice(0, 10))}
                         </span>
                       </li>
                     ))}

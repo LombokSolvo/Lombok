@@ -58,7 +58,7 @@ export async function* runTelecomAgent(): AsyncGenerator<AgentEvent> {
   const saved = SAVED_TELECOM_DB;
   const fallback = (error: string): AgentEvent => ({ type: "result", db: saved, live: false, error });
 
-  yield { type: "step", step: "search", status: "running", detail: "Searching Finnish mobile and broadband prices with Exa" };
+  yield { type: "step", step: "search", status: "running", detail: "Searching Finnish mobile and broadband prices" };
   if (!exaKey()) {
     yield { type: "step", step: "search", status: "failed", detail: "Live search is off, using the last saved run" };
     yield fallback("EXA_API_KEY not set");

@@ -39,7 +39,7 @@ export const ESCALATION: EscalationStep[] = [
     date: "2026-09-22",
     channel: "notification",
     title: "Bill due in 3 days",
-    text: "Hymy Hammasklinikka, €148. Tap to pay or schedule it.",
+    text: "Hymy Hammasklinikka, 148 €.",
   },
   {
     date: "2026-09-25",

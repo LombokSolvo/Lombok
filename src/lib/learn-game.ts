@@ -18,7 +18,7 @@ export const COURSES: Course[] = [
     id: "investing",
     title: "Investing basics",
     blurb: "What funds are, and how risk and time work",
-    badge: "Investing basics",
+    badge: "Fund explorer",
     lessons: [
       quiz("fund", "What is a fund?", [
         { q: "A fund is…", options: ["One company's share", "A pool of many people's money, put into many companies or bonds", "A savings account with fixed interest"], correct: 1, why: "A fund pools money from many investors and spreads it over many holdings." },
@@ -42,7 +42,7 @@ export const COURSES: Course[] = [
     id: "everyday",
     title: "Everyday money",
     blurb: "A calm month, a buffer and saving first",
-    badge: "Everyday money",
+    badge: "Budget keeper",
     lessons: [
       quiz("needs", "Needs and wants", [
         { q: "Rent, electricity and food are usually…", options: ["Wants", "Needs you have to pay", "Investments"], correct: 1, why: "These are must-pay costs. Everything else is a choice." },

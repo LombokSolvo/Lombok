@@ -58,7 +58,7 @@ export function LearnPack({
           <GraduationCap className="size-[18px]" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold tracking-[0.06em] text-primary uppercase">Money skills</p>
+          <p className="text-[11px] font-semibold tracking-[0.06em] text-primary uppercase">Lesson</p>
           <p className="truncate text-[15px] leading-tight font-semibold">{pack.title}</p>
         </div>
         <span className="num shrink-0 text-[12px] text-muted-foreground">
@@ -85,7 +85,6 @@ export function LearnPack({
               <p className="mt-3 flex gap-2 rounded-2xl bg-accent/70 px-3 py-2.5 text-[14px] leading-snug text-accent-foreground">
                 <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                 <span>
-                  <span className="font-semibold">You: </span>
                   {pack.cards[step].you}
                 </span>
               </p>
@@ -156,10 +155,10 @@ export function LearnPack({
             <span className="flex size-14 animate-pop items-center justify-center rounded-full bg-primary text-white shadow-[0_10px_30px_-10px_rgba(19,98,63,0.8)]">
               <Check className="size-7" strokeWidth={2.75} aria-hidden />
             </span>
-            <h3 className="mt-3 font-display text-[21px] font-semibold tracking-[-0.015em]">Pack done</h3>
+            <h3 className="mt-3 font-display text-[21px] font-semibold tracking-[-0.015em]">Lesson complete</h3>
             <p className="mt-1 text-[14px] text-muted-foreground">
-              {finishedCount} of {PACK_IDS.length} Money skills finished
-              {streak > 1 ? `, ${streak} days in a row` : ""}. You&apos;ll find them in Profile.
+              {finishedCount} of {PACK_IDS.length} chat lessons finished
+              {streak > 1 ? `, ${streak} days in a row` : ""}.
             </p>
             <div className="mt-4 flex w-full flex-col gap-2">
               {pack.followUps.map((q) => (

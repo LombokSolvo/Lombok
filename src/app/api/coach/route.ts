@@ -19,7 +19,7 @@ import { compareAgainst, ownGroups } from "@/lib/cohorts";
 import { peerCompare, type PeerCompare } from "@/lib/peer-compare";
 import { trimsFrom, type Trim } from "@/lib/plan-view";
 import { spenderProfile, type SpenderProfile } from "@/lib/spender";
-import { compareTelecom, telecomTermsFrom } from "@/lib/telecom-offers";
+import { telecomStartingPick, telecomTermsFrom } from "@/lib/telecom-offers";
 import { MAX_ACTIONS, actionKey, splitSuggestions, type ChatAction, type ChatState, type ChatView } from "@/lib/chat-actions";
 
 // Coach chat. Gemini answers, but every spending number comes from the `spending` tool,
@@ -90,7 +90,11 @@ function spendingForModel(q: SpendingQuery, c: DemoCustomer) {
   return { raw, shown };
 }
 
-const eur = (n: number) => `€${Math.round(n).toLocaleString("en-US")}`;
+// Whole euros the way every screen writes them ("4 028 €"), so the chat text matches the cards under it.
+const eur = (n: number) => {
+  const v = Math.round(n);
+  return `${v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("fi-FI")} €`;
+};
 
 // Aino's demo story adds synthetic e-invoices, the dentist bill and fund holdings. The new customer has only bank data.
 function electricityComparison() {
@@ -104,8 +108,14 @@ function electricityComparison() {
   });
 }
 
-function customerContext(c: DemoCustomer, mode: DemoMode) {
+/** Safe to spend as Home shows it: the server's numbers plus what the person's choices in the app move (sent by the browser). */
+function liveSafe(c: DemoCustomer, weeklyDelta = 0) {
   const s = safeToSpend(c);
+  return { ...s, weeklyBudget: s.weeklyBudget + weeklyDelta, remaining: s.remaining + weeklyDelta };
+}
+
+function customerContext(c: DemoCustomer, mode: DemoMode, weeklyDelta = 0) {
+  const s = liveSafe(c, weeklyDelta);
   const pf = portfolio();
   const cmp = electricityComparison();
   const byCategory = Object.entries(c.summary.categoryYear)
@@ -151,15 +161,15 @@ const system = (c: DemoCustomer, mode: DemoMode, banksNote: string, state: ChatS
 Rules:
 - Answer in the language the user writes in (Finnish or English).
 - Keep it short: at most 3 short sentences, about 60 words. Plain text, no markdown, no lists, no headings. Do not end with filler like "let me know if...".
-- Every euro amount about past spending must come from the spending tool or the context below. Never estimate or invent numbers. Round to whole euros, written like €84.
+- Every euro amount about past spending must come from the spending tool or the context below. Never estimate or invent numbers. Round to whole euros, written like 84 € or 1 250 € (number first, the way the app writes them).
 - For questions about a type of spending (taxis, restaurants, groceries, a month, a period), call the spending tool. Pick merchantType for specific things like taxis, fuel, bars or cinema, and category for broad groups. Without a period, use the last 12 months (the default).
 - The bank data shows categories and merchant types, not shop names. If asked about a specific shop, say so and give the closest merchant type.
 - After your answer, add one last line in exactly this form: NEXT: question one | question two | question three. They are three short questions (under 8 words each) the user could ask next, written as the user would say them, based on what was just said and the whole chat so far, and never one they have already asked. Nothing else on that line.
 - End every answer with one short follow-up: a question or an offer tied to what you just said, such as "Want to see how that compares with others?", "Want me to look at where else you could save?" or "Want to know more about how that works?". Never end on a bare statement. Skip it only when you are already asking the user something, or you have refused or can't help. One follow-up, one line, never a list.
 - Be warm and practical, never judgemental. Give one concrete next step when it helps, such as a realistic weekly limit or opening the Bills view to switch electricity.
 - You never move money or switch contracts yourself. Switches happen only when the user approves them in the app.
-- For "can I afford €X tonight / today / this week" about something to buy right now (a dinner, a ticket), don't call what_if: compare it with "Safe to spend this week" below and show the sum (for example "€50 of the €338 left this week, so €288 stays"). If it is more than what is left, say by how much and what would fit.
-- For any "can I", "what if", "how long until" or "can I afford" question about the future, call the what_if tool and quote its numbers, showing the sum (for example "€3,000 over 7 months is €429 a month; you can safely save €160"). Never compute these yourself. A card with the result appears under your answer, so keep the text to the conclusion and one next step. After every save_target what_if, also call propose_action add_savings_goal with a short goalLabel (like "Trip to Japan"), the target and the deadline, so the user can add it to their goals with one tap; if it doesn't fit, use months set to the months at the current pace instead. Adding a goal moves its monthly amount to the savings account in the saving plan.
+- For "can I afford €X tonight / today / this week" about something to buy right now (a dinner, a ticket), don't call what_if: compare it with "Safe to spend this week" below and show the sum (for example "50 € of the 338 € left this week, so 288 € stays"). If it is more than what is left, say by how much and what would fit.
+- For any "can I", "what if", "how long until" or "can I afford" question about the future, call the what_if tool and quote its numbers, showing the sum (for example "3 000 € over 7 months is 429 € a month; you can safely save 160 €"). Never compute these yourself. A card with the result appears under your answer, so keep the text to the conclusion and one next step. After every save_target what_if, also call propose_action add_savings_goal with a short goalLabel (like "Trip to Japan"), the target and the deadline, so the user can add it to their goals with one tap; if it doesn't fit, use months set to the months at the current pace instead. Adding a goal moves its monthly amount to the savings account in the saving plan.
 - For "help me save €X more a month", or "find me €X", call find_savings with the monthly target (100 if none is given) and nothing else. A plan card with each change, its euros and a button appears under your answer, and it ends with a button to move the money to savings. Reply in one or two short sentences: the total found, and the first change to make. Don't list the lines again.
 - For "how do I compare", "am I spending a lot", "do I spend more than others" or "how do I compare with people in Helsinki", call compare_with_peers (focus all; by area, income or all if they name a city, an income band or everyone, otherwise their age band). For "where could I save", "where could I cut" or "where do I spend more than others", call compare_with_peers with focus above. A card appears under your answer, so reply in two short sentences, never listing every line: the first says where they spend relatively a lot (the category, their euros a month against typical); when the result has a suggestion, the second says what trimming it could free a month and asks if they want to add that to their saving plan (a button is under your answer; never say it is done). With no suggestion, say they are in line with others. These are S-Pankki customers in the synthetic dataset, never say "Finns" or "people in general".
 - For "what kind of spender am I" call spending_style and say the type in one sentence; a card with the chart appears.
@@ -169,7 +179,7 @@ Rules:
 - When the user wants something the app can do, or your advice points to one (cancel a subscription, change the saving plan total, add a savings goal, switch electricity or phone and internet, open a view), call propose_action so a card with a button appears under your answer. At most ${MAX_ACTIONS} per answer, the most useful first. Then say in one short sentence that they can approve it below. Never say it is already done.
 - Only propose what fits the data below. Don't offer something the user has already done (see "In the app right now").
 
-${customerContext(c, mode)}${banksNote}${stateNote(state)}`;
+${customerContext(c, mode, state.weeklyDelta)}${banksNote}${stateNote(state)}`;
 
 function stateNote(st: ChatState) {
   const parts = [
@@ -355,7 +365,7 @@ function savingsCandidates(ctx: Ctx): SavingsCandidate[] {
       if (r.saving > 12) out.push({ kind: "switch", id: "electricity", label: "Switch electricity", supplier: r.supplier, monthly: r.saving / 12, yearly: Math.round(r.saving) });
     }
     if (!ctx.state.switched.includes("telecom")) {
-      const r = compareTelecom(telecomTermsFrom(SAVED_READINGS.telecom as Parameters<typeof telecomTermsFrom>[0])).recommended;
+      const r = telecomStartingPick(telecomTermsFrom(SAVED_READINGS.telecom as Parameters<typeof telecomTermsFrom>[0])).recommended;
       if (r.saving > 12) out.push({ kind: "switch", id: "telecom", label: "Switch phone and internet", supplier: r.operator, monthly: r.saving / 12, yearly: Math.round(r.saving) });
     }
     for (const x of SUBSCRIPTIONS) if (!ctx.state.cancelled.includes(x.id)) out.push({ kind: "cancel", id: x.id, label: `Cancel ${x.name}`, monthly: x.monthly });
@@ -401,7 +411,7 @@ function runFindSavings(ctx: Ctx, target: unknown): SavingsPlanResult | { error:
 /** Runs a what_if call: the base is the same as Home's and onboarding's, spending comes from the `spending` tool, dates go through the demo clock. */
 function runWhatIf(ctx: Ctx, a: WhatIfArgs): WhatIfResult {
   const c = ctx.c;
-  const s = safeToSpend(c);
+  const s = liveSafe(c, ctx.state.weeklyDelta);
   const profile = inferProfile(c);
   const base = {
     incomeMonthly: Math.round(c.summary.salaryYear / 12),
@@ -636,6 +646,10 @@ function monthEnd(month: number) {
   return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 }
 
+const months = (n: number, fi: boolean) => (fi ? `${n} kk` : `${n} ${n === 1 ? "month" : "months"}`);
+/** "Delete" → "delete", but "Netflix" stays "Netflix": only the first letter of a label is lowered. */
+const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+
 function whatIfSentence(r: WhatIfResult, fi: boolean) {
   const e = eur;
   switch (r.kind) {
@@ -643,22 +657,29 @@ function whatIfSentence(r: WhatIfResult, fi: boolean) {
       return r.fits
         ? fi
           ? `${e(r.toGo)} / ${r.months} kk = ${e(r.neededMonthly)} kuussa. Pystyt säästämään turvallisesti ${e(r.safeToSaveMonthly)} kuussa, joten se onnistuu.`
-          : `${e(r.toGo)} over ${r.months} months is ${e(r.neededMonthly)} a month. You can safely save ${e(r.safeToSaveMonthly)} a month, so it fits.`
+          : `${e(r.toGo)} over ${months(r.months, fi)} is ${e(r.neededMonthly)} a month. You can safely save ${e(r.safeToSaveMonthly)} a month, so it fits.`
         : fi
           ? `${e(r.toGo)} / ${r.months} kk = ${e(r.neededMonthly)} kuussa, mutta turvallisesti pystyt ${e(r.safeToSaveMonthly)} kuussa. Ero kuroutuu, jos arkikulut pienenevät ${e(r.cutWeekly)} viikossa.`
-          : `${e(r.toGo)} over ${r.months} months is ${e(r.neededMonthly)} a month, but you can safely save ${e(r.safeToSaveMonthly)}. Spending ${e(r.cutWeekly)} less a week on everyday things closes the gap.`;
-    case "change_spending":
+          : `${e(r.toGo)} over ${months(r.months, fi)} is ${e(r.neededMonthly)} a month, but you can safely save ${e(r.safeToSaveMonthly)}. Spending ${e(r.cutWeekly)} less a week on everyday things closes the gap.`;
+    case "change_spending": {
+      // Work from the rounded amounts the person reads, so 499 − 249 says 250, and a year is that times 12.
+      const freed = Math.round(r.currentMonthly) - Math.round(r.newMonthly);
       return fi
-        ? `Nyt ${e(r.currentMonthly)} kuussa, jatkossa ${e(r.newMonthly)}: vapautuu ${e(r.freedMonthly)} kuussa eli ${e(r.freedYearly)} vuodessa.`
-        : `You spend ${e(r.currentMonthly)} a month now; at ${e(r.newMonthly)} you free ${e(r.freedMonthly)} a month, ${e(r.freedYearly)} a year.`;
+        ? `Nyt ${e(r.currentMonthly)} kuussa, jatkossa ${e(r.newMonthly)}: vapautuu ${e(freed)} kuussa eli ${e(freed * 12)} vuodessa.`
+        : `You spend ${e(r.currentMonthly)} a month now; at ${e(r.newMonthly)} you free ${e(freed)} a month, ${e(freed * 12)} a year.`;
+    }
     case "how_long":
+      if (r.months !== null && r.months > 120)
+        return fi
+          ? `${e(r.monthly)} kuussa siihen menisi yli kymmenen vuotta. Arkikulujen karsiminen nopeuttaisi sitä.`
+          : `At ${e(r.monthly)} a month that would take more than ten years. Trimming everyday spending would speed it up.`;
       return r.months === null
         ? fi
           ? "Tällä hetkellä turvalliseen säästämiseen ei jää rahaa, joten aloita pienentämällä arkikuluja."
           : "Right now nothing is left to save safely, so the first step is trimming everyday spending."
         : fi
           ? `${e(r.toGo)} / ${e(r.monthly)} kuussa = ${r.months} kuukautta.`
-          : `${e(r.toGo)} at ${e(r.monthly)} a month takes ${r.months} months.`;
+          : `${e(r.toGo)} at ${e(r.monthly)} a month takes ${months(r.months, fi)}.`;
     default:
       return "";
   }
@@ -708,15 +729,15 @@ const STYLE = /(kind|type) of spender|spending style|millainen kuluttaja/i;
 function savingsSentence(r: SavingsPlanResult, fi: boolean) {
   const first = r.lines[0].kind === "trim" ? { label: `Trim ${r.lines[0].label.toLowerCase()}` } : r.lines[0];
   const e = eur;
-  if (fi) return r.reached ? `Löysin ${e(r.found)} kuussa. Aloita: ${first.label.toLowerCase()}.` : `Löysin ${e(r.found)} kuussa ${e(r.target)}:n tavoitteesta.`;
-  return r.reached ? `I found ${e(r.found)} a month. Start with: ${first.label.toLowerCase()}.` : `I found ${e(r.found)} of your ${e(r.target)} a month.`;
+  if (fi) return r.reached ? `Löysin ${e(r.found)} kuussa. Aloita: ${lowerFirst(first.label)}.` : `Löysin ${e(r.found)} kuussa ${e(r.target)}:n tavoitteesta.`;
+  return r.reached ? `You could free ${e(r.found)} a month. Start with: ${lowerFirst(first.label)}.` : `You could free ${e(r.found)} of your ${e(r.target)} a month.`;
 }
 
 /** "Can I afford a €50 dinner tonight?": a purchase now is compared with what is left of this week's budget, as Home shows it. */
 function offlineAfford(ctx: Ctx, question: string, fi: boolean): string | null {
   const amount = amountIn(question);
   if (!amount || !/afford|varaa|riittääkö/i.test(question) || !/tonight|today|this week|right now|dinner|lunch|tänään|tänä iltana|tällä viikolla/i.test(question)) return null;
-  const s = safeToSpend(ctx.c);
+  const s = liveSafe(ctx.c, ctx.state.weeklyDelta);
   const left = Math.round(s.remaining);
   if (left >= amount) {
     return fi
@@ -727,6 +748,42 @@ function offlineAfford(ctx: Ctx, question: string, fi: boolean): string | null {
   return fi
     ? `Tältä viikolta on jäljellä ${eur(Math.max(0, left))}, joten ${eur(amount)} ylittäisi budjetin ${eur(short)}:lla.`
     : `You have ${eur(Math.max(0, left))} left this week, so ${eur(amount)} would go ${eur(short)} over the budget.`;
+}
+
+const shownDate = (demoIso: string) =>
+  new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${toShown(demoIso)}T00:00:00Z`));
+
+/** The app's own suggested questions that need no model: answered from the same numbers Home, Bills and Save show. */
+function offlineKnown(ctx: Ctx, q: string, fi: boolean): string | null {
+  const c = ctx.c;
+  if (/(how much|what) can i (safely )?spend|safe to spend|left to spend|paljonko voin käyttää/i.test(q)) {
+    const s = liveSafe(c, ctx.state.weeklyDelta);
+    const left = Math.round(s.remaining);
+    const days = realDaysLeft();
+    return fi
+      ? `Tällä viikolla voit käyttää vielä ${eur(Math.max(0, left))} ${eur(s.weeklyBudget)} viikkobudjetista, ${days} ${days === 1 ? "päivä" : "päivää"} jäljellä. ${FOLLOW(fi).save}`
+      : `You can spend ${eur(Math.max(0, left))} more this week, of your ${eur(s.weeklyBudget)} weekly budget, with ${days} ${days === 1 ? "day" : "days"} left. ${FOLLOW(fi).save}`;
+  }
+  const el = SAVED_READINGS.electricity as { supplier: string; contractEndDate: string | null };
+  if (/contract.*(end|expire|run out)|(end|expire)s?.*contract|sopimus.*(päättyy|loppuu)/i.test(q) && el?.contractEndDate) {
+    const done = ctx.state.switched.includes("electricity");
+    return fi
+      ? `${el.supplier}:n sähkösopimuksesi päättyy ${shownDate(el.contractEndDate)}.${done ? " Hyväksyit jo vaihdon, joten uusi sopimus alkaa silloin." : " Sen jälkeen hinta nousee, ellet vaihda."} ${FOLLOW(fi).save}`
+      : `Your electricity contract with ${el.supplier} ends on ${shownDate(el.contractEndDate)}.${done ? " You've approved the switch, so the new contract starts then." : " After that the price goes up unless you switch."} ${FOLLOW(fi).save}`;
+  }
+  if (/bills? cost|cost of my bills|fixed (costs|bills)|laskut maksavat|laskuni/i.test(q)) {
+    const fixed = Math.round(c.summary.basketYear[1] / 12);
+    return fi
+      ? `Kiinteät ja säännölliset laskusi ovat noin ${eur(fixed)} kuukaudessa viimeisen 12 kuukauden perusteella. ${FOLLOW(fi).save}`
+      : `Your fixed and regular bills come to about ${eur(fixed)} a month, going by the last 12 months. ${FOLLOW(fi).save}`;
+  }
+  if (ctx.mode === "aino" && /funds?|investments?|portfolio|rahast|sijoitu/i.test(q)) {
+    const p = portfolio();
+    return fi
+      ? `Rahastosi ovat nyt ${eur(p.value)}. Olet sijoittanut ${eur(p.invested)}, joten arvo on noussut ${eur(p.gain)}. ${FOLLOW(fi).save}`
+      : `Your funds are worth ${eur(p.value)} now. You've put in ${eur(p.invested)}, so they're up ${eur(p.gain)}. ${FOLLOW(fi).save}`;
+  }
+  return null;
 }
 
 /** The closing question every answer gets, so the chat always leads on (the live model gets the same rule in its prompt). */
@@ -740,7 +797,8 @@ function offlineAnswer(ctx: Ctx, question: string) {
   const fi = /[äö]|paljon|kuinka|mihin/i.test(question);
   if (STYLE.test(question)) {
     const p = spenderProfile(c);
-    if (p) return { answer: `${fi ? `Olet ${p.type.toLowerCase()}. ${p.summary}` : `${p.type}. ${p.summary}`} ${FOLLOW(fi).compare}`, checks: [], actions: [], whatIfs: [], styles: [p] };
+    // The card already says the type and the summary, so the text under it only leads on.
+    if (p) return { answer: FOLLOW(fi).compare, checks: [], actions: [], whatIfs: [], styles: [p] };
   }
   if (WHERE_SAVE.test(question) || COMPARE.test(question)) {
     const above = WHERE_SAVE.test(question);
@@ -768,6 +826,8 @@ function offlineAnswer(ctx: Ctx, question: string) {
   }
   const buy = offlineAfford(ctx, question, fi);
   if (buy) return { answer: `${buy} ${FOLLOW(fi).save}`, checks: [], actions: [], whatIfs: [] };
+  const known = offlineKnown(ctx, question, fi);
+  if (known) return { answer: known, checks: [], actions: [], whatIfs: [] };
   const wi = offlineWhatIf(ctx, question);
   if (wi) {
     let r: WhatIfResult;
@@ -791,7 +851,12 @@ function offlineAnswer(ctx: Ctx, question: string) {
   const actions = offlineActions(ctx, question);
   if (actions.length) {
     return {
-      answer: fi ? "Voit hyväksyä sen alta." : "Here you go. Nothing happens until you approve it below.",
+      answer: (() => {
+        const sw = actions.find((a) => a.kind === "switch_bill" && a.yearlySaving);
+        const saving = sw && sw.kind === "switch_bill" ? sw.yearlySaving : undefined;
+        if (saving) return fi ? `Kyllä, vaihtamalla säästät noin ${eur(saving)} vuodessa. Hyväksy se alta, jos haluat. ${FOLLOW(fi).save}` : `Yes, switching saves you about ${eur(saving)} a year. Approve it below if you want it. ${FOLLOW(fi).save}`;
+        return fi ? `Hyväksy se alta, jos haluat. Mikään ei muutu ennen sitä. ${FOLLOW(fi).save}` : `Approve it below if you want it. Nothing changes until you do. ${FOLLOW(fi).save}`;
+      })(),
       checks: [],
       actions,
     };
@@ -800,8 +865,8 @@ function offlineAnswer(ctx: Ctx, question: string) {
   if (!hit) {
     return {
       answer: fi
-        ? "En saa juuri nyt yhteyttä tekoälyyn. Kysy esimerkiksi, paljonko käytit takseihin tai ravintoloihin."
-        : "I can't reach the AI right now. Try asking how much you spent on taxis or restaurants.",
+        ? "En osaa vastata tähän juuri nyt. Kokeile jotain alla olevista kysymyksistä."
+        : "I can't answer that one right now. Try one of the questions below.",
       checks: [],
       actions: [],
     };
@@ -824,6 +889,7 @@ function readState(raw: unknown): ChatState {
     cancelled: Array.isArray(s.cancelled) ? s.cancelled.filter((id) => ids.includes(id)) : [],
     planMonthly: typeof s.planMonthly === "number" && Number.isFinite(s.planMonthly) ? Math.round(s.planMonthly) : null,
     trimmed: Array.isArray(s.trimmed) ? s.trimmed.filter((id): id is string => typeof id === "string").slice(0, 8) : [],
+    weeklyDelta: typeof s.weeklyDelta === "number" && Number.isFinite(s.weeklyDelta) ? Math.max(-5000, Math.min(5000, s.weeklyDelta)) : 0,
     switched: Array.isArray(s.switched) ? s.switched.filter((b) => b === "electricity" || b === "telecom") : [],
     goals: Array.isArray(s.goals)
       ? s.goals

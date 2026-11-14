@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { Bell, Check, PencilLine, ShieldCheck, Sparkles } from "lucide-react";
-import { Chip, Group, IconTile, Slab, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
+import { Group, IconTile, Slab, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
 
 /** The saving, with "do nothing" and the chosen offer as two bars on one scale. */
 export function SavingSlab(props: {
@@ -134,11 +134,11 @@ export function OfferOption(props: {
         </span>
         <span className="num mt-0.5 block text-[13px] leading-snug text-muted-foreground">{props.detail}</span>
         {props.pick && (
-          <span className="mt-1.5 inline-flex">
-            <Chip tone="green">
-              <Sparkles className="size-3" aria-hidden />
-              {props.pick}
-            </Chip>
+          // Not a Chip: the reason can be a whole sentence ("a bit slower, still plenty for video calls…"),
+          // and a chip never wraps, so it was cut off at the screen edge.
+          <span className="mt-1.5 inline-flex items-start gap-1 rounded-xl bg-accent px-2 py-1 text-[12px] leading-snug font-medium text-accent-foreground">
+            <Sparkles className="mt-0.5 size-3 shrink-0" aria-hidden />
+            {props.pick}
           </span>
         )}
       </span>
@@ -150,7 +150,18 @@ export function OfferOption(props: {
 export function StickyAction({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-[430px] bg-gradient-to-t from-background via-background/95 to-background/0 px-4 pt-6 pb-[calc(0.75rem+var(--tabbar-h))]">
-      <button type="button" className={primaryButton} onClick={onClick}>
+      <button
+        type="button"
+        className={primaryButton}
+        // A field may still have focus (the tab bar is hidden then). Blurring it on press moves this bar,
+        // so the tap would land elsewhere: keep the focus until the click, then let go of it.
+        onPointerDown={(e) => e.preventDefault()}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          (document.activeElement as HTMLElement | null)?.blur?.();
+          onClick();
+        }}
+      >
         {children}
       </button>
     </div>

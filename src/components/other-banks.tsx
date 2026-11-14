@@ -174,8 +174,7 @@ export function OtherBanks({
           ]
         : [
             "Solvo can see your balances and payments. It can never move money.",
-            "You sign in at your bank.",
-            "A real connection lasts up to 6 months. Disconnect any time.",
+            "Access lasts up to 6 months. Disconnect any time.",
           ],
       label: `Continue to ${choice.name}`,
     };

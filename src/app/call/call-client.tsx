@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlarmClock, Bell, Phone } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CALL_AUDIO, CALL_SCRIPT, ESCALATION, UNPAID } from "@/data/reminders";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { BackLink, Group, PAGE, PageTitle, Row, Slab, TopBar, eur, eur2, primaryButton, secondaryButton } from "@/components/solvo/ui";
-import { setBillAction, useBillActions } from "@/lib/switches";
+import { setBillAction, useBillActions, useDemoMode } from "@/lib/switches";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
@@ -35,6 +36,12 @@ export function CallClient() {
   const audio = useRef<HTMLAudioElement | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const done = useBillActions()[UNPAID.id];
+  // The dentist bill and its call are Aino's only: a new customer who opens this address goes to Home.
+  const mode = useDemoMode();
+  const router = useRouter();
+  useEffect(() => {
+    if (mode === "new") router.replace("/");
+  }, [mode, router]);
 
   function stopAll() {
     audio.current?.pause();

@@ -120,7 +120,7 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
               <div className="min-w-0 flex-1">
                 <p className="font-display text-[19px] leading-tight font-semibold tracking-[-0.01em]">Budget for what is coming</p>
                 <p className="mt-1.5 text-[14px] leading-snug text-muted-foreground">
-                  Solvo spots your upcoming expenses in your calendar and takes them into account in your financial forecast.
+                  Solvo finds upcoming expenses in your calendar and sets money aside for them each week.
                 </p>
               </div>
             </div>

@@ -27,6 +27,7 @@ import {
   type SavingsPlan,
 } from "@/lib/switches";
 import { addTrimmed, readTrimmed, removeTrimmed } from "@/lib/trimmed-store";
+import { readWeeklyDelta } from "@/components/live-budget";
 
 const weekly = (monthly: number) => (monthly * 12) / WEEKS_PER_YEAR;
 
@@ -44,6 +45,7 @@ export function chatState(mode: DemoMode): ChatState {
     switched: (["electricity", "telecom"] as const).filter((b) => sw[b]),
     goals: readGoals(mode).map(({ label, target, saved, monthly }) => ({ label, target, saved, monthly })),
     trimmed: Object.keys(readTrimmed()),
+    weeklyDelta: readWeeklyDelta(),
   };
 }
 

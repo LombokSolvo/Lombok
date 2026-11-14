@@ -29,7 +29,7 @@ export type FundOption = {
 };
 
 export const FUNDS_SOURCE =
-  "Fees: S-Pankki fund price list, valid from 4 June 2026 (A share class). S-Pankki Pelto is being wound up and isn't listed.";
+  "Fees: S-Pankki fund price list, valid from 4 June 2026 (A share class).";
 
 const f = (
   id: string,

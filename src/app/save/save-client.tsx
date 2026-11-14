@@ -452,8 +452,8 @@ function PlanEditor(
           title={plan ? "You approve the new plan" : "You approve this investment plan"}
           points={[
             ...rows.map((r) => `${eur.format(r.monthly)} a month to ${isSavingsAccount(r.fundId) ? "your savings account" : fundById(r.fundId).name}.`),
-            `From your account on the ${DAY_OF_MONTH}nd of every month, first on ${props.next}.${parts.fromBudget > 0 ? ` Your weekly budget goes down by ${weekly(parts.fromBudget)}.` : ""}`,
-            "Pause, change or stop any time. Demo: no real money moves.",
+            `From your account every month, first on ${props.next}.${parts.fromBudget > 0 ? ` Your weekly budget goes down by ${weekly(parts.fromBudget)}.` : ""}`,
+            "Pause, change or stop any time.",
           ]}
           confirmLabel="Approve"
           onConfirm={() => {
@@ -595,7 +595,7 @@ function GoalSheet({ mode, goal, plan, freed, onClose }: { mode: DemoMode; goal:
         <NumberField label="Months to go" value={months} onChange={(n) => setMonths(Math.max(1, n))} suffix="months" min={1} max={600} />
         {ok && (
           <p className="text-[14px] leading-snug">
-            <span className="num font-semibold">{eur.format(monthly)}</span> a month to your savings account on the {DAY_OF_MONTH}nd.
+            <span className="num font-semibold">{eur.format(monthly)}</span> a month to your savings account.
             {lessWeekly >= 1 ? ` ${weekly(lessWeekly)} less to spend a week.` : ""}
           </p>
         )}

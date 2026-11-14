@@ -263,7 +263,9 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
             ))}
           </div>
         )}
-        <div ref={bottom} />
+        {/* The input bar and its chips (about 180px) stick over the end of the list: scroll past them, or the end of
+            each answer, and its Approve button, stays hidden under the bar. */}
+        <div ref={bottom} className="scroll-mb-48" />
       </div>
 
       <form
@@ -300,6 +302,10 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
             type="submit"
             disabled={busy || !input.trim()}
             aria-label="Send"
+            // Keep the focus in the field while pressing: otherwise the field blurs, the tab bar comes back,
+            // the bar jumps up and the press ends on another element, so the first tap sent nothing.
+            onPointerDown={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()}
             className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:bg-muted disabled:text-muted-foreground"
           >
             <ArrowUp className="size-5" strokeWidth={2.5} aria-hidden />

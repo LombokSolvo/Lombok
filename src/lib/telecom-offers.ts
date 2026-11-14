@@ -87,6 +87,20 @@ export type TelecomComparison = {
 
 const mbit = (n: number) => `5G ${n}M`;
 
+/** The speed choice the screen opens on: the same speed, unless nothing at that speed is cheaper than today
+ * while "a bit slower" is. Then it opens on that, so the first thing Solvo shows is a saving, never a plan that
+ * costs more. */
+export function startingTelecomPreference(t: TelecomTerms, db: TelecomDb = SAVED_TELECOM_DB): TelecomPreference {
+  if (compareTelecom(t, db, DEFAULT_TELECOM_PREFERENCE).recommended.saving > 0) return DEFAULT_TELECOM_PREFERENCE;
+  const slower: TelecomPreference = { ...DEFAULT_TELECOM_PREFERENCE, speed: "slower" };
+  return compareTelecom(t, db, slower).recommended.saving > 0 ? slower : DEFAULT_TELECOM_PREFERENCE;
+}
+
+/** The comparison as the screen first shows it (see startingTelecomPreference). */
+export function telecomStartingPick(t: TelecomTerms, db: TelecomDb = SAVED_TELECOM_DB): TelecomComparison {
+  return compareTelecom(t, db, startingTelecomPreference(t, db));
+}
+
 export function compareTelecom(
   t: TelecomTerms,
   db: TelecomDb = SAVED_TELECOM_DB,
@@ -200,7 +214,7 @@ export function compareTelecom(
         : recommended.kind === "price_match"
           ? "same speed, just ask for the lower price"
           : "same speed");
-  const pickReason = `Coach's pick: ${what}${green && !fallback.includes("carbon") ? ", from an operator with carbon-neutral operations" : ""}${
+  const pickReason = `Solvo's pick: ${what}${green && !fallback.includes("carbon") ? ", from an operator with carbon-neutral operations" : ""}${
     recommended.saving < 0 ? ". It costs more than today" : ""
   }`;
 

@@ -24,19 +24,18 @@ import { LearnChip } from "@/components/learn/learn-chip";
 import type { Reading } from "@/lib/einvoice";
 import { compare, type ContractTerms, type ElectricityPreference } from "@/lib/offers";
 import { SAVED_ELECTRICITY_DB, domainOf, type MarketDb } from "@/lib/market";
-import { compareTelecom, telecomTermsFrom } from "@/lib/telecom-offers";
+import { telecomStartingPick, telecomTermsFrom } from "@/lib/telecom-offers";
 import {
   approveSwitch,
   cacheReading,
   readCachedReadings,
   useCachedReadings,
-  useSavingsPlan,
   useSwitches,
-  weeklyBoost,
   type BillKey,
   type SwitchRecord,
 } from "@/lib/switches";
 import { MarketAgentCard, agentHasRun } from "./market-agent-card";
+import { useWeeklyDelta } from "@/components/live-budget";
 import { PreferencePicker } from "./preference-picker";
 import { PhotoUpload } from "./photo-upload";
 import { TelecomDetail } from "./telecom-detail";
@@ -56,7 +55,7 @@ const fmtDate = (iso: string | null) => (iso ? dateFmt.format(new Date(`${iso}T0
 
 const KIND_LABEL: Record<Reading["kind"], string> = {
   electricity_energy: "Electricity",
-  electricity_transmission: "Electricity transmission",
+  electricity_transmission: "Grid fee",
   telecom: "Phone and internet",
   other: "Other bill",
 };
@@ -251,7 +250,7 @@ function FeaturedInvoice({ meta, loaded, onOpen }: { meta: InvoiceMeta; loaded: 
   const isElectricity = r.kind === "electricity_energy";
   const saving = isElectricity
     ? compare(termsFrom(r)).recommended.saving
-    : compareTelecom(telecomTermsFrom(r)).recommended.saving;
+    : telecomStartingPick(telecomTermsFrom(r)).recommended.saving;
   const Icon = KIND_ICON[r.kind];
   return (
     <section className="rounded-[24px] bg-card p-5 shadow-[0_1px_3px_rgba(15,42,31,0.06)] ring-1 ring-warn/25">
@@ -332,8 +331,8 @@ function InvoiceRow({ meta, loaded, switched }: { meta: InvoiceMeta; loaded?: Lo
               {switched.toProduct === "price match"
                 ? `Price-match request sent to ${switched.toSupplier}`
                 : `Switching to ${switched.toSupplier} ${switched.toProduct}`}
-              {switched.startDate ? ` from ${fmtDate(switched.startDate)}` : ""}. You save about{" "}
-              {eur.format(switched.yearlySaving)} a year.
+              {switched.startDate ? ` from ${fmtDate(switched.startDate)}` : ""}.
+              {switched.yearlySaving > 0 ? ` You save about ${eur.format(switched.yearlySaving)} a year.` : ""}
             </span>
           </p>
         )}
@@ -364,7 +363,8 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
   const perWeek = chosen.saving / 52;
-  const boost = weeklyBoost(useSwitches(), useSavingsPlan()); // all approved switches, including this one once approved
+  // Everything the person has changed (this switch once approved, others, a plan, cancelled subscriptions), as Home counts it.
+  const boost = useWeeklyDelta();
   const startDate = r.contractEndDate ? nextDay(r.contractEndDate) : null;
 
   if (stage === "done") {
@@ -382,20 +382,17 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         perWeek={Math.max(0, perWeek)}
         footnote={
           <>
-            Your weekly budget grows from {eur.format(props.weeklyBudget)} to {eur.format(props.weeklyBudget + boost)},
-            because a fixed cost just got smaller. That&apos;s {eur.format(chosen.saving)} a year.
+            Your weekly budget goes from {eur.format(props.weeklyBudget + boost - Math.max(0, perWeek))} to{" "}
+            {eur.format(props.weeklyBudget + boost)}. That&apos;s {eur.format(chosen.saving)} a year.
           </>
         }
         steps={[
-          { title: "Signed with your bank ID", detail: "You approved the switch in the bank app, so no separate contract to sign." },
+          { title: "Approved by you", detail: "Your approval here is the order, so there's no separate contract to sign." },
+          { title: `Order sent to ${chosen.supplier}`, detail: `Solvo sends your order to ${chosen.supplier}.` },
           {
-            title: `Order sent to ${chosen.supplier}`,
-            detail: "Solvo passes the order to the new supplier through a partner interface.",
-          },
-          {
-            title: "Switch registered in Datahub",
-            detail: `${chosen.supplier} registers it in Fingrid's Datahub, which ends your ${r.supplier} contract automatically. Takes about 2 weeks${
-              startDate ? `; a fixed-term contract switches on its end date, ${fmtDate(startDate)}` : ""
+            title: "Old contract ends",
+            detail: `${chosen.supplier} registers the switch in Fingrid's Datahub, which ends your ${r.supplier} contract${
+              startDate ? ` on ${fmtDate(startDate)}` : ""
             }.`,
           },
           {
@@ -405,7 +402,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         ]}
         reminder={
           chosen.termMonths && startDate
-            ? "We'll remind you a month before this contract ends."
+            ? "Solvo reminds you 30 days before this contract ends."
             : undefined
         }
       />
@@ -470,13 +467,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         onFinished={revealOffers}
         shortlist={cmp.offers.map((o) => o.id)}
         forYou={
-          <>
-            For you it only picks the best of your group,{" "}
-            <span className="font-medium text-foreground">
-              {cmp.segment.label.charAt(0).toLowerCase() + cmp.segment.label.slice(1)}
-            </span>
-            , and prices them at your own {terms.annualKwh.toLocaleString("fi-FI")} kWh.
-          </>
+          <>Prices are worked out for your own use, {terms.annualKwh.toLocaleString("fi-FI")} kWh a year.</>
         }
       />
 

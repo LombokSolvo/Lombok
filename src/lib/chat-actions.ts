@@ -19,6 +19,7 @@ export type ChatState = {
   switched: ("electricity" | "telecom")[];
   goals: { label: string; target: number; saved: number; monthly: number }[]; // the person's savings goals
   trimmed: string[]; // everyday cuts already put into the saving plan, so they are not suggested again
+  weeklyDelta: number; // EUR a week the person's choices add to Home's safe-to-spend (switches, plan, cancelled subscriptions, edits)
 };
 
 export const VIEW_HREF: Record<ChatView, string> = {
@@ -74,14 +75,34 @@ const norm = (q: string) => q.trim().toLowerCase();
  * would ask next, from the whole chat. The line is not shown; the questions become the chips.
  */
 export function splitSuggestions(text: string): { answer: string; suggestions: string[] } {
-  const m = text.match(/(?:^|\n)[ \t]*NEXT:[ \t]*([^\n]+)[ \t]*$/i);
-  if (!m || m.index === undefined) return { answer: text.trim(), suggestions: [] };
-  const suggestions = m[1]
+  // The model does not always write the line exactly as asked: it may bold it ("**NEXT:**"), put it on the same line as
+  // the answer, or put the follow-up question after it. Any line that starts with NEXT is removed wherever it is, and a
+  // "NEXT: a | b" tail on the last line too, so the line never shows.
+  const LINE = /^[ \t>*_#-]*NEXT[*_ \t]*:[*_ \t]*(.*)$/i;
+  const TAIL = /[ \t]+[*_]*NEXT[*_ \t]*:[*_ \t]*([^\n]*\|[^\n]*)$/i;
+  let picked: string | null = null;
+  const lines = text.split("\n").filter((line) => {
+    const m = line.match(LINE);
+    if (!m) return true;
+    picked = m[1];
+    return false;
+  });
+  if (picked === null && lines.length) {
+    const last = lines[lines.length - 1];
+    const m = last.match(TAIL);
+    if (m && m.index !== undefined) {
+      picked = m[1];
+      lines[lines.length - 1] = last.slice(0, m.index);
+    }
+  }
+  const answer = lines.join("\n").trim();
+  if (picked === null) return { answer, suggestions: [] };
+  const suggestions = (picked as string)
     .split("|")
-    .map((q) => q.replace(/^[\s"“•*-]+|["”\s]+$/g, ""))
+    .map((q) => q.replace(/^[\s"“•*_-]+|["”*_\s]+$/g, ""))
     .filter((q) => q.length >= 4 && q.length <= 70)
     .slice(0, 4);
-  return { answer: text.slice(0, m.index).trim(), suggestions };
+  return { answer, suggestions };
 }
 
 /**

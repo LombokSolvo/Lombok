@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import { Group, PageTitle, eur, eur2 } from "@/components/solvo/ui";
 import type { Reading } from "@/lib/einvoice";
-import { approveSwitch, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
+import { approveSwitch } from "@/lib/switches";
 import { Gauge, Leaf } from "lucide-react";
 import {
-  DEFAULT_TELECOM_PREFERENCE,
   compareTelecom,
+  startingTelecomPreference,
   telecomTermsFrom,
   type TelecomPreference,
   type TelecomTerms,
@@ -15,6 +15,7 @@ import {
 import { SAVED_TELECOM_DB, domainOf, type TelecomDb } from "@/lib/market";
 import { MarketAgentCard, agentHasRun } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
+import { useWeeklyDelta } from "@/components/live-budget";
 import { ApproveSheet, DoneView, EditField, InfoRow, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -43,7 +44,7 @@ export function TelecomDetail(props: {
     // Bring the saving into view: it appears at the top of the screen.
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 600);
   };
-  const [preference, setPreference] = useState<TelecomPreference>(DEFAULT_TELECOM_PREFERENCE);
+  const [preference, setPreference] = useState<TelecomPreference>(() => startingTelecomPreference(terms, db));
   const cmp = useMemo(() => compareTelecom(terms, db, preference), [terms, db, preference]);
   const [chosenId, setChosenId] = useState<string | null>(null);
   const prefer = (p: Partial<TelecomPreference>) => {
@@ -52,20 +53,19 @@ export function TelecomDetail(props: {
   };
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
-  const switches = useSwitches();
-  const plan = useSavingsPlan();
+  const weeklyDelta = useWeeklyDelta();
   const startDate = startDateFrom(props.asOf);
   const perWeek = Math.max(0, chosen.saving) / 52;
   const isMatch = chosen.kind === "price_match";
 
   if (stage === "done") {
-    const boost = weeklyBoost(switches, plan);
+    const boost = weeklyDelta; // as Home counts it, so the number counted up to is the one Home then shows
     return (
       <DoneView
         title={isMatch ? "Price-match request sent" : "Switch requested"}
         body={
           isMatch ? (
-            <>Solvo asked {r.supplier} to lower your price. We&apos;ll tell you their answer.</>
+            <>Solvo asked {r.supplier} to lower your price, and tells you their answer.</>
           ) : (
             <>
               {chosen.operator} {chosen.product} starts {fmtDate(startDate)}. Your phone numbers move with you, and{" "}
@@ -76,14 +76,14 @@ export function TelecomDetail(props: {
         steps={
           isMatch
             ? [
-                { title: "Approved with your bank ID", detail: "You approved the request in the bank app." },
+                { title: "Approved by you", detail: "You approved the request here." },
                 { title: `Request sent to ${r.supplier}`, detail: "Solvo shows them the lower public price it found." },
                 { title: "Their answer", detail: "Solvo tells you what they say." },
                 { title: "Next e-invoice checked", detail: "If they agree, Solvo checks the new price on your next e-invoice." },
               ]
             : [
-                { title: "Signed with your bank ID", detail: "You approved the switch in the bank app, so no separate contract to sign." },
-                { title: `Order sent to ${chosen.operator}`, detail: "Solvo passes the order to the new operator through a partner interface." },
+                { title: "Approved by you", detail: "Your approval here is the order, so there's no separate contract to sign." },
+                { title: `Order sent to ${chosen.operator}`, detail: `Solvo sends your order to ${chosen.operator}.` },
                 {
                   title: "Numbers moved",
                   detail: `${chosen.operator} ports your numbers in 1 to 3 working days, which ends your ${r.supplier} contract automatically.`,
@@ -102,8 +102,8 @@ export function TelecomDetail(props: {
             <>You chose a plan that costs {eur.format(-chosen.saving)} more a year. Solvo has included it in your bills.</>
           ) : (
           <>
-            Your weekly budget is now {eur.format(props.weeklyBudget + boost)}, up from {eur.format(props.weeklyBudget)},
-            because your fixed costs got smaller. That&apos;s {eur.format(Math.max(0, chosen.saving))} a year.
+            Your weekly budget goes from {eur.format(props.weeklyBudget + boost - perWeek)} to {eur.format(props.weeklyBudget + boost)}.
+            That&apos;s {eur.format(Math.max(0, chosen.saving))} a year.
           </>
           )
         }
@@ -160,8 +160,7 @@ export function TelecomDetail(props: {
         shortlist={cmp.offers.map((o) => o.id)}
         forYou={
           <>
-            For you it compares plans at every speed for your {terms.lines} {terms.lines === 1 ? "line" : "lines"}, and
-            tells you when a slower plan is still enough.
+            Plans are compared for your {terms.lines} {terms.lines === 1 ? "line" : "lines"} at every speed.
           </>
         }
       />

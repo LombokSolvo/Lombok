@@ -41,10 +41,11 @@ export function syntheticBanks(endIso: string): SecondBanks {
       if (date <= endIso) events.push({ date, account, category, amount: Math.round(amount * 100) / 100, type, merchant });
     };
 
-    e(1, "N1", "Subscriptions", -33.9, "direct_debit", "Gym membership");
+    // Not the ones Aino already pays from S-Pankki (Netflix, Spotify, iCloud+, her gym), so nothing shows twice.
+    e(1, "N1", "Subscriptions", -33.9, "direct_debit", "Padel club");
     e(3, "N1", "Insurance", -47, "direct_debit", "Car insurance"); // her home insurance is paid from S-Pankki (src/lib/demo.ts)
-    e(7, "N1", "Subscriptions", -11.99, "direct_debit", "Spotify");
-    e(12, "N1", "Subscriptions", -13.99, "direct_debit", "Netflix");
+    e(7, "N1", "Subscriptions", -9.99, "direct_debit", "Disney+");
+    e(12, "N1", "Subscriptions", -10.99, "direct_debit", "HBO Max");
     e(20, "N1", "Side income", 590 + Math.round(rand() * 40), "income", "Freelance client");
     e(21, "N1", "Transfer", -200, "own_transfer", "To savings account");
     e(21, "N2", "Transfer", 200, "own_transfer", "From everyday account");
