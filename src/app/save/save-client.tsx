@@ -14,7 +14,6 @@ import {
   planFunds,
   useSavingsPlan,
   useSwitches,
-  weeklyBoost,
   type PlanFund,
   type SavingsPlan,
 } from "@/lib/switches";
@@ -237,10 +236,6 @@ export function SaveClient(props: Props) {
             value={next}
           />
         </Group>
-        <Projection funds={funds} />
-        <p className="mt-4 px-1 text-[13px] leading-snug text-muted-foreground">
-          Safe to spend this week: {eur.format(props.remaining + weeklyBoost(switches, plan))}.
-        </p>
         <button type="button" onClick={() => setEditing(true)} className={`${primaryButton} mt-6`}>
           Edit plan
         </button>
