@@ -10,43 +10,22 @@ import { cn } from "@/lib/utils";
 
 export type Brand = "spankki" | "nordea" | "google-calendar" | "bank"; // "bank": any other bank, a plain bank mark
 
-/** The service's own mark, drawn inline so it works offline and in the webview. */
+const LOGOS: Record<Exclude<Brand, "bank">, { src: string; name: string }> = {
+  spankki: { src: "/logos/s-pankki.png", name: "S-Pankki" },
+  nordea: { src: "/logos/nordea.png", name: "Nordea" },
+  "google-calendar": { src: "/logos/google-calendar.png", name: "Google Calendar" },
+};
+
+/** The service's own app icon. */
 export function BrandLogo({ brand, className }: { brand: Brand; className?: string }) {
-  if (brand === "google-calendar")
-    return (
-      <svg viewBox="0 0 200 200" className={className} role="img" aria-label="Google Calendar">
-        <path fill="#fff" d="M152.632 47.368H47.368v105.263h105.264z" />
-        <path fill="#EA4335" d="M152.632 200L200 152.632l-23.684-4.04-23.684 4.04-4.322 21.665z" />
-        <path fill="#188038" d="M0 152.632v31.579C0 192.935 7.065 200 15.789 200h31.579l4.863-23.684-4.863-23.684-25.809-4.04z" />
-        <path fill="#1967D2" d="M200 47.368V15.789C200 7.065 192.935 0 184.211 0h-31.579c-2.881 11.748-4.322 20.392-4.322 25.934 0 5.541 1.441 12.686 4.322 21.434 10.477 3 18.372 4.5 23.684 4.5 5.312 0 13.207-1.5 23.684-4.5z" />
-        <path fill="#FBBC04" d="M200 47.368h-47.368v105.263H200z" />
-        <path fill="#34A853" d="M152.632 152.632H47.368V200h105.264z" />
-        <path fill="#4285F4" d="M152.632 0H15.789C7.065 0 0 7.065 0 15.789v136.842h47.368V47.368h105.264z" />
-        <text x="100" y="128" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700" fontSize="74" fill="#4285F4">31</text>
-      </svg>
-    );
   if (brand === "bank")
     return (
       <span className={cn("flex items-center justify-center bg-accent text-primary", className)} role="img" aria-label="Bank">
         <Landmark className="size-[45%]" />
       </span>
     );
-  if (brand === "nordea")
-    return (
-      <svg viewBox="0 0 200 200" className={className} role="img" aria-label="Nordea">
-        <rect width="200" height="200" rx="44" fill="#0000A0" />
-        <text x="100" y="114" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700" fontSize="48" letterSpacing="-1" fill="#fff">Nordea</text>
-        <path d="M58 136h84" stroke="#00A0E6" strokeWidth="7" strokeLinecap="round" />
-      </svg>
-    );
-  return (
-    <svg viewBox="0 0 200 200" className={className} role="img" aria-label="S-Pankki">
-      <rect width="200" height="200" rx="44" fill="#00843D" />
-      <circle cx="100" cy="88" r="52" fill="#fff" />
-      <text x="100" y="114" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontWeight="800" fontSize="78" fill="#00843D">S</text>
-      <text x="100" y="172" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700" fontSize="28" fill="#fff">Pankki</text>
-    </svg>
-  );
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={LOGOS[brand].src} alt={LOGOS[brand].name} className={className} />;
 }
 
 /** A brand logo at icon-tile size, for list rows. */
