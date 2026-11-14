@@ -331,15 +331,15 @@ export function OtherBanks({
             ))}
           </div>
 
-          <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
-            {tab === "invest"
-              ? "Trade Republic is the one investing platform open banking reaches, and only its cash account, not your shares. eToro, Trading 212 and Nordnet aren't on open banking, so they can't be connected here yet."
-              : sandbox.enabled
+          {tab !== "invest" && (
+            <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
+              {sandbox.enabled
                 ? "Banks here are Enable Banking's test banks, with example data. Real bank connections work only when Solvo runs on your own computer."
                 : liveActive
                   ? "Real connects to your own account. Demo shows example data."
                   : "Demo: connecting is simulated and shows example data. Real bank connections work only when Solvo runs on your own computer."}
-          </p>
+            </p>
+          )}
         </Sheet>
       )}
 
