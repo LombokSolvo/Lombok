@@ -87,13 +87,6 @@ export const useForecast = () => useContext(Ctx);
 /** EUR a week the calendar takes out of the weekly budget. */
 export const useWeeklyReserve = () => useContext(Ctx).reserve;
 
-export const SOURCE_NOTE: Record<CalendarMode, string> = {
-  google: "Your Google Calendar",
-  link: "Your calendar link",
-  file: "Your calendar file, kept on this phone",
-};
-const sourceNote = (mode: State["mode"]) => (mode ? SOURCE_NOTE[mode] : "");
-
 const ICONS: Record<ForecastCategory, { icon: typeof Plane; name: string }> = {
   travel: { icon: Plane, name: "Trip" },
   dining: { icon: Utensils, name: "Eating out" },
@@ -128,9 +121,7 @@ export function ForecastNote({ className }: { className?: string }) {
 
 /** One forecast item: where the number comes from, change the amount, or stop counting it. */
 export function ForecastEditSheet({ item, onClose }: { item: CountedItem; onClose: () => void }) {
-  const { today, mode } = useForecast();
   const [amount, setAmount] = useState(item.amount);
-  const perWeek = weeklyReserve([{ ...item, amount, counted: true }], today);
   const when = item.endDate ? `${dayFmt(item.date)} to ${dayFmt(item.endDate)}` : dayFmt(item.date);
   // In a portal: the Home note sits inside the dark slab, and a sheet drawn there would inherit its white text.
   return createPortal(
@@ -146,14 +137,16 @@ export function ForecastEditSheet({ item, onClose }: { item: CountedItem; onClos
       }}
     >
       <div className="flex flex-col gap-4">
-        <div>
-          <p className="text-[15px] font-medium">{when}</p>
-          {item.detail && <p className="text-[13px] text-muted-foreground">{item.label}</p>}
-          <p className="mt-1 text-[12px] font-medium text-muted-foreground">{sourceNote(mode)}</p>
-        </div>
-        <div className="rounded-2xl bg-muted/50 p-4">
-          <p className="text-[13px] font-medium text-muted-foreground">Estimate: {eur.format(item.estimate)}</p>
-          <p className="mt-1 text-[14px] leading-snug">{item.basisNote}</p>
+        <p className="-mt-2 text-[14px] text-muted-foreground">
+          {item.detail ? `${item.label} · ` : ""}
+          {when}
+        </p>
+        <div className="rounded-2xl bg-muted/50 px-4 py-3">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[14px] font-medium">Estimate</span>
+            <span className="num text-[17px] font-semibold text-event">{eur.format(item.estimate)}</span>
+          </div>
+          <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">{item.basisNote}</p>
         </div>
         <NumberField label="What you expect to spend" value={amount} onChange={setAmount} suffix="€" />
         {amount !== item.estimate && (
@@ -161,11 +154,7 @@ export function ForecastEditSheet({ item, onClose }: { item: CountedItem; onClos
             Use the estimate again
           </button>
         )}
-        <p className="text-[13px] leading-snug text-muted-foreground">
-          {item.counted
-            ? `Solvo sets aside about ${eur.format(Math.round(perWeek))} a week until then, on top of your usual spending. It is a guess, not a bill.`
-            : "Not counted right now."}
-        </p>
+        <p className="text-[13px] leading-snug text-muted-foreground">{item.counted ? "After the event, your real spending replaces this estimate." : "Not counted right now."}</p>
         {item.counted ? (
           <button
             type="button"
