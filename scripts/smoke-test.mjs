@@ -117,8 +117,7 @@ try {
     const home = await (await fetch(BASE + "/", { headers: { Cookie: "solvo_calendar=demo" } })).text();
     if (home.includes("set aside for your calendar")) throw new Error("Home shows a calendar that was never connected");
     if (!home.includes("Budget for what is coming")) throw new Error("Home has no way in to connect a calendar");
-    // The demo opens as the new customer, whose first step connects the account; the account that starts at the plan (where the calendar row is) is the finished one.
-    const onboarding = await (await fetch(BASE + "/onboarding", { headers: { Cookie: "solvo-demo=aino" } })).text();
+    const onboarding = await (await fetch(BASE + "/onboarding")).text();
     if (!onboarding.includes("Connect calendar")) throw new Error("First-run setup does not offer the calendar");
   });
   await check("POST /api/coach (offline answer)", async () => {

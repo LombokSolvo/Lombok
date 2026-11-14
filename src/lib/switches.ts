@@ -10,7 +10,7 @@ import { resetGoals } from "@/lib/goals-store";
 import { resetLearn } from "@/lib/learn-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
 import { resetTrimmed } from "@/lib/trimmed-store";
-import { DEMO_COOKIE, type DemoMode } from "@/lib/demo-mode";
+import { DEFAULT_MODE, DEMO_COOKIE, parseMode, type DemoMode } from "@/lib/demo-mode";
 
 // What the user has approved in this browser: contract switches and a monthly fund savings plan.
 // The demo has no backend, so both live in localStorage: approve a switch in Bills and the
@@ -132,31 +132,32 @@ export function clearCachedReadings() {
   readingStore.set(null);
 }
 
-// Which demo account the app shows. "new" (default): a first-time customer; starts from a clean slate and goes through onboarding,
-// so the demo opens with onboarding. "aino": the finished account, no onboarding prompt (Profile > Demo account).
+// Which demo account the app shows. DEFAULT_MODE (src/lib/demo-mode.ts) unless the person picked one: "aino", the finished account with
+// no onboarding prompt, or "new", a first-time customer who starts from a clean slate and goes through onboarding.
 export type { DemoMode };
 const modeStore = createStore<{ mode?: DemoMode }>("solvo.demo-mode.v1", {});
-export const readDemoMode = (): DemoMode => modeStore.snapshot().mode ?? "new";
-export const useDemoMode = (): DemoMode => modeStore.use().mode ?? "new";
+export const readDemoMode = (): DemoMode => modeStore.snapshot().mode ?? DEFAULT_MODE;
+export const useDemoMode = (): DemoMode => modeStore.use().mode ?? DEFAULT_MODE;
 
 /** Switch demo account. Both start clean: approvals, plans and onboarding are cleared. "new" also re-reads e-invoices. */
 export function setDemoMode(mode: DemoMode) {
   resetDemo();
   if (mode === "new") readingStore.set(null);
-  modeStore.set(mode === "new" ? null : { mode });
+  modeStore.set(mode === DEFAULT_MODE ? null : { mode });
   writeDemoCookie(mode);
 }
 
 // The server reads this cookie to pick the customer's bank data.
 function writeDemoCookie(mode: DemoMode) {
   document.cookie =
-    mode === "aino" ? `${DEMO_COOKIE}=aino; path=/; max-age=31536000; samesite=lax` : `${DEMO_COOKIE}=; path=/; max-age=0`;
+    mode === DEFAULT_MODE ? `${DEMO_COOKIE}=; path=/; max-age=0` : `${DEMO_COOKIE}=${mode}; path=/; max-age=31536000; samesite=lax`;
 }
 
 /** Makes the cookie match this browser's demo account (it may predate the cookie). True if it had to change. */
 export function syncDemoCookie() {
   const mode = readDemoMode();
-  if (document.cookie.split("; ").includes(`${DEMO_COOKIE}=aino`) === (mode === "aino")) return false;
+  const cookie = document.cookie.split("; ").find((c) => c.startsWith(`${DEMO_COOKIE}=`))?.slice(DEMO_COOKIE.length + 1);
+  if (parseMode(cookie) === mode) return false;
   writeDemoCookie(mode);
   return true;
 }
