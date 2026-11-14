@@ -2,7 +2,12 @@
 
 import { CalendarConnect } from "@/components/calendar-connect";
 import { Toggle } from "@/components/solvo/toggle";
+import { CompareSummary } from "@/components/compare-card";
+import { HomeEquityCard } from "@/components/home-equity-card";
 import { OtherBanks } from "@/components/other-banks";
+import { SpenderCard } from "@/components/spender-card";
+import type { CompareGroup } from "@/lib/cohorts";
+import type { SpenderProfile } from "@/lib/spender";
 import type { BankId, View } from "@/lib/banks";
 import type { GoogleStatus } from "@/lib/google-calendar";
 import type { LinkStatus } from "@/lib/ics-link";
@@ -52,6 +57,8 @@ export function ProfileClient(props: {
   age: number;
   postalCode: string;
   savingsGoal: number;
+  spender: SpenderProfile | null; // what kind of spender the payments say; null when there is too little to say
+  peers: CompareGroup | null; // the person against people their age; null for real bank data
   banks: BankId[];
   view: View;
   showBanks: boolean; // the Other banks picker; always on (real Nordea merges into the same picture as any other bank)
@@ -90,6 +97,10 @@ export function ProfileClient(props: {
           </p>
         </div>
       </section>
+
+      {props.spender && <SpenderCard profile={props.spender} />}
+      {props.spender && props.peers && <CompareSummary group={props.peers} ids={["restaurants", "groceries", "transport"]} title="Compared with people like you" />}
+      <HomeEquityCard defaultMonthly={props.savingsGoal} />
 
       <Group
         title="Demo account"
