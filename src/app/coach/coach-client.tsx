@@ -12,6 +12,8 @@ import type { SpendingResult } from "@/lib/spending";
 import type { WhatIfResult } from "@/lib/what-if";
 import { ActionCard, chatState } from "./action-card";
 import { WhatIfCard } from "./what-if-card";
+import { SavingsCard } from "./savings-card";
+import type { SavingsPlanResult } from "@/lib/find-savings";
 
 type Msg = {
   role: "user" | "coach";
@@ -19,6 +21,7 @@ type Msg = {
   checks?: SpendingResult[];
   actions?: ChatAction[]; // cards with a button; nothing happens until the person taps
   whatIfs?: WhatIfResult[]; // "what if" results, shown as cards
+  savings?: SavingsPlanResult[]; // "help me save €100 more a month": a plan card
   source?: "gemini" | "offline";
   ms?: number;
   pack?: PackId; // a learning pack, played inside the chat
@@ -100,7 +103,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
       if (id !== chatId.current) return;
       setMessages([
         ...history,
-        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, source: d.source, ms: d.ms },
+        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, savings: d.savings, source: d.source, ms: d.ms },
       ]);
     } catch {
       if (id === chatId.current) setMessages([...history, { role: "coach", text: "I couldn't connect. Check your connection and try again." }]);
@@ -219,6 +222,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
                   </div>
                 </div>
               ))}
+              {m.savings?.map((r, j) => <SavingsCard key={j} r={r} />)}
               {m.whatIfs?.map((r, j) => <WhatIfCard key={j} r={r} />)}
               {m.actions?.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
               {m.source && (

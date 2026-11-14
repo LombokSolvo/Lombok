@@ -14,6 +14,8 @@ import { compare } from "@/lib/offers";
 import { MERCHANT_TYPE_NAMES, spending, type SpendingQuery, type SpendingResult } from "@/lib/spending";
 import { inferProfile } from "@/lib/profile";
 import { whatIf, type WhatIfInput, type WhatIfResult } from "@/lib/what-if";
+import { findSavings, type SavingsCandidate, type SavingsPlanResult } from "@/lib/find-savings";
+import { compareTelecom, telecomTermsFrom } from "@/lib/telecom-offers";
 import { MAX_ACTIONS, actionKey, type ChatAction, type ChatState, type ChatView } from "@/lib/chat-actions";
 
 // Coach chat. Gemini answers, but every spending number comes from the `spending` tool,
@@ -22,7 +24,9 @@ import { MAX_ACTIONS, actionKey, type ChatAction, type ChatState, type ChatView 
 // `propose_action` tool; they come back as cards with a button, and nothing happens until the person taps it.
 // "Can I / what if / how long until" questions go to the `what_if` tool (src/lib/what-if.ts), so the coach quotes
 // computed numbers instead of guessing; each result is shown as a card under the answer.
-// POST { messages: [{ role: "user" | "coach", text }], state? } -> { answer, checks, actions, whatIfs, source, ms, error? }
+// "Help me save €100 more a month" goes to `find_savings` (src/lib/find-savings.ts): concrete changes from her own numbers
+// that add up to the target, shown as a plan card with a button per change.
+// POST { messages: [{ role: "user" | "coach", text }], state? } -> { answer, checks, actions, whatIfs, savings, source, ms, error? }
 
 export const maxDuration = 30;
 
@@ -147,6 +151,7 @@ Rules:
 - Be warm and practical, never judgemental. Give one concrete next step when it helps, such as a realistic weekly limit or opening the Bills view to switch electricity.
 - You never move money or switch contracts yourself. Switches happen only when the user approves them in the app.
 - For any "can I", "what if", "how long until" or "can I afford" question about the future, call the what_if tool and quote its numbers, showing the sum (for example "€3,000 over 7 months is €429 a month; you can safely save €160"). Never compute these yourself. A card with the result appears under your answer, so keep the text to the conclusion and one next step. After every save_target what_if, also call propose_action add_savings_goal with a short goalLabel (like "Trip to Japan"), the target and the deadline, so the user can add it to their goals with one tap; if it doesn't fit, use months set to the months at the current pace instead. Adding a goal moves its monthly amount to the savings account in the saving plan.
+- For "help me save €X more a month", "find me €X", "where could I save the most" or "how can I cut my costs", call find_savings with the monthly target (100 if none is given) and nothing else. A plan card with each change, its euros and a button appears under your answer, and it ends with a button to move the money to savings. Reply in one or two short sentences: the total found, and the first change to make. Don't list the lines again.
 - Concept questions (index fund, fund fee, spot or fixed electricity price, buffer, compound interest, interest rate, and the like): explain in 3 to 4 plain sentences, explaining any jargon, using the user's own numbers where there are any (fund fees from her saving plan, her electricity price, how many months of bills her buffer covers). If a Money skills lesson matches (electricity, fees, buffer), propose_action open_lesson for it. For this answer you may go to about 90 words.
 - No investment, loan or tax advice: never say which product to buy or whether to buy one. Explain first; mention that an S-Pankki advisor can help in at most one short last sentence. Never only redirect.
 - Never write "definitely", "easily", "guaranteed" or "you should buy". When numbers are involved, show the sum.
@@ -207,6 +212,16 @@ const tools = (c: DemoCustomer) => [
             view: { type: "STRING", enum: ["home", "bills", "save", "calendar", "costs", "compare"], description: "For open_view." },
           },
           required: ["action"],
+        },
+      },
+      {
+        name: "find_savings",
+        description:
+          "Builds a concrete plan to save a monthly amount from the customer's own numbers: cheaper bills, trimming everyday spending, subscriptions. Returns the lines with euros a month.",
+        parameters: {
+          type: "OBJECT",
+          properties: { monthlyTarget: { type: "NUMBER", description: "EUR a month to find. 100 if the user gave none." } },
+          required: ["monthlyTarget"],
         },
       },
       {
@@ -295,6 +310,40 @@ function monthsUntil(deadline: string) {
   return Math.max(1, n);
 }
 
+// Everyday spending a plan may trim, in the person's words. Groceries and transport are left alone: they are needs.
+const TRIMS: { id: string; q: SpendingQuery; label: string }[] = [
+  { id: "restaurants", q: { category: "Restaurants" }, label: "Eating out" },
+  { id: "entertainment", q: { category: "Entertainment" }, label: "Entertainment" },
+  { id: "lifestyle", q: { category: "Lifestyle" }, label: "Shopping and lifestyle" },
+  { id: "taxis", q: { merchantType: "Taxis" }, label: "Taxis" },
+];
+
+/** The changes this customer could make: bill switches (Aino's e-invoices), trims from the last 12 months, subscriptions. */
+function savingsCandidates(ctx: Ctx): SavingsCandidate[] {
+  const out: SavingsCandidate[] = [];
+  if (ctx.mode === "aino") {
+    if (!ctx.state.switched.includes("electricity")) {
+      const r = electricityComparison().recommended;
+      if (r.saving > 12) out.push({ kind: "switch", id: "electricity", label: "Switch electricity", supplier: r.supplier, monthly: r.saving / 12, yearly: Math.round(r.saving) });
+    }
+    if (!ctx.state.switched.includes("telecom")) {
+      const r = compareTelecom(telecomTermsFrom(SAVED_READINGS.telecom as Parameters<typeof telecomTermsFrom>[0])).recommended;
+      if (r.saving > 12) out.push({ kind: "switch", id: "telecom", label: "Switch phone and internet", supplier: r.operator, monthly: r.saving / 12, yearly: Math.round(r.saving) });
+    }
+    for (const x of SUBSCRIPTIONS) if (!ctx.state.cancelled.includes(x.id)) out.push({ kind: "cancel", id: x.id, label: `Cancel ${x.name}`, monthly: x.monthly });
+  }
+  for (const t of TRIMS) {
+    if (t.q.category && ctx.c.basketOf[t.q.category] !== 3) continue;
+    const r = spending(ctx.c, t.q);
+    if (r.averagePerMonth >= 20) out.push({ kind: "trim", id: t.id, label: t.label, currentMonthly: r.averagePerMonth });
+  }
+  return out;
+}
+
+function runFindSavings(ctx: Ctx, target: unknown): SavingsPlanResult | { error: string } {
+  return findSavings(Math.round(Number(target) || 100), savingsCandidates(ctx));
+}
+
 /** Runs a what_if call: the base is the same as Home's and onboarding's, spending comes from the `spending` tool, dates go through the demo clock. */
 function runWhatIf(ctx: Ctx, a: WhatIfArgs): WhatIfResult {
   const c = ctx.c;
@@ -381,6 +430,7 @@ async function converse(ctx: Ctx, model: string, messages: ChatMessage[], key: s
   const checks: SpendingResult[] = [];
   const actions: ChatAction[] = [];
   const whatIfs: WhatIfResult[] = [];
+  const savings: SavingsPlanResult[] = [];
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const reply = await gemini(ctx, model, contents, key, signal);
@@ -391,13 +441,22 @@ async function converse(ctx: Ctx, model: string, messages: ChatMessage[], key: s
         .join("")
         .trim();
       if (!answer && !actions.length) throw new Error("Gemini returned no answer");
-      return { answer: answer || "You can approve it below.", checks, actions, whatIfs };
+      return { answer: answer || "You can approve it below.", checks, actions, whatIfs, savings };
     }
     // Send the model turn back unchanged (it carries Gemini's thought signatures), then the tool results.
     contents.push(reply as Content);
     contents.push({
       role: "user",
       parts: calls.map(({ functionCall }) => {
+        if (functionCall!.name === "find_savings") {
+          const r = runFindSavings(ctx, (functionCall!.args as { monthlyTarget?: number })?.monthlyTarget);
+          if (!("error" in r) && !savings.length) {
+            savings.push(r);
+            const plan = planAction(ctx, r);
+            if (plan) addAction(actions, plan);
+          }
+          return { functionResponse: { name: functionCall!.name, id: functionCall!.id, response: { result: r } } };
+        }
         if (functionCall!.name === "what_if") {
           let r: WhatIfResult;
           try {
@@ -546,9 +605,34 @@ function offlineGoalLabel(q: string) {
   return "Savings goal";
 }
 
+/** The plan card ends with moving what was found into savings: the saving plan goes up by that much. */
+function planAction(ctx: Ctx, r: SavingsPlanResult): ChatAction | null {
+  if (ctx.state.planMonthly == null || r.found < 5) return null;
+  const a = toAction(ctx, { action: "change_saving_plan", monthly: ctx.state.planMonthly + r.found });
+  return typeof a === "string" || a.kind !== "change_plan" ? null : a;
+}
+
+const SAVE_MORE = /help me save|save .{0,12}more|find (me )?€?\s?\d|where could i save|cut my costs|säästä.{0,20}enemmän|säästää .{0,15}lisää|mistä voisin säästää/i;
+
+function savingsSentence(r: SavingsPlanResult, fi: boolean) {
+  const first = r.lines[0].kind === "trim" ? { label: `Trim ${r.lines[0].label.toLowerCase()}` } : r.lines[0];
+  const e = eur;
+  if (fi) return r.reached ? `Löysin ${e(r.found)} kuussa, ${e(r.yearly)} vuodessa. Aloita: ${first.label.toLowerCase()}.` : `Löysin ${e(r.found)} kuussa ${e(r.target)}:n tavoitteesta.`;
+  return r.reached
+    ? `I found ${e(r.found)} a month, ${e(r.yearly)} a year, without touching groceries. Start with the first one: ${first.label.toLowerCase()}.`
+    : `I found ${e(r.found)} of your ${e(r.target)} a month. The rest would mean cutting deeper than a quarter of any spending.`;
+}
+
 function offlineAnswer(ctx: Ctx, question: string) {
   const c = ctx.c;
   const fi = /[äö]|paljon|kuinka|mihin/i.test(question);
+  if (SAVE_MORE.test(question)) {
+    const r = runFindSavings(ctx, amountIn(question) ?? 100);
+    if (!("error" in r) && r.lines.length) {
+      const plan = planAction(ctx, r);
+      return { answer: savingsSentence(r, fi), checks: [], actions: plan ? [plan] : [], whatIfs: [], savings: [r] };
+    }
+  }
   const wi = offlineWhatIf(ctx, question);
   if (wi) {
     let r: WhatIfResult;

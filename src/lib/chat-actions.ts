@@ -58,15 +58,15 @@ export function suggestionsFor(from: string, hasDemoExtras: boolean): string[] {
     );
   if (p.startsWith("/save"))
     return pick(
-      ["Can I save €3,000 by June?", "What is an index fund?", "Lower my saving plan to €150"],
-      ["Can I save €2,000 by June?", "How long until I have a €3,000 buffer?", "What is an index fund?"],
+      ["Help me save €100 more a month", "Can I save €3,000 by June?", "What is an index fund?"],
+      ["Help me save €100 more a month", "Can I save €2,000 by June?", "How long until I have a €3,000 buffer?"],
     );
   if (p.startsWith("/calendar"))
     return ["What's coming up this month?", "Can I afford an €80 dinner this week?", "How much did I spend on travel?"];
   if (p.startsWith("/costs") || p.startsWith("/compare"))
-    return ["Where could I save the most?", "How much did I spend on restaurants?", "How much did I spend on taxis?"];
+    return ["Help me save €100 more a month", "How much did I spend on restaurants?", "How much did I spend on taxis?"];
   return pick(
-    ["Can I save €3,000 by June?", "What if I cut restaurants by half?", "Where could I save the most?"],
-    ["Can I save €2,000 by June?", "What if I cut restaurants by half?", "How much can I spend this week?"],
+    ["Help me save €100 more a month", "Can I save €3,000 by June?", "What if I cut restaurants by half?"],
+    ["Help me save €100 more a month", "Can I save €2,000 by June?", "How much can I spend this week?"],
   );
 }
