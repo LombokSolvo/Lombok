@@ -11,11 +11,13 @@ import { currentLinked, sandboxEnabled } from "@/lib/linked-bank";
 import { liveStatus } from "@/lib/live-banks";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
+import { compareAgainst, ownGroups } from "@/lib/cohorts";
+import { spenderProfile } from "@/lib/spender";
 import { ProfileClient } from "./profile-client";
 
 export const metadata = { title: "Profile · Solvo" };
 
-export default function ProfilePage({ searchParams }: { searchParams: Promise<{ bank?: string; calendar?: string }> }) {
+export default function ProfilePage({ searchParams }: { searchParams: Promise<{ bank?: string; calendar?: string; cards?: string }> }) {
   return (
     <Screen>
       <Suspense fallback={<main className={PAGE} />}>
@@ -25,11 +27,11 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
   );
 }
 
-async function Profile({ searchParams }: { searchParams: Promise<{ bank?: string; calendar?: string }> }) {
+async function Profile({ searchParams }: { searchParams: Promise<{ bank?: string; calendar?: string; cards?: string }> }) {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
-  const { customer: c, cookieBanks, view } = await getEffective(await pageMode());
-  const { bank, calendar: calendarNotice } = await searchParams;
+  const { customer: c, cookieBanks, view, local } = await getEffective(await pageMode());
+  const { bank, calendar: calendarNotice, cards } = await searchParams;
   const calendar = await getCalendarState();
   const linked = await currentLinked();
   return (
@@ -40,6 +42,9 @@ async function Profile({ searchParams }: { searchParams: Promise<{ bank?: string
       age={c.age}
       postalCode={c.postalCode}
       savingsGoal={DEFAULT_SAVINGS_GOAL_PER_MONTH}
+      spender={spenderProfile(c)}
+      peers={local ? null : compareAgainst(c, ownGroups(c).age ?? "all")}
+      previewCards={cards === "1"}
       banks={cookieBanks}
       view={view}
       showBanks

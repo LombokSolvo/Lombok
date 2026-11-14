@@ -14,13 +14,14 @@ function rank(pct: number) {
   return pct >= 50 ? `Top ${pct >= 90 ? 10 : r5(100 - pct)}%` : `Bottom ${pct <= 10 ? 10 : r5(pct)}%`;
 }
 
-/** Home: three quick facts against the person's age group, and a way into the full comparison. */
-export function CompareSummary({ group }: { group: CompareGroup }) {
-  // Always the same three lines: everyday spending, rent and utilities. The rest are on /compare.
-  const QUICK = ["everyday", "rent", "bills"];
-  const quick = QUICK.map((id) => group.metrics.find((m) => m.id === id)).filter((m) => m !== undefined);
+/**
+ * Three quick facts against the person's age group, and a way into the full comparison. Home shows everyday spending, rent and
+ * utilities; Profile's spender card shows restaurants, groceries and transport. The rest are on /compare.
+ */
+export function CompareSummary({ group, ids = ["everyday", "rent", "bills"], title = "How you compare" }: { group: CompareGroup; ids?: string[]; title?: string }) {
+  const quick = ids.map((id) => group.metrics.find((m) => m.id === id)).filter((m) => m !== undefined);
   return (
-    <Group title="How you compare" aside={group.label} className="mt-4" footer={`${group.n.toLocaleString("fi-FI")} ${SOURCE}`}>
+    <Group title={title} aside={group.label} className="mt-4" footer={`${group.n.toLocaleString("fi-FI")} ${SOURCE}`}>
       {quick.map((m) => (
         <div key={m.id} className="flex min-h-14 items-center gap-3 px-4 py-3 [&+&]:border-t">
           <div className="min-w-0 flex-1">
