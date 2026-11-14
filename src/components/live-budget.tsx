@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useWeeklyReserve } from "@/components/forecast-ui";
 import { onboardingWeeklyDelta, useOnboarding } from "@/lib/onboarding-store";
 import { resetDemo, useBillActions, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
 
@@ -9,10 +10,11 @@ import { resetDemo, useBillActions, useSavingsPlan, useSwitches, weeklyBoost } f
 
 const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-/** A weekly amount (remaining or budget) plus what approved switches free up each week. */
+/** A weekly amount (remaining or budget) plus what approved switches free up each week, minus what the calendar sets aside. */
 export function LiveWeeklyEuro({ base, signed = false }: { base: number; signed?: boolean }) {
-  // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume.
-  const value = base + weeklyBoost(useSwitches(), useSavingsPlan()) + onboardingWeeklyDelta(useOnboarding());
+  // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume; what the person's
+  // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why).
+  const value = base + weeklyBoost(useSwitches(), useSavingsPlan()) + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
   return <>{signed && value < 0 ? `−${eur.format(-value)}` : eur.format(value)}</>;
 }
 

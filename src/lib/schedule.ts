@@ -2,6 +2,7 @@
 // transactions, shown as an assumption the person can correct, and used for the calendar and the payday plan.
 // Pure, no imports except a type, so the server computes it and the browser only formats it.
 import type { DemoCustomer } from "@/lib/demo";
+import type { CountedItem } from "@/lib/forecast";
 
 export type Item = {
   id: string;
@@ -184,14 +185,30 @@ export type CustomEvent = {
   monthly: boolean; // repeats on the same day every month after that
 };
 
-export type DayEvent = { id: string; date: string; label: string; kind: "in" | "out"; amount: number; source: "detected" | "you"; detail?: string };
+export type DayEvent = {
+  id: string;
+  date: string;
+  label: string;
+  kind: "in" | "out";
+  amount: number;
+  source: "detected" | "you" | "calendar";
+  detail?: string;
+  /** A forecast from the person's calendar. Always shown, but only counted in totals and markers while `counted` is true. */
+  forecast?: CountedItem;
+  counted?: boolean;
+};
+
+/** Forecast items as calendar events: money out on the day the event starts. Real dates, never shifted. */
+export function forecastEvents(items: CountedItem[]): DayEvent[] {
+  return items.map((f) => ({ id: f.id, date: f.date, label: f.label, kind: "out", amount: f.amount, source: "calendar", detail: "From your calendar", forecast: f, counted: f.counted }));
+}
 
 export const daysIn = (year: number, month0: number) => new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
 export const isoDay = (year: number, month0: number, day: number) =>
   `${year}-${String(month0 + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
 /** Every expected or added event in one month, sorted by date. A day past the end of the month falls on its last day. */
-export function eventsForMonth(items: Item[], custom: CustomEvent[], year: number, month0: number): DayEvent[] {
+export function eventsForMonth(items: Item[], custom: CustomEvent[], year: number, month0: number, calendar: CountedItem[] = []): DayEvent[] {
   const out: DayEvent[] = [];
   const last = daysIn(year, month0);
   for (const it of items) {
@@ -204,16 +221,19 @@ export function eventsForMonth(items: Item[], custom: CustomEvent[], year: numbe
     const applies = e.monthly ? here >= start : here === start;
     if (applies) out.push({ id: e.id, date: isoDay(year, month0, Math.min(day, last)), label: e.label, kind: e.kind, amount: e.amount, source: "you" });
   }
+  const monthKey = isoDay(year, month0, 1).slice(0, 7);
+  out.push(...forecastEvents(calendar.filter((f) => f.date.startsWith(monthKey))));
   return out.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? 0 : a.kind === "in" ? -1 : 1));
 }
 
 /** What is coming up in the next `days` days, today included, soonest first. Looks across a month boundary. */
-export function upcomingEvents(items: Item[], custom: CustomEvent[], asOf: string, days = 14, limit = 4): DayEvent[] {
+export function upcomingEvents(items: Item[], custom: CustomEvent[], asOf: string, days = 14, limit = 4, calendar: CountedItem[] = []): DayEvent[] {
   const start = new Date(`${asOf}T00:00:00Z`);
   const end = new Date(start.getTime() + days * 86400000).toISOString().slice(0, 10);
   const months = new Set<string>();
   for (let t = start.getTime(); t <= start.getTime() + days * 86400000; t += 86400000) months.add(new Date(t).toISOString().slice(0, 7));
   const out: DayEvent[] = [];
-  for (const m of months) out.push(...eventsForMonth(items, custom, Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1));
-  return out.filter((e) => e.date >= asOf && e.date <= end).sort((a, b) => a.date.localeCompare(b.date)).slice(0, limit);
+  for (const m of months) out.push(...eventsForMonth(items, custom, Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, calendar));
+  // What the person switched off is not "coming up": it stays on the calendar day, where it can be switched back on.
+  return out.filter((e) => e.date >= asOf && e.date <= end && e.counted !== false).sort((a, b) => a.date.localeCompare(b.date)).slice(0, limit);
 }

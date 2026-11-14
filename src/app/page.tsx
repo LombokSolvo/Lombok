@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Screen } from "@/components/solvo/screen";
 import { LinkedBankCard } from "@/components/linked-bank-card";
+import { ForecastNote, ForecastProvider } from "@/components/forecast-ui";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, MessageCircle, ReceiptText } from "lucide-react";
 import { LiveWeeklyEuro, ResetDemoButton, SwitchBoostNote } from "@/components/live-budget";
@@ -13,6 +14,7 @@ import { UpcomingCard } from "@/components/upcoming-card";
 import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur, primaryButton } from "@/components/solvo/ui";
 import { safeToSpend, topCategories, unknownBills } from "@/lib/coach";
 import { BASKET_LABELS, type Basket } from "@/lib/demo";
+import { getCalendarState } from "@/lib/calendar-source";
 import { scheduleFor } from "@/lib/schedule-server";
 import { todayIso } from "@/lib/demo-clock";
 import { getEffective } from "@/lib/source-banks";
@@ -27,6 +29,7 @@ export default async function Home() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
   const { base, customer: c, local, banks, view, platform, bankName } = await getEffective();
+  const calendar = await getCalendarState();
   const s = safeToSpend(c);
   const schedule = scheduleFor(c);
   const bills = unknownBills(c);
@@ -41,6 +44,7 @@ export default async function Home() {
 
   return (
     <Screen>
+      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today}>
       <main className={PAGE}>
         <OnboardingGate />
         {local && (
@@ -104,6 +108,7 @@ export default async function Home() {
             {eur.format(s.spentThisWeek)} spent so far this week
           </p>
           <SwitchBoostNote className="mt-2 text-[13px] font-semibold text-mint" />
+          <ForecastNote className="mt-2" />
         </Slab>
 
         <OverdueBillCard asOf={c.asOf} />
@@ -246,6 +251,7 @@ export default async function Home() {
           </p>
         </footer>
       </main>
+      </ForecastProvider>
     </Screen>
   );
 }

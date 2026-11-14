@@ -95,6 +95,25 @@ try {
     const to = res.headers.get("location") ?? "";
     if (res.status !== 307 || !to.includes("/profile?bank=failed")) throw new Error(`got ${res.status} ${to}`);
   });
+  // Real Google Calendar is local only (SOLVO_GOOGLE=1): on the public app every route is a 404 and Profile offers nothing of it.
+  await check("real Google Calendar routes are off by default", async () => {
+    const post = (path) => fetch(BASE + path, { method: "POST", headers: { Origin: BASE } });
+    const statuses = (await Promise.all(["/api/google/start", "/api/google/sync", "/api/google/disconnect"].map(post))).map((r) => r.status);
+    const callback = await fetch(BASE + "/callback/google?code=x&state=y", { redirect: "manual" });
+    if (statuses.some((s) => s !== 404) || callback.status !== 404) throw new Error(`expected only 404, got ${statuses.join(", ")} and ${callback.status}`);
+    const profile = await (await fetch(BASE + "/profile")).text();
+    if (/Connect Google Calendar|GOOGLE_CLIENT/.test(profile)) throw new Error("Profile offers Google Calendar");
+    if (!profile.includes("Connect calendar")) throw new Error("Profile has no demo calendar row");
+  });
+  // The demo calendar is opt-in (a cookie): nothing about it on Home until it is connected, then the reason the number moved.
+  await check("demo calendar is opt-in and feeds Home", async () => {
+    const without = await (await fetch(BASE + "/")).text();
+    if (without.includes("on your calendar")) throw new Error("Home mentions the calendar before it was connected");
+    const withIt = await (await fetch(BASE + "/", { headers: { Cookie: "solvo_calendar=demo" } })).text();
+    if (!withIt.includes("on your calendar") || !withIt.includes("(estimate)")) throw new Error("Home does not explain the calendar's effect");
+    const cal = await (await fetch(BASE + "/calendar", { headers: { Cookie: "solvo_calendar=demo" } })).text();
+    if (!cal.includes("Demo: example events")) throw new Error("Calendar page does not say it is a demo");
+  });
   await check("POST /api/coach (offline answer)", async () => {
     const data = await postJson("/api/coach", { messages: [{ role: "user", text: "How much did I spend on restaurants?" }] });
     if (typeof data.answer !== "string" || !data.answer) throw new Error(`unexpected response: ${JSON.stringify(data).slice(0, 200)}`);

@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { ForecastProvider } from "@/components/forecast-ui";
+import { getCalendarState } from "@/lib/calendar-source";
 import { inferProfile } from "@/lib/profile";
 import { scheduleFor } from "@/lib/schedule-server";
 import { getEffective } from "@/lib/source-banks";
@@ -12,6 +14,7 @@ export default async function OnboardingPage() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
   const { customer: c, local, banks, view } = await getEffective();
+  const calendar = await getCalendarState();
   const profile = inferProfile(c);
   const schedule = scheduleFor(c);
   const base = {
@@ -23,5 +26,9 @@ export default async function OnboardingPage() {
     cashBalance: profile.cashBalance === null ? null : Math.round(profile.cashBalance),
     investsMonthlyToday: Math.round(profile.investsMonthly),
   };
-  return <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} banks={banks} view={view} />;
+  return (
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today}>
+      <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} banks={banks} view={view} />
+    </ForecastProvider>
+  );
 }

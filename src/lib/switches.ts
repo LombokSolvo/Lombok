@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { clearBanksCookie } from "@/lib/banks";
+import { writeCalendarCookie } from "@/lib/calendar-demo";
 import { resetCalendar } from "@/lib/calendar-store";
+import { resetForecast } from "@/lib/forecast-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
 
 // What the user has approved in this browser: contract switches and a monthly fund savings plan.
@@ -146,6 +148,8 @@ export function resetDemo() {
   billStore.set(null);
   resetOnboarding();
   resetCalendar();
+  resetForecast();
+  writeCalendarCookie(false);
   clearBanksCookie();
 }
 

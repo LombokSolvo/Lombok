@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - name: Lint
         run: npm run lint
+      - name: Unit checks (calendar forecast, Google client against a mock)
+        run: npm test
       - name: Build (includes type check)
         run: npm run build
         env:
