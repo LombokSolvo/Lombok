@@ -48,9 +48,10 @@ const MCC_LABEL: Record<string, string> = {
   "5541": "fuel",
   "5542": "fuel",
   "7523": "parking",
+  "6300": "home insurance",
 };
 // Only the categories whose name doesn't already say what is in them get a line.
-const EXPLAIN = new Set(["Home & Tech", "Health", "Travel", "Entertainment", "Lifestyle", "Transportation"]);
+const EXPLAIN = new Set(["Insurance", "Home & Tech", "Health", "Travel", "Entertainment", "Lifestyle", "Transportation"]);
 
 const KIND_LABEL: Record<string, string> = {
   electricity_energy: "Electricity",
@@ -80,7 +81,8 @@ async function Costs() {
   // What each category holds: its three biggest kinds of merchant over the last 12 months.
   const spendByMcc: Record<string, Record<string, number>> = {};
   for (const t of c.transactions) {
-    const label = t.mcc ? MCC_LABEL[t.mcc] : undefined;
+    // Named insurance payments from another bank say what they are (car insurance, travel insurance).
+    const label = (t.mcc ? MCC_LABEL[t.mcc] : undefined) ?? (t.category === "Insurance" && t.merchant ? t.merchant.toLowerCase() : undefined);
     if (t.amount >= 0 || !label || !window.has(t.date.slice(0, 7))) continue;
     const m = (spendByMcc[t.category] ??= {});
     m[label] = (m[label] ?? 0) - t.amount;
