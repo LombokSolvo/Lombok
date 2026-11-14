@@ -387,7 +387,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
           </>
         }
         steps={[
-          { title: "Approved by you", detail: "Your approval here is the order, so there's no separate contract to sign." },
+          { title: "Signed with your bank ID", detail: "You approved the switch in the bank app, so no separate contract to sign." },
           { title: `Order sent to ${chosen.supplier}`, detail: `Solvo sends your order to ${chosen.supplier}.` },
           {
             title: "Old contract ends",

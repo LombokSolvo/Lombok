@@ -76,13 +76,13 @@ export function TelecomDetail(props: {
         steps={
           isMatch
             ? [
-                { title: "Approved by you", detail: "You approved the request here." },
+                { title: "Approved with your bank ID", detail: "You approved the request in the bank app." },
                 { title: `Request sent to ${r.supplier}`, detail: "Solvo shows them the lower public price it found." },
                 { title: "Their answer", detail: "Solvo tells you what they say." },
                 { title: "Next e-invoice checked", detail: "If they agree, Solvo checks the new price on your next e-invoice." },
               ]
             : [
-                { title: "Approved by you", detail: "Your approval here is the order, so there's no separate contract to sign." },
+                { title: "Signed with your bank ID", detail: "You approved the switch in the bank app, so no separate contract to sign." },
                 { title: `Order sent to ${chosen.operator}`, detail: `Solvo sends your order to ${chosen.operator}.` },
                 {
                   title: "Numbers moved",
