@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
-import { Group, IconTile } from "@/components/solvo/ui";
+import { Chip, Group, IconTile } from "@/components/solvo/ui";
 import { FALLBACK_BANKS, readBankNameCookie, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
-import { LIVE_BANKS, liveBankOf, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
+import { LIVE_BANKS, LIVE_BANK_IDS, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
 import type { LiveStatus } from "@/lib/live-banks";
 
 // Other banks: opt-in, never assumed. The picker lists every bank Enable Banking offers, per country, with search, plus the person's
@@ -22,6 +22,15 @@ import type { LiveStatus } from "@/lib/live-banks";
 type Bank = { name: string; country: string };
 type Choice = { kind: "bank"; name: string; country: string } | { kind: "live"; bank: LiveBankId };
 type Step = "closed" | "pick" | "consent" | "waiting";
+// The picker's three groups: ordinary banks, neobanks and money apps, and investing. One search field filters the group on screen.
+type Group3 = "bank" | "app" | "invest";
+type Entry = { key: string; name: string; sub: string | null; group: Group3; live: LiveBankId | null; country: string };
+const GROUPS: { id: Group3; label: string }[] = [
+  { id: "bank", label: "Banks" },
+  { id: "app", label: "Neobanks and apps" },
+  { id: "invest", label: "Investing" },
+];
+const groupOf = (kind: string): Group3 => (kind === "Bank" ? "bank" : kind === "Trading platform" ? "invest" : "app");
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
 const COUNTRIES = ["FI", "SE", "NO", "DK", "EE", "DE", "NL", "FR"];
@@ -63,6 +72,7 @@ export function OtherBanks({
   const [choice, setChoice] = useState<Choice | null>(null);
   const [country, setCountry] = useState("FI");
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<Group3>("bank");
   const [lists, setLists] = useState<Record<string, Bank[] | { error: string }>>({});
   const [busy, setBusy] = useState<null | "start" | "sync" | "disconnect">(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,12 +130,29 @@ export function OtherBanks({
     simulate("nordea");
   };
 
-  // The real banks not yet connected get their own section at the top. In the plain Finland list (no demo-bank list) those names are left
-  // out, so no bank appears twice, once real and once simulated.
-  const liveOpen = live && live.enabled && live.configured ? live.banks.filter((b) => !b.connected).map((b) => b.id) : [];
-  const hideLive = !sandbox.enabled && !!live?.enabled && live.configured;
-  const list = sandbox.enabled ? lists[country] : FALLBACK_BANKS.map((name): Bank => ({ name, country: "FI" }));
-  const shown = Array.isArray(list) ? list.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase()) && !(hideLive && liveBankOf(b.name, b.country))) : [];
+  // Everything the picker can offer, each in one group. With real banks set up here, the ones in src/lib/live-bank-ids.ts connect for
+  // real (marked Real) and the rest are simulated (marked Demo); a real bank that is already connected is not offered again. With the
+  // demo-bank list on, the Banks group is Enable Banking's test banks for the chosen country, and the simulated names are not offered.
+  const liveActive = !!live?.enabled && !!live.configured;
+  const connected = new Set(live?.banks.filter((b) => b.connected).map((b) => b.id));
+  const registryNames = new Set<string>(LIVE_BANK_IDS.map((id) => LIVE_BANKS[id].name));
+  const liveEntries: Entry[] = LIVE_BANK_IDS.filter((id) => !(liveActive && connected.has(id))).map((id) => ({
+    key: id,
+    name: LIVE_BANKS[id].name,
+    sub: LIVE_BANKS[id].kind,
+    group: groupOf(LIVE_BANKS[id].kind),
+    live: liveActive ? id : null,
+    country: "FI",
+  }));
+  const listed = lists[country];
+  const testBanks: Entry[] = sandbox.enabled && Array.isArray(listed) ? listed.map((b) => ({ key: `${b.country}-${b.name}`, name: b.name, sub: null, group: "bank", live: null, country: b.country })) : [];
+  const plainBanks: Entry[] = FALLBACK_BANKS.filter((n) => !registryNames.has(n)).map((n) => ({ key: n, name: n, sub: null, group: "bank", live: null, country: "FI" }));
+  const entries: Entry[] = sandbox.enabled ? [...(liveActive ? liveEntries : []), ...testBanks] : [...liveEntries, ...plainBanks];
+  const q = query.trim().toLowerCase();
+  const inGroup = (g: Group3) => entries.filter((e) => e.group === g && e.name.toLowerCase().includes(q));
+  const shown = inGroup(tab);
+  const loadingTest = sandbox.enabled && tab === "bank" && !listed;
+  const testError = sandbox.enabled && tab === "bank" && listed && !Array.isArray(listed) ? listed.error : null;
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
   const footer = sandbox.enabled
@@ -224,62 +251,79 @@ export function OtherBanks({
 
       {step === "pick" && (
         <Sheet title="Add a bank" onClose={() => setStep("closed")} hideDone>
-          {liveOpen.length > 0 && (
-            <>
-              <h3 className="mb-2 text-[13px] font-medium text-muted-foreground">Your own accounts</h3>
-              <div className="mb-5 overflow-hidden rounded-2xl bg-muted/50">
-                {liveOpen.map((id) => (
-                  <button key={id} type="button" onClick={() => { setChoice({ kind: "live", bank: id }); setStep("consent"); }} className={row}>
-                    <IconTile><Landmark /></IconTile>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-medium">{LIVE_BANKS[id].name}</span>
-                      <span className="block text-[13px] leading-snug text-muted-foreground">{LIVE_BANKS[id].kind}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          <label className="relative mb-3 block">
+            <span className="sr-only">Search</span>
+            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className="h-11 w-full rounded-xl bg-muted/50 pr-3 pl-10 text-[16px] outline-none" />
+          </label>
 
-          <h3 className="mb-2 text-[13px] font-medium text-muted-foreground">Banks</h3>
-          {sandbox.enabled && (
-            <div className="mb-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Country">
+          <div className="mb-3 flex gap-1.5" role="tablist" aria-label="What to connect">
+            {GROUPS.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === g.id}
+                onClick={() => setTab(g.id)}
+                className={`h-10 min-w-0 flex-1 rounded-full px-2 text-[13px] leading-tight font-medium ${tab === g.id ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+              >
+                {g.label}
+                {q && <span className="ml-1 opacity-70">{inGroup(g.id).length}</span>}
+              </button>
+            ))}
+          </div>
+
+          {sandbox.enabled && tab === "bank" && (
+            <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Country">
               {COUNTRIES.map((c) => (
-                <button key={c} type="button" role="radio" aria-checked={country === c} onClick={() => setCountry(c)} className={`h-9 min-w-11 rounded-full px-3 text-[14px] font-medium ${country === c ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                <button key={c} type="button" role="radio" aria-checked={country === c} onClick={() => setCountry(c)} className={`h-9 min-w-11 rounded-full px-3 text-[14px] font-medium ${country === c ? "bg-primary/15 text-primary" : "bg-muted"}`}>
                   {c}
                 </button>
               ))}
             </div>
           )}
-          <label className="relative mb-2 block">
-            <span className="sr-only">Search banks</span>
-            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search banks" className="h-11 w-full rounded-xl bg-muted/50 pr-3 pl-10 text-[16px] outline-none" />
-          </label>
-          <div className="max-h-[34dvh] overflow-y-auto overscroll-contain rounded-2xl bg-muted/50">
-            {sandbox.enabled && !list && (
+
+          {/* About five rows at a time; the rest scrolls. */}
+          <div role="tabpanel" className="max-h-[min(18rem,42dvh)] overflow-y-auto overscroll-contain rounded-2xl bg-muted/50">
+            {loadingTest && (
               <p role="status" className="flex items-center gap-3 px-4 py-4 text-[15px]">
                 <Loader2 className="size-5 animate-spin" aria-hidden />
                 Loading banks…
               </p>
             )}
-            {list && !Array.isArray(list) && <p role="alert" className="px-4 py-4 text-[14px] text-warn">{list.error}</p>}
-            {Array.isArray(list) && shown.length === 0 && <p className="px-4 py-4 text-[14px] text-muted-foreground">No bank matches.</p>}
-            {shown.map((b) => {
-              return (
-                <button key={`${b.country}-${b.name}`} type="button" onClick={() => { setChoice({ kind: "bank", name: b.name, country: b.country }); setStep("consent"); }} className={row}>
-                  <IconTile><Landmark /></IconTile>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-medium">{b.name}</span>
-                  </span>
-                </button>
-              );
-            })}
+            {testError && <p role="alert" className="px-4 py-4 text-[14px] text-warn">{testError}</p>}
+            {!loadingTest && !testError && shown.length === 0 && (
+              <p className="px-4 py-4 text-[14px] text-muted-foreground">{q ? "Nothing matches." : "Nothing to connect here in this demo."}</p>
+            )}
+            {shown.map((e) => (
+              <button
+                key={e.key}
+                type="button"
+                onClick={() => {
+                  setChoice(e.live ? { kind: "live", bank: e.live } : { kind: "bank", name: e.name, country: e.country });
+                  setStep("consent");
+                }}
+                className={row}
+              >
+                <IconTile><Landmark /></IconTile>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-medium">{e.name}</span>
+                  {e.sub && <span className="block text-[13px] leading-snug text-muted-foreground">{e.sub}</span>}
+                </span>
+                {liveActive && <Chip tone={e.live ? "green" : "grey"}>{e.live ? "Real" : "Demo"}</Chip>}
+              </button>
+            ))}
           </div>
-          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">
-            {sandbox.enabled ? "These are Enable Banking's test banks. In production the list is your real banks." : hideLive ? "Finland's banks on Enable Banking. These are simulated: only your own accounts above connect for real." : "Finland's banks on Enable Banking. Demo: connecting is simulated."}
-          </p>
 
+          <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
+            {tab === "invest"
+              ? "Trade Republic is the one investing platform open banking reaches, and only its cash account, not your shares. eToro, Trading 212 and Nordnet aren't on open banking, so they can't be connected here yet."
+              : sandbox.enabled
+                ? "Banks here are Enable Banking's test banks. In production the list is your real banks."
+                : liveActive
+                  ? "Real connects to your own account. Demo shows example data."
+                  : "Demo: connecting is simulated and shows example data."}
+          </p>
         </Sheet>
       )}
 
