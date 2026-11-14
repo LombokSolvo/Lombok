@@ -58,11 +58,12 @@ const action = `${row} font-medium text-primary disabled:opacity-50`;
 export function OtherBanks({
   banks,
   view,
-  compact = false,
   title = "Other banks",
   sandbox = { enabled: false, linked: null, notice: null },
   live,
+  mainBank = false,
 }: {
+  mainBank?: boolean; // show S-Pankki itself as the connected main bank (Profile)
   banks: BankId[];
   view: View;
   compact?: boolean;
@@ -145,10 +146,8 @@ export function OtherBanks({
   const message = sandbox.notice ? NOTICES[sandbox.notice] : null;
 
   const footer = sandbox.enabled
-    ? "Optional. Banks connect for real through Enable Banking; the demo uses its test banks with example data. Investing platforms are simulated."
-    : compact
-      ? "Optional. Solvo works on its own; another bank adds to the picture. Demo: simulated, with example data."
-      : "Optional. Solvo works on its own; another bank adds to the picture. Demo: connecting is simulated and uses example data. You can remove a bank any time.";
+    ? "Demo: Enable Banking's test banks with example data."
+    : "Demo: connecting is simulated and uses example data.";
 
   const consent = (() => {
     if (!choice) return null;
@@ -191,6 +190,18 @@ export function OtherBanks({
   return (
     <>
       <Group title={title} footer={footer}>
+        {mainBank && (
+          <div className={row}>
+            <IconTile><Landmark /></IconTile>
+            <div className="min-w-0 flex-1">
+              <div className="text-[15px] leading-snug font-medium">S-Pankki</div>
+              <div className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground">
+                <Check className="size-3.5 text-primary" aria-hidden />
+                Connected, your main bank
+              </div>
+            </div>
+          </div>
+        )}
         {banks.map((b) => {
           const name = b === "nordnet" ? platform : bankName;
           return (

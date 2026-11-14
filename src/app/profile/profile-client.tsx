@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarConnect } from "@/components/calendar-connect";
+import { Toggle } from "@/components/solvo/toggle";
 import { LiveNordea } from "@/components/live-nordea";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
@@ -15,7 +16,6 @@ import {
   PhoneCall,
   PiggyBank,
   ShieldCheck,
-  Target,
 } from "lucide-react";
 import {
   Chip,
@@ -198,7 +198,7 @@ export function ProfileClient(props: {
           }
           title="Read my e-invoices"
           subtitle="Find each contract and what it costs"
-          value="On"
+          value={<Toggle label="Read my e-invoices" />}
         />
         <Row
           icon={
@@ -208,7 +208,7 @@ export function ProfileClient(props: {
           }
           title="Call me before a bill is late"
           subtitle="A short voice call, never a collection call"
-          value="On"
+          value={<Toggle label="Call me before a bill is late" />}
         />
         <Row
           icon={
@@ -218,18 +218,7 @@ export function ProfileClient(props: {
           }
           title="Contract end dates"
           subtitle="Remind me 30 days before a contract ends"
-          value="On"
-        />
-        <Row
-          icon={
-            <IconTile>
-              <Target />
-            </IconTile>
-          }
-          title="Savings goal"
-          subtitle="Kept out of your weekly budget"
-          value={eur.format(props.savingsGoal)}
-          valueSub="a month"
+          value={<Toggle label="Contract end dates" />}
         />
       </Group>
       {readCount > 0 && (
@@ -244,7 +233,7 @@ export function ProfileClient(props: {
 
       <LiveNordea status={props.live} />
 
-      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
+      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
       <CalendarConnect {...props.calendar} />
 

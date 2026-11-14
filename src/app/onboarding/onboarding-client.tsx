@@ -42,7 +42,7 @@ const GOAL_PRESETS: Record<GoalKind, { label: string; target: number; months: nu
 };
 
 const radioRow = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t";
-const enter = "animate-in fade-in slide-in-from-right-4 duration-300 motion-reduce:animate-none";
+const enter = "animate-in fade-in slide-in-from-right-4 duration-200 motion-reduce:animate-none";
 
 function Radio({ on }: { on: boolean }) {
   return (

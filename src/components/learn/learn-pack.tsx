@@ -74,7 +74,7 @@ export function LearnPack({
         ))}
       </div>
 
-      <div key={step} className="animate-in fade-in slide-in-from-right-3 px-4 pt-4 pb-4 duration-300">
+      <div key={step} className="animate-in fade-in slide-in-from-right-3 px-4 pt-4 pb-4 duration-200">
         {step < pack.cards.length && (
           <div>
             <h3 className="font-display text-[21px] leading-tight font-semibold tracking-[-0.015em]">

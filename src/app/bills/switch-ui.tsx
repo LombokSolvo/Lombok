@@ -167,7 +167,7 @@ export function ApproveSheet(props: {
         role="dialog"
         aria-modal="true"
         aria-labelledby="approve-title"
-        className="relative animate-in rounded-t-[28px] bg-card px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl duration-300 slide-in-from-bottom"
+        className="relative animate-in rounded-t-[28px] bg-card px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl duration-200 slide-in-from-bottom"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" aria-hidden />
         <div className="flex items-center gap-3">

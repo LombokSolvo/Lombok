@@ -21,6 +21,7 @@ const TABS = [
 
 // Full-screen pages with no tab bar. Onboarding: the tabs appear only once the person has a plan or skips.
 const HIDDEN = ["/call", "/onboarding"];
+const HOME_CHILDREN = ["/costs", "/compare", "/calendar"];
 
 /**
  * Bottom tab bar, like a native app. Its height is --tabbar-h (globals.css), which pages and fixed action bars use
@@ -38,7 +39,9 @@ export function TabBar() {
     >
       <ul className="flex h-14">
         {TABS.map(({ href, label, Icon, ...t }) => {
-          const active = href === "/" ? path === "/" : path.startsWith(href);
+          // Screens reached from Home (costs, compare, calendar) keep Home lit, so you always know where you are.
+          const active =
+            href === "/" ? path === "/" || HOME_CHILDREN.some((p) => path.startsWith(p)) : path.startsWith(href);
           const center = "center" in t;
           return (
             <li key={href} className="flex-1">
