@@ -7,6 +7,7 @@ export type UnpaidBill = {
   id: string;
   supplier: string;
   what: string;
+  visitDate: string; // YYYY-MM-DD
   amount: number; // EUR
   dueDate: string; // YYYY-MM-DD
   basket: 1 | 2 | 3; // which budget it comes from
@@ -17,7 +18,8 @@ export type UnpaidBill = {
 export const UNPAID: UnpaidBill = {
   id: "dentist-2026-09",
   supplier: "Hymy Hammasklinikka Oy",
-  what: "Dental check-up and filling, 9 Sept",
+  what: "Dental check-up and filling",
+  visitDate: "2026-09-09", // a demo date: format it with Intl so the demo clock moves it
   amount: 148,
   dueDate: "2026-09-25",
   basket: 2,

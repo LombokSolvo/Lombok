@@ -18,12 +18,16 @@ export function useCancelledWeekly() {
 
 const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-/** A weekly amount (remaining or budget) plus what approved switches free up each week, minus what the calendar sets aside. */
-export function LiveWeeklyEuro({ base, signed = false }: { base: number; signed?: boolean }) {
+/** The same weekly number Home shows (see LiveWeeklyEuro), as a number, e.g. for Solvo's call. */
+export function useLiveWeekly(base: number) {
   // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume; what the person's
   // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why).
-  const value =
-    base + weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
+  return base + weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
+}
+
+/** A weekly amount (remaining or budget) plus what approved switches free up each week, minus what the calendar sets aside. */
+export function LiveWeeklyEuro({ base, signed = false }: { base: number; signed?: boolean }) {
+  const value = useLiveWeekly(base);
   return <>{signed && value < 0 ? `−${eur.format(-value)}` : eur.format(value)}</>;
 }
 
