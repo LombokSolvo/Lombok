@@ -252,7 +252,6 @@ export function OtherBanks({
                   <IconTile><Landmark /></IconTile>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-medium">Nordea, your real account</span>
-                    <span className="block text-[13px] leading-snug text-muted-foreground">Real data, only you, on this computer</span>
                   </span>
                 </button>
               </div>
@@ -291,7 +290,6 @@ export function OtherBanks({
                   <IconTile><Landmark /></IconTile>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-medium">{b.name}</span>
-                    {real && <span className="block text-[13px] leading-snug text-muted-foreground">Your real account. Real data, only you, on this computer</span>}
                   </span>
                 </button>
               );
