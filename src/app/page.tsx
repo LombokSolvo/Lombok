@@ -25,6 +25,7 @@ const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
 
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const BASKET_COLOR: Record<Basket, string> = { 1: "bg-chart-1", 2: "bg-chart-2", 3: "bg-chart-4" };
+const SAVINGS_COLOR = "bg-sky-600"; // savings, its own colour so it reads apart from the three baskets
 
 export default function Home() {
   return (
@@ -41,8 +42,15 @@ async function HomeScreen() {
   const s = safeToSpend(c);
   const schedule = scheduleFor(c);
   const compareGroup = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
-  const baskets = [1, 2, 3] as Basket[];
-  const yearTotal = baskets.reduce((sum, b) => sum + c.summary.basketYear[b], 0);
+  // How the monthly salary is split, for the bar and the shares on "Your money each month".
+  const split = [
+    { color: BASKET_COLOR[1], amount: s.fixedRegularPerMonth },
+    { color: BASKET_COLOR[2], amount: s.irregularSetAsidePerMonth },
+    { color: SAVINGS_COLOR, amount: s.savingsGoalPerMonth },
+    { color: BASKET_COLOR[3], amount: Math.max(0, s.everydayBudgetPerMonth) },
+  ];
+  const splitTotal = split.reduce((sum, x) => sum + x.amount, 0) || 1;
+  const share = (v: number) => `${Math.round((Math.max(0, v) / Math.max(s.incomePerMonth, 1)) * 100)}% of salary`;
   const over = s.remaining < 0;
   const usedShare = Math.min(1, Math.max(0, s.spentThisWeek / s.weeklyBudget));
   // The week strip follows the REAL weekday. The demo data's own "today" is a Wednesday, which would show on a Saturday.
@@ -177,14 +185,11 @@ async function HomeScreen() {
             </>
           }
         >
+          {/* The salary split: bills, irregular set-aside, savings goal, and what is left for everyday */}
           <div className="px-4 pt-4 pb-1">
             <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
-              {baskets.map((b) => (
-                <div
-                  key={b}
-                  className={BASKET_COLOR[b]}
-                  style={{ width: `${(c.summary.basketYear[b] / yearTotal) * 100}%` }}
-                />
+              {split.map((x) => (
+                <div key={x.color} className={x.color} style={{ width: `${(x.amount / splitTotal) * 100}%` }} />
               ))}
             </div>
           </div>
@@ -194,19 +199,28 @@ async function HomeScreen() {
             title="Fixed and regular bills"
             subtitle={topCategories(c, 1).map((t) => t.category).join(", ")}
             value={`−${eur.format(s.fixedRegularPerMonth)}`}
+            valueSub={share(s.fixedRegularPerMonth)}
           />
           <Row
             icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[2]}`} aria-hidden />}
             title="Set aside for irregular costs"
             subtitle={topCategories(c, 2).map((t) => t.category).join(", ")}
             value={`−${eur.format(s.irregularSetAsidePerMonth)}`}
+            valueSub={share(s.irregularSetAsidePerMonth)}
           />
-          <Row title="Savings goal" subtitle="You set this" value={`−${eur.format(s.savingsGoalPerMonth)}`} />
+          <Row
+            icon={<span className={`size-2.5 shrink-0 rounded-full ${SAVINGS_COLOR}`} aria-hidden />}
+            title="Savings goal"
+            subtitle="You set this"
+            value={`−${eur.format(s.savingsGoalPerMonth)}`}
+            valueSub={share(s.savingsGoalPerMonth)}
+          />
           <Row
             icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[3]}`} aria-hidden />}
             title={<span className="font-semibold">Everyday budget</span>}
             subtitle={`You spend ${eur.format(c.summary.basketYear[3] / 12)}: ${topCategories(c, 3).map((t) => t.category).join(", ")}`}
             value={<span className="font-semibold">{eur.format(s.everydayBudgetPerMonth)}</span>}
+            valueSub={share(s.everydayBudgetPerMonth)}
           />
           <Link
             href="/costs"
