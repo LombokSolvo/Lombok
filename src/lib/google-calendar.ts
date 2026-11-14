@@ -63,7 +63,9 @@ export const GOOGLE_STATE_COOKIE = "solvo_google_state";
 /** Where to send the person after Google: the first-run setup or Profile (the default). Only these two are ever used. */
 export const GOOGLE_FROM_COOKIE = "solvo_google_from";
 const DEFAULT_REDIRECT = "https://localhost:3000/callback/google";
-const FRESH_MS = 15 * 60_000; // events younger than this are served from the saved copy
+const FRESH_MS = 15 * 60_000; // events younger than this need no refresh
+const RETRY_MS = 5 * 60_000; // and a refresh is tried at most this often
+let lastAttempt = 0;
 
 /** The master switch. Off on Vercel no matter what the environment says. */
 export const googleEnabled = () => process.env.SOLVO_GOOGLE === "1" && !process.env.VERCEL;
@@ -192,12 +194,18 @@ export async function loadGoogleEvents(): Promise<CalendarEvent[] | null> {
   let cache = readJson<Cache>(eventsFile());
   if (cache?.reconnect) return null;
   const age = cache ? Date.now() - statSync(eventsFile()).mtimeMs : Infinity;
-  if (!cache || age > FRESH_MS) {
+  if (!cache) {
+    // Nothing saved yet (just connected): there is nothing to show without reading it once.
     try {
       cache = await syncGoogle();
     } catch {
       cache = readJson<Cache>(eventsFile());
     }
+  } else if (age > FRESH_MS && Date.now() - lastAttempt > RETRY_MS) {
+    // A saved copy exists: show it now and refresh in the background, at most once every five minutes, so a slow or failing
+    // Google call never makes a page wait.
+    lastAttempt = Date.now();
+    void syncGoogle().catch(() => {});
   }
   return cache && !cache.reconnect ? cache.events : null;
 }
