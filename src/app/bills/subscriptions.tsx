@@ -13,7 +13,7 @@ export function Subscriptions({ subs }: { subs: Subscription[] }) {
       title="Subscriptions"
       aside={<span className="num">{eur2.format(monthly)}/mo</span>}
       className="mt-7"
-      footer={`Card payments that repeat every month: ${eur2.format(monthly * 12)} a year. Cancel one in the service's own settings. Demo data.`}
+      footer={`${eur2.format(monthly * 12)} a year.`}
     >
       {subs.map((s) => (
         <Row
@@ -24,7 +24,7 @@ export function Subscriptions({ subs }: { subs: Subscription[] }) {
             </IconTile>
           }
           title={s.name}
-          subtitle={`${s.what}. On the ${ordinal(s.day)}, since ${s.since.slice(0, 4)}`}
+          subtitle={`On the ${ordinal(s.day)}`}
           value={eur2.format(s.monthly)}
           valueSub="a month"
         />

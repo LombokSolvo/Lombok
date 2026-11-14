@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
 import { Screen } from "@/components/solvo/screen";
-import { BackLink, Chip, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "@/components/solvo/ui";
+import { BackLink, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "@/components/solvo/ui";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
 import { BASKET_LABELS, type Basket } from "@/lib/demo";
@@ -82,7 +82,7 @@ async function Costs() {
                     <span className="min-w-0 flex-1">
                       <span className="block text-[14px] font-medium">Subscriptions</span>
                       <span className="block text-[12px] text-muted-foreground">
-                        {SUBSCRIPTIONS.map((x) => x.name).join(", ")} <Chip>Demo data</Chip>
+                        {SUBSCRIPTIONS.map((x) => x.name).join(", ")}
                       </span>
                     </span>
                     <span className="num text-[14px]">{eur2.format(subscriptionsMonthly(SUBSCRIPTIONS))}/mo</span>
@@ -94,11 +94,6 @@ async function Costs() {
           })}
         </Group>
       ))}
-
-      <p className="mt-6 px-1 text-[13px] leading-snug text-muted-foreground">
-        From your account in S-Pankki&apos;s synthetic Junction dataset. Utility payments in the data don&apos;t name the
-        company{aino ? ", so the split comes from the e-invoices Solvo read" : ""}.
-      </p>
     </main>
   );
 }
@@ -117,7 +112,7 @@ function UtilityBreakdown() {
           <span className="min-w-0 flex-1">
             <span className="block text-[14px] font-medium">{KIND_LABEL[r.kind] ?? r.kind}</span>
             <span className="block truncate text-[12px] text-muted-foreground">
-              {r.supplier}, {r.product}
+              {r.supplier}
             </span>
           </span>
           <span className="num text-right text-[14px]">
