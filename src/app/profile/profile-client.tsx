@@ -59,7 +59,6 @@ export function ProfileClient(props: {
   savingsGoal: number;
   spender: SpenderProfile | null; // what kind of spender the payments say; null when there is too little to say
   peers: CompareGroup | null; // the person against people their age; null for real bank data
-  previewCards: boolean; // ?cards=1: the demo cards, shown before they are approved for Profile
   banks: BankId[];
   view: View;
   showBanks: boolean; // the Other banks picker; always on (real Nordea merges into the same picture as any other bank)
@@ -99,13 +98,9 @@ export function ProfileClient(props: {
         </div>
       </section>
 
-      {props.previewCards && (
-        <>
-          {props.spender && <SpenderCard profile={props.spender} />}
-          {props.spender && props.peers && <CompareSummary group={props.peers} ids={["restaurants", "groceries", "transport"]} title="Compared with people like you" />}
-          <HomeEquityCard defaultMonthly={props.savingsGoal} />
-        </>
-      )}
+      {props.spender && <SpenderCard profile={props.spender} />}
+      {props.spender && props.peers && <CompareSummary group={props.peers} ids={["restaurants", "groceries", "transport"]} title="Compared with people like you" />}
+      <HomeEquityCard defaultMonthly={props.savingsGoal} />
 
       <Group
         title="Demo account"
