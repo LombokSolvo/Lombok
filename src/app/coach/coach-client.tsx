@@ -2,6 +2,7 @@
 
 import { ArrowUp, ArrowUpRight, Check, GraduationCap, ReceiptText, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useReadWeeklyReserve } from "@/components/forecast-ui";
 import { LearnPack } from "@/components/learn/learn-pack";
 import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
 import { LAST_PAGE_KEY, followUpsFor, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
@@ -68,6 +69,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
     lastAnswer?.role === "coach" ? followUpsFor(lastAnswer, messages.filter((m) => m.role === "user").map((m) => m.text), lastAnswer.suggestions) : suggestionsFor(from, mode === "aino");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const readReserve = useReadWeeklyReserve(); // the calendar set-aside Home takes off safe-to-spend
   const bottom = useRef<HTMLDivElement>(null);
   const progress = useLearnProgress();
 
@@ -108,7 +110,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
         // Learning packs stay in the browser; the coach sees the conversation text and what is already done in the app.
         body: JSON.stringify({
           messages: history.filter((m) => !m.pack).map(({ role, text }) => ({ role, text })),
-          state: chatState(mode),
+          state: chatState(mode, readReserve()),
         }),
       });
       const d = await res.json();

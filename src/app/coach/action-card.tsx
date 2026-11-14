@@ -37,7 +37,8 @@ function currentPlan(mode: DemoMode, stored: SavingsPlan | null) {
 }
 
 /** What the chat sends with each question, so the coach knows what is already done. Small facts only, never transactions. */
-export function chatState(mode: DemoMode): ChatState {
+/** reserve: what the person's calendar sets aside this week (EUR), from the page's ForecastProvider, as Home takes it off. */
+export function chatState(mode: DemoMode, reserve = 0): ChatState {
   const sw = readSwitches();
   return {
     cancelled: Object.keys(readCancelledSubs()),
@@ -45,7 +46,7 @@ export function chatState(mode: DemoMode): ChatState {
     switched: (["electricity", "telecom"] as const).filter((b) => sw[b]),
     goals: readGoals(mode).map(({ label, target, saved, monthly }) => ({ label, target, saved, monthly })),
     trimmed: Object.keys(readTrimmed()),
-    weeklyDelta: readWeeklyDelta(),
+    weeklyDelta: readWeeklyDelta() - reserve,
   };
 }
 

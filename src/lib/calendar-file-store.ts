@@ -56,5 +56,7 @@ function subscribe(listener: () => void) {
 }
 
 export const useCalendarFile = () => useSyncExternalStore(subscribe, snapshot, () => null);
+/** The same, read once outside React (at the moment the chat sends a question). */
+export const readCalendarFile = () => snapshot();
 export const saveCalendarFile = (f: CalendarFile) => write(f);
 export const clearCalendarFile = () => write(null);

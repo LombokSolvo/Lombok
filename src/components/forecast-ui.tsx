@@ -9,9 +9,9 @@ import { NumberField } from "@/components/solvo/fields";
 import { Sheet } from "@/components/solvo/sheet";
 import { eur, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
-import { useCalendarFile } from "@/lib/calendar-file-store";
+import { readCalendarFile, useCalendarFile } from "@/lib/calendar-file-store";
 import { applyChoices, forecast, weeklyReserve, type Baselines, type CalendarMode, type CountedItem, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
-import { setChoice, useChoices } from "@/lib/forecast-store";
+import { readChoices, setChoice, useChoices } from "@/lib/forecast-store";
 
 // What the person's calendar adds to the budget, on every screen that shows it. The server page hands over the forecast items
 // (kind, date, amount: never event titles of a real calendar); the person's own edits and "don't count" choices are applied here,
@@ -19,8 +19,10 @@ import { setChoice, useChoices } from "@/lib/forecast-store";
 
 const dayFmt = plainFormat({ weekday: "short", day: "numeric", month: "short" });
 
-type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines };
-const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null } };
+// readReserve: the weekly set-aside worked out at the moment it is called, from this browser's stores. The chat needs it because a
+// question from Home (/coach?q=) is sent right after the page loads, before the stores' values have reached a render.
+type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines; readReserve: () => number };
+const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null }, readReserve: () => 0 };
 const Ctx = createContext<State>(EMPTY);
 
 /**
@@ -31,10 +33,13 @@ export function ForecastProvider({ mode, items, today, baselines, children }: { 
   const choices = useChoices();
   const file = useCalendarFile();
   const value = useMemo<State>(() => {
-    const useFile = !!file && mode !== "google" && mode !== "link";
-    const raw = useFile ? forecast(file.events, baselines, today, "file", { keepTitle: true }) : items;
-    const counted = applyChoices(raw, choices);
-    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines };
+    const countedFrom = (f: typeof file, ch: typeof choices) => {
+      const useFile = !!f && mode !== "google" && mode !== "link";
+      return { useFile, counted: applyChoices(useFile && f ? forecast(f.events, baselines, today, "file", { keepTitle: true }) : items, ch) };
+    };
+    const { useFile, counted } = countedFrom(file, choices);
+    const readReserve = () => weeklyReserve(countedFrom(readCalendarFile(), readChoices()).counted, today);
+    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines, readReserve };
   }, [mode, items, today, baselines, choices, file]);
   return (
     <Ctx.Provider value={value}>
@@ -86,6 +91,8 @@ function CalendarAutoSync({ mode }: { mode: "google" | "link" | null }) {
 export const useForecast = () => useContext(Ctx);
 /** EUR a week the calendar takes out of the weekly budget. */
 export const useWeeklyReserve = () => useContext(Ctx).reserve;
+/** A function that gives the weekly set-aside as it is right now (see readReserve above). */
+export const useReadWeeklyReserve = () => useContext(Ctx).readReserve;
 
 const ICONS: Record<ForecastCategory, { icon: typeof Plane; name: string }> = {
   travel: { icon: Plane, name: "Trip" },

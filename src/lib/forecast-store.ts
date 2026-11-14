@@ -49,6 +49,8 @@ function subscribe(listener: () => void) {
 }
 
 export const useChoices = () => useSyncExternalStore(subscribe, snapshot, () => EMPTY);
+/** The same, read once outside React (at the moment the chat sends a question). */
+export const readChoices = () => snapshot();
 
 /** Changes one item. `amount: null` goes back to the estimate. */
 export function setChoice(id: string, patch: { dismissed?: boolean; amount?: number | null }) {
