@@ -3,6 +3,8 @@
 import { addTransitionType, startTransition, useEffect, useMemo, useState } from "react";
 import { SubScreen } from "@/components/solvo/screen";
 import { BillHistory, type PaidBill } from "./bill-history";
+import { Subscriptions } from "./subscriptions";
+import type { Subscription } from "@/data/subscriptions";
 import { ArrowRight, Leaf, Cable, Check, FileText, Smartphone, Sparkles, Zap } from "lucide-react";
 import {
   BackButton,
@@ -83,6 +85,7 @@ export function BillsClient(props: {
   remaining: number;
   history: PaidBill[];
   dentalBill: boolean; // Aino's unpaid dentist e-invoice, part of her demo story only
+  subscriptions: Subscription[]; // Aino's card subscriptions, demo data
 }) {
   const [fetched, setLoaded] = useState<Record<string, Loaded>>({});
   const stored = useCachedReadings() as Record<string, Loaded>;
@@ -181,6 +184,8 @@ export function BillsClient(props: {
                   ))}
                 </Group>
               )}
+
+              <Subscriptions subs={props.subscriptions} />
 
               <PhotoUpload
                 onRead={(d) => {

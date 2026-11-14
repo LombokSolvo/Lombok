@@ -8,9 +8,9 @@ import { useBillActions } from "@/lib/switches";
 
 export type PaidBill = {
   date: string; // YYYY-MM-DD
-  kind: "rent" | "utility";
+  kind: "rent" | "utility" | "subscription";
   amount: number; // positive EUR
-  supplier?: string; // known when Solvo has read the e-invoice for this payment
+  supplier?: string; // known when Solvo has read the e-invoice for this payment, or the subscription's name
 };
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -39,11 +39,13 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
     subtitle:
       b.kind === "rent"
         ? `Paid ${fmtDay(b.date)}`
-        : b.supplier
+        : b.kind === "subscription"
+          ? `Paid ${fmtDay(b.date)} by card, every month`
+          : b.supplier
           ? `Paid ${fmtDay(b.date)}, read from the e-invoice`
           : `Paid ${fmtDay(b.date)}, no supplier name in the payment`,
     amount: b.amount,
-    badge: b.supplier ? "E-invoice" : undefined,
+    badge: b.kind === "subscription" ? "Subscription" : b.supplier ? "E-invoice" : undefined,
   }));
   if (dentalBill) entries.push(
     dental?.action === "paid"
@@ -78,7 +80,7 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
     <section className="mt-9">
       <h2 className="px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">Bill history</h2>
       <p className="mt-1 px-1 text-[15px] leading-snug text-muted-foreground">
-        Every bill paid from your account in the last 12 months.
+        Every bill and subscription paid from your account in the last 12 months.
       </p>
       {shown.map(([month, rows]) => (
         <Group

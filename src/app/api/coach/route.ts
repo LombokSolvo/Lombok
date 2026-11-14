@@ -1,6 +1,7 @@
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { portfolio } from "@/data/portfolio";
 import { UNPAID } from "@/data/reminders";
+import { SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
 import { fundById } from "@/lib/funds";
 import { safeToSpend } from "@/lib/coach";
 import { BASKET_LABELS, type Basket, type DemoCustomer } from "@/lib/demo";
@@ -68,6 +69,8 @@ No e-invoices from suppliers have reached the bank yet, so Solvo hasn't read any
 Bills Solvo has read from the e-invoices in the bank:
 ${bills}
 Electricity: doing nothing costs ${eur(cmp.doNothing)}/year after the rollover. Best fixed offer is ${cmp.recommended.supplier} ${cmp.recommended.product} at ${eur(cmp.recommended.yearly)}/year, saving ${eur(cmp.recommended.saving)}/year (about ${eur(cmp.recommended.saving / 52)} a week more to spend). The user can switch with one tap in the Bills view after approving.
+
+Card subscriptions (demo data): ${SUBSCRIPTIONS.map((x) => `${x.name} ${x.monthly.toFixed(2)} €/month on the ${x.day}.`).join(" ")} Together ${eur(subscriptionsMonthly(SUBSCRIPTIONS))}/month. Solvo can't cancel them; the user cancels in each service's own settings.
 
 Unpaid bill: ${UNPAID.supplier}, ${eur(UNPAID.amount)} (${UNPAID.what}), was due ${UNPAID.dueDate} and is still open. It belongs to basket 2 (irregular costs), so paying it comes from the irregular set-aside and doesn't lower this week's safe-to-spend. Paying before the reminder avoids a reminder fee. If the user can't pay now, suggest calling the clinic to ask for a later due date or an instalment plan, and that an S-Pankki advisor can help. Solvo is a coach, not a debt collector.
 
