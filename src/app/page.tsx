@@ -6,8 +6,10 @@ import { LiveWeeklyEuro, ResetDemoButton, SwitchBoostNote } from "@/components/l
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
+import { CompareCard } from "@/components/compare-card";
 import { LearnChip } from "@/components/learn/learn-chip";
 import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
+import { compareWith } from "@/lib/cohorts";
 import { safeToSpend, topCategories } from "@/lib/coach";
 import { BASKET_LABELS, type Basket } from "@/lib/demo";
 import { inferSchedule } from "@/lib/schedule";
@@ -113,6 +115,9 @@ async function HomeScreen() {
         <PlanCard />
 
         <UpcomingCard items={schedule.items} asOf={c.asOf} />
+
+        {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
+        {!local && <CompareCard groups={compareWith(c)} />}
 
         {/* Coach chat entry */}
         <section className="mt-4">
