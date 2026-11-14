@@ -9,7 +9,7 @@
 //   /connect/nordea -> POST /api/nordea/sync                 downloads transactions, builds the customer, Home switches to it
 //   Profile "Sync now" / "Disconnect"                        sync again, or end the consent and delete everything stored
 import "server-only";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   EbError,
@@ -76,7 +76,15 @@ export type LiveStatus = {
 
 export function liveStatus(): LiveStatus {
   const session = readJson<EbSession>(sessionFile());
-  const meta = readJson<Meta>(metaFile());
+  let meta = readJson<Meta>(metaFile());
+  // A connection made earlier with scripts/nordea-psd2.mjs has no counts saved: read them from the customer file once.
+  if (session && !meta && existsSync(customerFile())) {
+    const customer = readJson<{ transactions?: unknown[]; asOf?: string }>(customerFile());
+    if (customer?.transactions) {
+      meta = { syncedAt: statSync(customerFile()).mtime.toISOString(), transactions: customer.transactions.length, accounts: session.accounts?.length ?? 0, asOf: customer.asOf ?? "" };
+      writePrivate(metaFile(), meta);
+    }
+  }
   return {
     enabled: liveEnabled(),
     configured: !!config(),
@@ -110,17 +118,22 @@ export async function beginConsent(state: string): Promise<string> {
   return r.url;
 }
 
+let lastFinished = 0;
+
 /** Step 2: the bank sent the person back with a code. Swap it for a session and keep it. */
 export async function completeConsent(code: string): Promise<void> {
   const cfg = config();
   if (!cfg) throw new Error("Enable Banking is not configured.");
+  const old = readJson<EbSession>(sessionFile());
   const session = await createSession(cfg, code);
   if (!session.accounts?.length) throw new Error("The bank returned no accounts.");
   writePrivate(sessionFile(), session);
+  lastFinished = 0; // a new approval always downloads again, even right after an earlier sync
+  // Connecting again replaces the earlier consent: end the old one at Enable Banking (best effort).
+  if (old?.session_id && old.session_id !== session.session_id) deleteSession(cfg, old.session_id).catch(() => {});
 }
 
 let inFlight: Promise<Meta> | null = null;
-let lastFinished = 0;
 
 /** Step 3 (and every refresh): download transactions for every account, rebuild the customer. Throttled to one run per 30 s. */
 export function syncLive(): Promise<Meta> {

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Landmark, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Landmark, Loader2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Group, IconTile, Row } from "@/components/solvo/ui";
-import { request } from "@/lib/client-request";
+import { postJson, request } from "@/lib/client-request";
 import { plainFormat } from "@/lib/demo-clock";
 import type { LiveStatus } from "@/lib/live-nordea";
 
@@ -16,8 +17,9 @@ const day = plainFormat({ day: "numeric", month: "short" });
 
 export function LiveNordea({ status }: { status: LiveStatus }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<null | "sync" | "disconnect">(null);
+  const [busy, setBusy] = useState<null | "sync" | "disconnect" | "start">(null);
   const [error, setError] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
 
   // Off, or ready to connect (the picker offers it): nothing to show here. Not set up: say what is missing. Connected: manage it.
   if (!status.enabled || (status.configured && !status.connected)) return null;
@@ -32,9 +34,24 @@ export function LiveNordea({ status }: { status: LiveStatus }) {
     setBusy(null);
   };
 
+  // Run the Nordea ID approval again. The new approval replaces the earlier one when it succeeds; nothing is deleted before that.
+  const again = async () => {
+    setAsking(false);
+    setBusy("start");
+    setError(null);
+    const r = await postJson("/api/nordea/start");
+    if (r.ok && typeof r.data.url === "string") {
+      window.location.assign(r.data.url);
+      return;
+    }
+    setError(r.ok ? "Enable Banking didn't return an approval address." : r.error);
+    setBusy(null);
+  };
+
   const action = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left font-medium text-primary disabled:opacity-50 [&+&]:border-t";
 
   return (
+    <>
     <Group
       title="Your real Nordea"
       footer={
@@ -61,6 +78,10 @@ export function LiveNordea({ status }: { status: LiveStatus }) {
             <IconTile>{busy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}</IconTile>
             {busy === "sync" ? "Downloading…" : "Sync now"}
           </button>
+          <button type="button" className={action} onClick={() => setAsking(true)} disabled={busy !== null}>
+            <IconTile>{busy === "start" ? <Loader2 className="animate-spin" /> : <ShieldCheck />}</IconTile>
+            {busy === "start" ? "Opening Nordea…" : "Connect again with Nordea ID"}
+          </button>
           <button type="button" className={action} onClick={() => run("disconnect")} disabled={busy !== null}>
             <IconTile tone="grey">{busy === "disconnect" ? <Loader2 className="animate-spin" /> : <Trash2 />}</IconTile>
             Disconnect and delete
@@ -73,5 +94,19 @@ export function LiveNordea({ status }: { status: LiveStatus }) {
         </p>
       )}
     </Group>
+    {asking && (
+      <ApproveSheet
+        title="Connect Nordea again"
+        points={[
+          "You approve with Nordea ID at Nordea. You never open Enable Banking's website.",
+          "The new approval replaces the earlier one, and your transactions are downloaded again.",
+          "Read-only: Solvo can't move money. Real data: it stays on this computer.",
+        ]}
+        confirmLabel="Continue to Nordea ID"
+        onConfirm={again}
+        onCancel={() => setAsking(false)}
+      />
+    )}
+    </>
   );
 }
