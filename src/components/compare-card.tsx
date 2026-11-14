@@ -16,8 +16,9 @@ function rank(pct: number) {
 
 /** Home: three quick facts against the person's age group, and a way into the full comparison. */
 export function CompareSummary({ group }: { group: CompareGroup }) {
-  // The three spending lines that stand out most from the group.
-  const quick = [...group.metrics].sort((a, b) => Math.abs(b.pct - 50) - Math.abs(a.pct - 50)).slice(0, 3);
+  // Always the same three lines: everyday spending, rent and utilities. The rest are on /compare.
+  const QUICK = ["everyday", "rent", "bills"];
+  const quick = QUICK.map((id) => group.metrics.find((m) => m.id === id)).filter((m) => m !== undefined);
   return (
     <Group title="How you compare" aside={group.label} className="mt-4" footer={`${group.n.toLocaleString("fi-FI")} ${SOURCE}`}>
       {quick.map((m) => (

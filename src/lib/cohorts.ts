@@ -13,7 +13,7 @@ const METRICS = [
   { id: "restaurants", label: "Restaurants", cats: ["Restaurants"] },
   { id: "groceries", label: "Groceries", cats: ["Groceries"] },
   { id: "transport", label: "Transport", cats: ["Transportation"] },
-  { id: "bills", label: "Utility bills", cats: ["Utilities"] },
+  { id: "bills", label: "Utilities", cats: ["Utilities"] },
   { id: "rent", label: "Rent", cats: ["Housing"] },
 ] as const;
 
