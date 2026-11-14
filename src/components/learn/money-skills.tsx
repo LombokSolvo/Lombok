@@ -17,7 +17,6 @@ export function MoneySkills() {
     <Group
       title="Money skills"
       aside={`${count} of ${packs.length} done${streak > 1 ? ` · ${streak}-day streak` : ""}`}
-      footer="Short packs in the chat, worked out with your own numbers. Solvo explains how things work; it doesn't give investment advice."
     >
       <div className="flex gap-1 px-4 pt-3.5" aria-hidden>
         {packs.map((k) => (

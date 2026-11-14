@@ -149,8 +149,8 @@ export function OtherBanks({
   const footer = sandbox.enabled
     ? "Optional. Banks connect for real through Enable Banking; the demo uses its test banks with example data. Investing platforms are simulated."
     : compact
-      ? "Optional. Solvo works on its own; another bank adds to the picture. Demo: simulated, with example data."
-      : "Optional. Solvo works on its own; another bank adds to the picture. Demo: connecting is simulated and uses example data. You can remove a bank any time.";
+      ? "Demo: connecting is simulated and uses example data."
+      : "Demo: connecting is simulated and uses example data.";
 
   const consent = (() => {
     if (!choice) return null;
