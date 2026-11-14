@@ -127,8 +127,7 @@ function FundsSlab() {
           <>
             <span className="num font-semibold text-mint">
               {signed(PF.gain)} ({signedPct(PF.gainPct)})
-            </span>{" "}
-            on the {eur.format(PF.invested)} you put in
+            </span>
           </>
         )}
       </p>
