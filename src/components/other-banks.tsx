@@ -58,7 +58,6 @@ const action = `${row} font-medium text-primary disabled:opacity-50`;
 export function OtherBanks({
   banks,
   view,
-  compact = false,
   title = "Other banks",
   sandbox = { enabled: false, linked: null, notice: null },
   live,
