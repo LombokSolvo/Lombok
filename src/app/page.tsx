@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ArrowRight, CalendarDays, MessageCircle } from "lucide-react";
-import { LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
+import { LiveWeekBar, LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { AllBanksCard } from "@/components/all-banks-card";
 import { LinkedBankCard } from "@/components/linked-bank-card";
 import { LiveNordnetCard } from "@/components/live-nordnet-card";
@@ -55,7 +55,6 @@ async function HomeScreen() {
   const splitTotal = split.reduce((sum, x) => sum + x.amount, 0) || 1;
   const share = (v: number) => `${Math.round((Math.max(0, v) / Math.max(s.incomePerMonth, 1)) * 100)}% of salary`;
   const over = s.remaining < 0;
-  const usedShare = Math.min(1, Math.max(0, s.spentThisWeek / s.weeklyBudget));
   // The week strip follows the REAL weekday. The demo data's own "today" is a Wednesday, which would show on a Saturday.
   const realToday = todayIso();
   const today = (new Date(`${realToday}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
@@ -99,12 +98,7 @@ async function HomeScreen() {
           </p>
 
           <div className="mt-5">
-            <div className="h-2 w-full overflow-hidden rounded-full bg-white/12">
-              <div
-                className={`animate-fill h-full rounded-full ${over ? "bg-[#ff8a70]" : "bg-mint"}`}
-                style={{ width: `${usedShare * 100}%` }}
-              />
-            </div>
+            <LiveWeekBar spent={s.spentThisWeek} budget={s.weeklyBudget} />
             <div className="mt-2 grid grid-cols-7 text-center text-[11px] font-medium">
               {DAYS.map((d, i) => (
                 <span

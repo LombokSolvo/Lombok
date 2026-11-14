@@ -18,13 +18,32 @@ export function useCancelledWeekly() {
 
 const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-/** A weekly amount (remaining or budget) plus what approved switches free up each week, minus what the calendar sets aside. */
-export function LiveWeeklyEuro({ base, signed = false }: { base: number; signed?: boolean }) {
+/** What the person's choices in this browser add to (or take off) the weekly numbers, EUR a week. */
+function useWeeklyDelta() {
   // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume; what the person's
   // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why).
-  const value =
-    base + weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
+  return weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
+}
+
+/** A weekly amount (remaining or budget) plus what approved switches free up each week, minus what the calendar sets aside. */
+export function LiveWeeklyEuro({ base, signed = false }: { base: number; signed?: boolean }) {
+  const value = base + useWeeklyDelta();
   return <>{signed && value < 0 ? `−${eur.format(-value)}` : eur.format(value)}</>;
+}
+
+/** The bar under safe-to-spend: this week's spending as a share of the live weekly budget, so it moves with the number. */
+export function LiveWeekBar({ spent, budget }: { spent: number; budget: number }) {
+  const live = budget + useWeeklyDelta();
+  const over = spent > live;
+  const share = live > 0 ? Math.min(1, Math.max(0, spent / live)) : 1;
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-white/12">
+      <div
+        className={`animate-fill h-full rounded-full transition-[width,background-color] duration-500 ease-out ${over ? "bg-[#ff8a70]" : "bg-mint"}`}
+        style={{ width: `${share * 100}%` }}
+      />
+    </div>
+  );
 }
 
 /** One line under the safe-to-spend number once a switch is approved. Renders nothing otherwise. */
