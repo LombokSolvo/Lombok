@@ -2,7 +2,7 @@
 // consent flow and the same session and transaction calls as the real thing, but the bank is a test bank and the accounts hold
 // example data. So a judge can connect a bank in the app and see the whole integration work, with no account and no real money.
 //
-// Not the same as src/lib/live-nordea.ts, which is the owner's REAL Nordea, local only. Rules that keep the two apart:
+// Not the same as src/lib/live-banks.ts, which is the owner's REAL banks (Nordea, Trade Republic, Revolut), local only. Rules that keep the two apart:
 //  - It needs its own application (ENABLE_SANDBOX_APP_ID, ENABLE_SANDBOX_KEY). The production key is never read here, and before
 //    any consent this asks Enable Banking which environment the application is in and refuses anything but SANDBOX.
 //  - Nothing is stored on the server. The session lives in the visitor's own browser as an encrypted httpOnly cookie, and what the

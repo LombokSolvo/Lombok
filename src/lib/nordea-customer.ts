@@ -1,5 +1,5 @@
 // Turns Enable Banking transactions (the owner's own Nordea accounts) into the DemoCustomer shape the whole app reads.
-// Pure: no file or network access, so the in-app connect flow (src/lib/live-nordea.ts) and the command-line builder
+// Pure: no file or network access, so the in-app connect flow (src/lib/live-banks.ts) and the command-line builder
 // (scripts/build-nordea-customer.mjs) share one set of rules. Only `import type` from the app, so Node can load this file directly.
 //
 // Privacy: account ids are pseudonymised (A, B), IBANs are never copied, and names of private persons are replaced with
@@ -46,6 +46,11 @@ const RULES: [string, RegExp][] = [
   ["Travel", /TRIP COM|BOOKING|AIRBNB|FINNAIR|RYANAIR|HOTEL|ECPAY|CTBC|TAISHIN|ROOM ABROAD|KLOOK|HOSTEL|AIRLINES|EASYJET/],
   ["Lifestyle", /STADIUM|ZARA|H&M|\bHM\b|LINDEX|SPORT|PARTURI|KAMPAAMO|NIKOTIINI|SUMUP|ZETTLE|AMNESTY|SKI RY|SECOND HAND|KLARNA|TRUSTLY/],
 ];
+// Money moving to or from an investing platform, and the savings-plan or securities lines a broker-bank like Trade Republic books on
+// its own cash account. That is saving, never spending. Best effort: matched on names and wording, so check it on the first real sync.
+const INVESTING = /NORDNET|TRADE REPUBLIC|SCALABLE|LIGHTYEAR|DEGIRO|ETORO|INTERACTIVE BROKERS|SAXO|SAVINGS PLAN|SPARPLAN|WERTPAPIER|SECURITIES|\bISIN\b/;
+// Pay that is not coded as "Palkka" (only Nordea Finland codes it): wording in the payment says so.
+const PAY = /SALARY|PALKKA|PAYROLL|GEHALT|LOHN|WAGES/;
 const CORPORATE = /\b(OY|OYJ|AB|ABP|LTD|LLC|INC|RY|KY|GMBH|AS|ASA|BANK|PANKKI|KOULU|SÄÄTIÖ|ELÄKELAITOS|SERVICE|SERVICES|SHOP|STORE|MARKET|CAFE|COM|WWW)\b/;
 
 const uc = (s: string | undefined) => (s ?? "").toUpperCase();
@@ -69,7 +74,7 @@ export type BuildResult = {
 };
 
 /** `accounts` is one array of transactions per account, in the order the bank listed the accounts. */
-export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | null)[] = []): BuildResult {
+export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | null)[] = [], id = "ME-NORDEA"): BuildResult {
   const raw = accounts.flatMap((txs, i) => txs.map((t) => ({ ...t, _acc: letter(i) })));
 
   const rows: Tx[] = raw
@@ -89,8 +94,9 @@ export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | nul
       let category: string;
       if (code === "Oma siirto") category = "Transfer";
       else if (code === "Palkka" || code === "Opintotuki") category = "Salary"; // regular income: pay and the study grant
-      else if (/NORDNET/.test(hay)) category = debit ? "Invest Deposit" : "Invest Withdraw";
+      else if (INVESTING.test(hay)) category = debit ? "Invest Deposit" : "Invest Withdraw";
       else if (p2p) category = "P2P";
+      else if (!debit && PAY.test(hay)) category = "Salary";
       else if (!debit && code !== "Korjaus") category = "Other Income";
       else if (/^NORDEA BANK/.test(uc(counterparty)) && debit) category = "Card bill";
       else if (/ATM/i.test(code)) category = "Cash";
@@ -148,7 +154,7 @@ export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | nul
 
   return {
     customer: {
-      id: "ME-NORDEA",
+      id,
       postalCode: "",
       age: 0,
       asOf,

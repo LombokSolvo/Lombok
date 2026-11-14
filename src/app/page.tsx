@@ -68,7 +68,7 @@ async function HomeScreen() {
         <OnboardingGate />
         {local && (
           <p className="mb-2 rounded-xl bg-[#5a1a12] px-3 py-2 text-center text-[12px] font-medium text-white">
-            My Nordea data, local only. Do not share or record this screen.
+            Your real bank data, local only. Do not share or record this screen.
           </p>
         )}
         <header className="flex h-11 items-center justify-between">

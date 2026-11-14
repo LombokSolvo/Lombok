@@ -39,7 +39,7 @@ export function readBankNameCookie(): string {
 }
 
 // Finland's banks as Enable Banking lists them (docs, 14 Nov 2026), shown when the live list is not set up. Connecting one is simulated.
-export const FALLBACK_BANKS = ["OP", "Nordea", "S-Pankki", "Danske Bank", "Säästöpankki", "Aktia", "Ålandsbanken", "POP Pankki", "Oma Säästöpankki"];
+export const FALLBACK_BANKS = ["OP", "Nordea", "S-Pankki", "Danske Bank", "Säästöpankki", "Aktia", "Ålandsbanken", "POP Pankki", "Oma Säästöpankki", "Revolut", "Trade Republic"];
 
 export const parsePlatform = (raw: string | undefined | null): Platform => {
   const v = raw ? decodeURIComponent(raw) : "";
