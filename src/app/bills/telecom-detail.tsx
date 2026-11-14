@@ -15,7 +15,7 @@ import {
 import { SAVED_TELECOM_DB, domainOf, type TelecomDb } from "@/lib/market";
 import { MarketAgentCard, agentHasRun } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
-import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
+import { ApproveSheet, DoneView, EditField, InfoRow, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
@@ -112,11 +112,14 @@ export function TelecomDetail(props: {
   }
 
   const set = (k: keyof TelecomTerms) => (v: number | null) => setTerms((t) => ({ ...t, [k]: Math.max(0, v ?? 0) }));
+  // An emptied speed counts as unknown (1000 Mbit/s in the comparison) until the person types one.
+  const setSpeed = (k: "lineSpeedMbps" | "homeSpeedMbps") => (v: number | null) =>
+    setTerms((t) => ({ ...t, [k]: v && v > 0 ? v : undefined }));
 
   return (
     <div className="flex flex-col pb-24">
       <PageTitle title="Your phone and internet">
-        {r.supplier}, {r.product}. Valid until further notice, one month&apos;s notice.
+        Your current contract, as read from your latest e-invoice.
       </PageTitle>
 
       {ran && (
@@ -136,9 +139,18 @@ export function TelecomDetail(props: {
       )}
 
       <ReadFields badge={props.badge}>
+        <InfoRow label="Operator">{r.supplier}</InfoRow>
+        <InfoRow label="Contract">{r.product.split(/\s*(?:&|\+)\s*/).map((part, i) => <span key={i} className="block">{part}</span>)}</InfoRow>
+        <InfoRow label="Type">Valid until further notice</InfoRow>
+        <InfoRow label="Notice period">One month</InfoRow>
+        <InfoRow label="Latest invoice">
+          {eur2.format(r.total)}, due {fmtDate(r.dueDate)}
+        </InfoRow>
         <EditField label="Mobile lines" value={terms.lines} unit="lines" step="1" min={0} onChange={set("lines")} />
         <EditField label="Price per line" value={terms.perLine} unit="€/mo" min={0} onChange={set("perLine")} />
+        <EditField label="Mobile speed" value={terms.lineSpeedMbps ?? null} unit="Mbit/s" step="1" min={0} onChange={setSpeed("lineSpeedMbps")} />
         <EditField label="Home internet" value={terms.homeInternet} unit="€/mo" min={0} onChange={set("homeInternet")} />
+        <EditField label="Home internet speed" value={terms.homeSpeedMbps ?? null} unit="Mbit/s" step="1" min={0} onChange={setSpeed("homeSpeedMbps")} />
       </ReadFields>
 
       <MarketAgentCard
