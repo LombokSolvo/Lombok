@@ -100,7 +100,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
             const iso = isoDay(year, month, d);
             const evs = byDate.get(iso) ?? [];
             const isToday = iso === asOf;
-            // A trip of several days is one long line from its first day to its last, with the icon at the right end. The line is
+            // A trip of several days is one long line from its first day to its last, with the icon at the right end, in its own lane below the markers. The line is
             // drawn per day cell: from the middle of the first day, across the full width of the days between, to the icon in the
             // middle of the last day, and it carries on at the start of the next week if the trip wraps.
             const span = countedForecast.find((f) => f.endDate && f.date <= iso && iso <= f.endDate);
@@ -113,24 +113,27 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
                 type="button"
                 onClick={() => setOpenDay(iso)}
                 aria-label={`${dayName.format(parse(iso))}${evs.length ? `, ${evs.length} ${evs.length === 1 ? "event" : "events"}` : ""}${span && !spanStart ? `, ${span.label} continues` : ""}`}
-                className="group relative flex h-[60px] w-full flex-col items-center justify-start gap-0.5 pt-1.5 text-[15px]"
+                className={`group relative flex w-full flex-col items-center justify-start gap-0.5 pt-1.5 text-[15px] ${span ? "h-[80px]" : "h-[60px]"}`}
               >
                 <span aria-hidden className={`absolute inset-y-0 left-1/2 w-12 -translate-x-1/2 rounded-xl group-active:bg-muted ${isToday ? "bg-accent ring-1 ring-primary/40" : ""}`} />
                 <span className={`num relative ${isToday ? "font-semibold" : ""}`}>{d}</span>
                 <span className="relative flex h-[22px] w-full items-center justify-center gap-0.5">
-                  {span && (
-                    <span
-                      aria-hidden
-                      className={`absolute inset-y-[8px] bg-warn/35 ${spanStart ? "left-1/2 rounded-l-full" : "left-0"} ${spanEnd ? "right-1/2 rounded-r-full" : "right-0"}`}
-                    />
-                  )}
                   {evs.some((e) => e.kind === "in") && <MoneyBadge kind="in" size="sm" />}
                   {evs.some((e) => e.kind === "out" && !e.forecast && e.counted !== false) && <MoneyBadge kind="out" size="sm" />}
                   {[...new Set(singles.map((e) => (e.forecast as CountedItem).category))].slice(0, 2).map((c) => (
                     <CategoryIcon key={c} category={c} size="sm" />
                   ))}
-                  {span && spanEnd && <CategoryIcon category={span.category} size="sm" />}
                 </span>
+                {/* The trip has its own lane under the day's markers, so a bill on the same day never sits on the line. */}
+                {span && (
+                  <span className="relative flex h-[22px] w-full items-center justify-center">
+                    <span
+                      aria-hidden
+                      className={`absolute inset-y-[8px] bg-warn/35 ${spanStart ? "left-1/2 rounded-l-full" : "left-0"} ${spanEnd ? "right-1/2 rounded-r-full" : "right-0"}`}
+                    />
+                    {spanEnd && <CategoryIcon category={span.category} size="sm" />}
+                  </span>
+                )}
               </button>
             );
           })}
