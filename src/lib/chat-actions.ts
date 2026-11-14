@@ -7,6 +7,7 @@ export type ChatView = "home" | "bills" | "save" | "calendar" | "costs" | "compa
 export type ChatAction =
   | { kind: "cancel_subscription"; id: string; name: string; monthly: number }
   | { kind: "change_plan"; monthly: number }
+  | { kind: "add_goal"; label: string; target: number; saved: number; months: number; monthly: number } // EUR a month to the savings account
   | { kind: "switch_bill"; bill: "electricity" | "telecom"; supplier?: string; yearlySaving?: number }
   | { kind: "open"; view: ChatView }
   | { kind: "learn"; pack: "electricity" | "fees" | "buffer" }; // a Money skills lesson, played in the chat
@@ -16,6 +17,7 @@ export type ChatState = {
   cancelled: string[]; // subscription ids
   planMonthly: number | null; // the current saving plan, EUR a month
   switched: ("electricity" | "telecom")[];
+  goals: { label: string; target: number; saved: number; monthly: number }[]; // the person's savings goals
 };
 
 export const VIEW_HREF: Record<ChatView, string> = {
@@ -43,7 +45,7 @@ export const LAST_PAGE_KEY = "solvo.last-page";
 
 /** Same action twice in one answer shows once. */
 export const actionKey = (a: ChatAction) =>
-  a.kind === "cancel_subscription" ? `${a.kind}:${a.id}` : a.kind === "switch_bill" ? `${a.kind}:${a.bill}` : a.kind === "open" ? `${a.kind}:${a.view}` : a.kind === "learn" ? `${a.kind}:${a.pack}` : a.kind;
+  a.kind === "cancel_subscription" ? `${a.kind}:${a.id}` : a.kind === "switch_bill" ? `${a.kind}:${a.bill}` : a.kind === "open" ? `${a.kind}:${a.view}` : a.kind === "learn" ? `${a.kind}:${a.pack}` : a.kind === "add_goal" ? `${a.kind}:${a.label}:${a.target}` : a.kind;
 
 /** Questions to offer under the chat input, by the page the person came from. */
 export function suggestionsFor(from: string, hasDemoExtras: boolean): string[] {

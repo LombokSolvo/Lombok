@@ -37,6 +37,7 @@ async function Save() {
       fundDeposits={fundTx.filter((t) => t.amount < 0).length}
       savingsGoal={DEFAULT_SAVINGS_GOAL_PER_MONTH}
       hasFunds={mode === "aino"}
+      mode={mode}
     />
   );
 }

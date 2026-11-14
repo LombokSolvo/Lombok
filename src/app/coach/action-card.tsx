@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Check, GraduationCap, PiggyBank, Repeat, Zap, Wifi } from "lucide-react";
+import { ArrowUpRight, Check, GraduationCap, PiggyBank, Repeat, Target, Zap, Wifi } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { IconTile, eur, eur2 } from "@/components/solvo/ui";
 import { AINO_PLAN } from "@/data/portfolio";
 import { DEFAULT_SAVINGS_GOAL_PER_MONTH } from "@/lib/coach";
 import { VIEW_HREF, VIEW_LABEL, type ChatAction, type ChatState } from "@/lib/chat-actions";
 import type { DemoMode } from "@/lib/demo-mode";
+import { addGoal, readGoals, removeGoal, useGoals, withSavingsAccount } from "@/lib/goals-store";
 import { PACK_META, type PackId } from "@/lib/learn";
 import {
   WEEKS_PER_YEAR,
@@ -40,6 +41,7 @@ export function chatState(mode: DemoMode): ChatState {
     cancelled: Object.keys(readCancelledSubs()),
     planMonthly: currentPlan(mode, readSavingsPlan())?.monthly ?? null,
     switched: (["electricity", "telecom"] as const).filter((b) => sw[b]),
+    goals: readGoals(mode).map(({ label, target, saved, monthly }) => ({ label, target, saved, monthly })),
   };
 }
 
@@ -157,6 +159,45 @@ function ChangePlan({ a, mode }: { a: Extract<ChatAction, { kind: "change_plan" 
   );
 }
 
+function AddGoal({ a, mode }: { a: Extract<ChatAction, { kind: "add_goal" }>; mode: DemoMode }) {
+  const stored = useSavingsPlan();
+  const switches = useSwitches();
+  const goals = useGoals(mode);
+  const [added, setAdded] = useState<{ id: string; plan: SavingsPlan | null } | null>(null);
+  const done = Boolean(added && goals.some((g) => g.id === added.id));
+  const plan = currentPlan(mode, stored);
+  const next = withSavingsAccount(plan, a.monthly, Math.floor(monthlyFreed(switches)));
+  const lessPerWeek = weekly((next?.fromBudget ?? 0) - (plan?.fromBudget ?? 0));
+  return (
+    <Card
+      icon={<Target />}
+      title={`Add goal: ${a.label}, ${eur.format(a.target)}`}
+      subtitle={`${eur.format(a.monthly)} a month to your savings account for ${a.months} months.${lessPerWeek >= 0.5 ? ` ${eur.format(lessPerWeek)} less to spend a week.` : ""}`}
+      done={done}
+      doneText={`${a.label} added to your goals`}
+      onUndo={() => {
+        if (!added) return;
+        removeGoal(mode, added.id);
+        if (added.plan) approveSavingsPlan(added.plan);
+        else cancelSavingsPlan();
+        setAdded(null);
+      }}
+    >
+      <button
+        type="button"
+        className={actionButton}
+        onClick={() => {
+          const g = addGoal(mode, { kind: "other", label: a.label, target: a.target, saved: a.saved, monthly: a.monthly });
+          setAdded({ id: g.id, plan: stored });
+          if (next) approveSavingsPlan(next);
+        }}
+      >
+        Add goal
+      </button>
+    </Card>
+  );
+}
+
 function SwitchBill({ a }: { a: Extract<ChatAction, { kind: "switch_bill" }> }) {
   const done = Boolean(useSwitches()[a.bill]);
   const what = a.bill === "electricity" ? "electricity" : "phone and internet";
@@ -195,6 +236,8 @@ export function ActionCard({ action, mode, onLearn }: { action: ChatAction; mode
       return <CancelSubscription a={action} />;
     case "change_plan":
       return <ChangePlan a={action} mode={mode} />;
+    case "add_goal":
+      return <AddGoal a={action} mode={mode} />;
     case "switch_bill":
       return <SwitchBill a={action} />;
     case "open":

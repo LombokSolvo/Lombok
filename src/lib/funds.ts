@@ -72,7 +72,21 @@ export const FUNDS: FundOption[] = [
   f("metsa", "Metsä A", "Finnish forests", "Special", 1.5, 2, 4.5),
 ];
 
-export const fundById = (id: string) => FUNDS.find((f) => f.id === id) ?? FUNDS[0];
+// A saving plan can also move money to the person's own savings account (no fee, no return counted: the app states
+// no interest rate). It is not a fund and never shows in the fund picker.
+export const SAVINGS_ACCOUNT_ID = "savings-account";
+export const SAVINGS_ACCOUNT: FundOption = {
+  id: SAVINGS_ACCOUNT_ID,
+  name: "Savings account",
+  description: "Your S-Pankki savings account, for goals and a buffer",
+  type: "Bonds",
+  ongoingFeePct: 0,
+  subscriptionFeePct: 0,
+  illustrativeReturnPct: 0,
+};
+export const isSavingsAccount = (id: string) => id === SAVINGS_ACCOUNT_ID;
+
+export const fundById = (id: string) => (isSavingsAccount(id) ? SAVINGS_ACCOUNT : (FUNDS.find((f) => f.id === id) ?? FUNDS[0]));
 
 /** Future value of a monthly deposit after `years`, compounding monthly at `yearlyPct`. */
 export function projectSavings(monthly: number, years: number, yearlyPct: number) {
