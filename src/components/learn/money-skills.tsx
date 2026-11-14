@@ -19,8 +19,9 @@ export function MoneySkills() {
       aside={`${count} of ${packs.length} done${streak > 1 ? ` · ${streak}-day streak` : ""}`}
     >
       <div className="flex gap-1 px-4 pt-3.5" aria-hidden>
-        {packs.map((k) => (
-          <span key={k.id} className={`h-1.5 flex-1 rounded-full ${p.done[k.id] ? "bg-primary" : "bg-muted"}`} />
+        {/* Fills from the left by how many are done, whichever packs they are. */}
+        {packs.map((k, i) => (
+          <span key={k.id} className={`h-1.5 flex-1 rounded-full ${i < count ? "bg-primary" : "bg-muted"}`} />
         ))}
       </div>
       {packs.map((k) => {
