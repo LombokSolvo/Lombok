@@ -21,7 +21,6 @@ import {
   type View,
 } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
-import { plainFormat } from "@/lib/demo-clock";
 import type { LiveStatus } from "@/lib/live-nordea";
 
 // Other banks: opt-in, never assumed. The picker lists every bank Enable Banking offers, per country, with search, plus the person's
@@ -38,7 +37,6 @@ type Step = "closed" | "pick" | "consent" | "waiting";
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
 const COUNTRIES = ["FI", "SE", "NO", "DK", "EE", "DE", "NL", "FR"];
-const day = plainFormat({ day: "numeric", month: "short" });
 const NOTICES: Record<string, string> = {
   connected: "Connected. Your bank now shows on Home.",
   declined: "The approval was cancelled, so nothing was connected.",
@@ -219,7 +217,6 @@ export function OtherBanks({
                 <div className="text-[15px] leading-snug font-medium">{sandbox.linked.bank} connected</div>
                 <div className="mt-0.5 text-[13px] text-muted-foreground">Example data via Enable Banking</div>
               </div>
-              {sandbox.linked.validUntil && <span className="num text-[13px] text-muted-foreground">Until {day(sandbox.linked.validUntil.slice(0, 10))}</span>}
             </div>
             <button type="button" className={action} onClick={() => act("sync")} disabled={busy !== null}>
               <IconTile>{busy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}</IconTile>

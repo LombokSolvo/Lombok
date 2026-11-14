@@ -72,8 +72,6 @@ export function LiveNordea({ status }: { status: LiveStatus }) {
             icon={<IconTile><Landmark /></IconTile>}
             title="Nordea connected"
             subtitle={`${status.accounts} account${status.accounts === 1 ? "" : "s"}, ${status.transactions.toLocaleString("en-GB")} transactions${status.syncedAt ? `, synced ${day(status.syncedAt.slice(0, 10))}` : ""}`}
-            value={status.validUntil ? `Until ${day(status.validUntil.slice(0, 10))}` : undefined}
-            valueSub={status.daysLeft !== null && status.daysLeft <= 14 ? (status.daysLeft > 0 ? `${status.daysLeft} days left, renew soon` : "Expired, connect again") : undefined}
           />
           <button type="button" className={action} onClick={() => run("sync")} disabled={busy !== null}>
             <IconTile>{busy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}</IconTile>
