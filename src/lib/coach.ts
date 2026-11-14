@@ -60,6 +60,21 @@ export function safeToSpend(c: DemoCustomer, savingsGoalPerMonth = DEFAULT_SAVIN
   };
 }
 
+/**
+ * This week's everyday (basket 3) spending day by day: the `daysSoFar` days before asOf, and asOf itself. Home's week chart and
+ * its number read this, so the bars and the euro amounts always describe the same days.
+ */
+export function weekSoFar(c: DemoCustomer, daysSoFar: number): { daily: number[]; spent: number } {
+  const end = Date.parse(`${c.asOf}T00:00:00Z`);
+  const daily = Array.from({ length: daysSoFar + 1 }, (_, i) => {
+    const day = isoDate(new Date(end - (daysSoFar - i) * DAY_MS));
+    return c.transactions
+      .filter((t) => t.date === day && c.basketOf[t.category] === 3)
+      .reduce((s, t) => s - t.amount, 0);
+  });
+  return { daily, spent: daily.reduce((a, b) => a + b, 0) };
+}
+
 export type CategoryShare = { category: string; perYear: number };
 
 export function topCategories(c: DemoCustomer, basket: Basket, n = 3): CategoryShare[] {
