@@ -4,13 +4,18 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, Check, ExternalLink, Home, Landmark, LoaderCircle, Pencil, PiggyBank, Plane, Plus, ReceiptText, ShieldCheck, Sprout, Trash2, Wallet } from "lucide-react";
 import { ApproveSheet, StickyAction } from "@/app/bills/switch-ui";
+import { CalendarConnect } from "@/components/calendar-connect";
+import { useForecast } from "@/components/forecast-ui";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
+import type { GoogleStatus } from "@/lib/google-calendar";
+import type { LinkStatus } from "@/lib/ics-link";
 import { NumberField, Stepper } from "@/components/solvo/fields";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
 import { Sheet } from "@/components/solvo/sheet";
 import { BackButton, Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur } from "@/components/solvo/ui";
 import { CATALOG, HORIZON_LABEL, RISK_WORDS, SAFETY_LABEL, matchFunds, type CatalogFund, type Horizon, type Prefs, type Safety } from "@/lib/fund-match";
+import { totalWithin } from "@/lib/forecast";
 import { saveOnboarding, skipOnboarding } from "@/lib/onboarding-store";
 import { SPANKKI_FUNDS_FETCHED } from "@/lib/spankki-funds";
 import { buildPlan, type Goal, type GoalKind, type PlanBase } from "@/lib/plan";
@@ -136,6 +141,7 @@ export function OnboardingClient({
   askConnect,
   banks,
   view,
+  calendar,
 }: {
   profile: Profile;
   base: Base;
@@ -144,6 +150,7 @@ export function OnboardingClient({
   askConnect: boolean;
   banks: BankId[];
   view: View;
+  calendar: { google: GoogleStatus; link: LinkStatus; notice: string | null };
 }) {
   const router = useRouter();
   const [connect, setConnect] = useState<"ask" | "connecting" | "done">(askConnect ? "ask" : "done");
@@ -165,7 +172,10 @@ export function OnboardingClient({
   const outItems = items.filter((i) => i.kind === "out");
   // The total always equals the bills listed, so the screens agree. Fall back to the data's total only if none were found.
   const fixed = outItems.length || billsEdited ? outItems.reduce((s, i) => s + i.amount, 0) : base.fixedRegularMonthly;
-  const plan = buildPlan({ ...base, incomeMonthly: income, fixedRegularMonthly: fixed, status }, { investsNow, investInterest: interest, goals });
+  // What the calendar expects in the next 30 days (trips, dinners; the person's own edits applied) makes this month's room smaller.
+  const { items: calendarItems, today } = useForecast();
+  const oneOffMonthly = Math.round(totalWithin(calendarItems, today, 30));
+  const plan = buildPlan({ ...base, incomeMonthly: income, fixedRegularMonthly: fixed, status, oneOffMonthly }, { investsNow, investInterest: interest, goals });
   const wantsToInvest = investsNow === true || interest === "yes" || interest === "later";
   const { matches, why } = matchFunds(prefs);
   const saved = CATALOG.filter((f) => savedFunds.includes(f.id));
@@ -316,6 +326,9 @@ export function OnboardingClient({
           </Group>
 
           <OtherBanks banks={banks} view={view} compact />
+
+          {/* Optional: the calendar lets Solvo budget for trips and dinners it sees coming. The person approves in the sheet that opens. */}
+          <CalendarConnect {...calendar} from="onboarding" />
 
           <details className="mt-5 rounded-2xl bg-card px-4 py-3 text-[14px] shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
             <summary className="flex min-h-11 cursor-pointer items-center font-medium">Why we think so</summary>
@@ -514,6 +527,12 @@ export function OnboardingClient({
             {plan.buffer.monthly > 0 && <Row title="Starter buffer" value={<SignedAmount kind="out" value={plan.buffer.monthly} />} />}
             {goals.length > 0 && <Row title="Your savings goals" value={<SignedAmount kind="out" value={plan.goals.reduce((s, g) => s + g.monthly, 0)} />} />}
             <Row title="Sensible to invest" subtitle="Half of what is left" value={`${eur.format(plan.investCeiling)}/mo`} className="font-semibold" />
+            {plan.thisMonth && (
+              <>
+                <Row title="Planned from your calendar" subtitle="Trips and dinners in the next 30 days. Estimates." value={<SignedAmount kind="out" value={plan.thisMonth.oneOff} />} />
+                <Row title="Sensible to invest this month" subtitle="After those" value={`${eur.format(plan.thisMonth.investCeiling)}/mo`} className="font-semibold" />
+              </>
+            )}
           </Group>
 
           <Group title="Do you invest today?" footer={profile.investsMonthly >= 10 ? `We see about ${eur.format(profile.investsMonthly)} a month going to investing.` : undefined}>

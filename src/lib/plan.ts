@@ -24,6 +24,8 @@ export type PlanBase = {
   cashBalance: number | null; // money on the account today, if known
   investsMonthlyToday: number; // money already moving to investing each month
   status: "worker" | "part-time" | "student" | "student-working" | "between-jobs" | "retired";
+  /** One-off costs the person's calendar expects in the next 30 days (a trip, a dinner), from src/lib/forecast.ts. Estimates. */
+  oneOffMonthly?: number;
 };
 
 export type GoalKind = "property" | "trip" | "other";
@@ -64,6 +66,11 @@ export type Allocation = {
   savingsMonthly: number; // to the separate savings account: buffer plus goals
   spendMonthly: number;
   spendWeekly: number; // the weekly budget on the spending account
+  /**
+   * The same month once the calendar's one-off costs are paid, or null when there are none. They come out of what is left after the
+   * buffer and goals, before the invest share, so the standing plan above stays the plan and only this month's room is smaller.
+   */
+  thisMonth: { oneOff: number; left: number; investCeiling: number } | null;
   notes: string[];
 };
 
@@ -112,6 +119,15 @@ export function buildPlan(base: PlanBase, answers: Answers): Allocation {
     investCeilingBeforeGoals = down10(Math.max(0, room - bufferMonthly) * INVEST_SHARE);
   }
 
+  let thisMonth: Allocation["thisMonth"] = null;
+  const oneOff = Math.max(0, base.oneOffMonthly ?? 0);
+  if (oneOff > 0) {
+    const left = Math.max(0, remaining - oneOff);
+    const canInvest = investCeiling > 0 || investCeilingBeforeGoals > 0;
+    thisMonth = { oneOff: r0(oneOff), left: r0(left), investCeiling: canInvest ? down10(left * INVEST_SHARE) : 0 };
+    notes.push(`Your calendar shows about €${r0(oneOff)} of trips, dinners and events in the next 30 days (estimates). That is taken from what is left before investing.`);
+  }
+
   const current = Math.max(0, base.investsMonthlyToday);
   let investMonthly = 0;
   if (answers.investsNow) {
@@ -144,6 +160,7 @@ export function buildPlan(base: PlanBase, answers: Answers): Allocation {
     savingsMonthly,
     spendMonthly,
     spendWeekly: r0(spendMonthly / WEEKS_PER_MONTH),
+    thisMonth,
     notes,
   };
 }

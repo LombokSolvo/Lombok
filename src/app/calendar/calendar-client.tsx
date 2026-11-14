@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Repeat, Trash2 } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, Pencil, Repeat, Trash2 } from "lucide-react";
+import { CategoryIcon, ForecastEditSheet, useForecast } from "@/components/forecast-ui";
 import type { DayResult } from "@/app/api/day/route";
 import { NumberField } from "@/components/solvo/fields";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
@@ -9,6 +10,7 @@ import { Sheet } from "@/components/solvo/sheet";
 import { BackLink, Group, PAGE, PageTitle, Row, TopBar, eur } from "@/components/solvo/ui";
 import { addCustomEvent, removeCustomEvent, useCustomEvents } from "@/lib/calendar-store";
 import { plainFormat, shiftIso } from "@/lib/demo-clock";
+import type { CountedItem } from "@/lib/forecast";
 import { useOnboarding } from "@/lib/onboarding-store";
 import { daysIn, eventsForMonth, isoDay, ordinal, type CustomEvent, type DayEvent, type Item } from "@/lib/schedule";
 
@@ -35,12 +37,16 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   const [month, setMonth] = useState(today.getUTCMonth());
   const [openDay, setOpenDay] = useState<string | null>(null);
 
-  const events = eventsForMonth(items, custom, year, month);
+  const { items: forecast, mode, reserve } = useForecast();
+  const countedForecast = forecast.filter((f) => f.counted && f.date >= asOf);
+  const events = eventsForMonth(items, custom, year, month, forecast);
   const byDate = new Map<string, DayEvent[]>();
   for (const e of events) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
 
-  const totalIn = events.filter((e) => e.kind === "in").reduce((s, e) => s + e.amount, 0);
-  const totalOut = events.filter((e) => e.kind === "out").reduce((s, e) => s + e.amount, 0);
+  // Calendar items the person switched off stay visible (so they can be switched back on) but are not counted.
+  const counted = events.filter((e) => e.counted !== false);
+  const totalIn = counted.filter((e) => e.kind === "in").reduce((s, e) => s + e.amount, 0);
+  const totalOut = counted.filter((e) => e.kind === "out").reduce((s, e) => s + e.amount, 0);
 
   const first = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7; // Monday first
   const cells = [...Array.from({ length: first }, () => 0), ...Array.from({ length: daysIn(year, month) }, (_, i) => i + 1)];
@@ -56,6 +62,19 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
     <main className={PAGE}>
       <TopBar back={<BackLink href="/" label="Home" />} />
       <PageTitle title="Calendar">Tap any day to see what is expected and what you spent. Add your own dates there.</PageTitle>
+      {mode && (
+        <p className="-mt-2 mb-4 rounded-xl bg-accent px-3 py-2.5 text-[13px] leading-snug text-accent-foreground">
+          <span className="flex items-center gap-2 font-medium">
+            <CalendarClock className="size-4 shrink-0" aria-hidden />
+            {`From ${mode === "google" ? "your Google Calendar" : mode === "link" ? "your calendar link" : "your calendar file"}`}
+          </span>
+          <span className="mt-1 block">
+            {countedForecast.length
+              ? `Icons mark trips, dinners and events. Solvo sets aside ${eur.format(Math.round(reserve))} a week for them, as estimates. Tap a day to change one.`
+              : "Nothing in the next 45 days looks like spending."}
+          </span>
+        </p>
+      )}
 
       <section className="rounded-2xl bg-card p-3 shadow-[0_1px_3px_rgba(15,42,31,0.06)]" aria-label={heading}>
         <div className="flex items-center justify-between">
@@ -87,12 +106,15 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
                 type="button"
                 onClick={() => setOpenDay(iso)}
                 aria-label={`${dayName.format(parse(iso))}${evs.length ? `, ${evs.length} ${evs.length === 1 ? "event" : "events"}` : ""}`}
-                className={`mx-auto flex h-14 w-full max-w-12 flex-col items-center justify-start gap-0.5 rounded-xl pt-1.5 text-[15px] active:bg-muted ${isToday ? "bg-accent font-semibold ring-1 ring-primary/40" : ""}`}
+                className={`mx-auto flex h-[60px] w-full max-w-12 flex-col items-center justify-start gap-0.5 rounded-xl pt-1.5 text-[15px] active:bg-muted ${isToday ? "bg-accent font-semibold ring-1 ring-primary/40" : ""}`}
               >
                 <span className="num">{d}</span>
-                <span className="flex h-[18px] items-center gap-0.5">
+                <span className="flex h-[22px] items-center gap-0.5">
                   {evs.some((e) => e.kind === "in") && <MoneyBadge kind="in" size="sm" />}
-                  {evs.some((e) => e.kind === "out") && <MoneyBadge kind="out" size="sm" />}
+                  {evs.some((e) => e.kind === "out" && !e.forecast && e.counted !== false) && <MoneyBadge kind="out" size="sm" />}
+                  {[...new Set(evs.filter((e) => e.forecast && e.counted !== false).map((e) => (e.forecast as CountedItem).category))].slice(0, 2).map((c) => (
+                    <CategoryIcon key={c} category={c} size="sm" />
+                  ))}
                 </span>
               </button>
             );
@@ -117,11 +139,14 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
       <Group title="This month" footer="Tap a line or any day to open it.">
         {events.length ? (
           events.map((e) => (
-            <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t">
-              <MoneyBadge kind={e.kind} />
+            <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t ${e.counted === false ? "opacity-55" : ""}`}>
+              {e.forecast ? <CategoryIcon category={e.forecast.category} /> : <MoneyBadge kind={e.kind} />}
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] leading-snug font-medium">{e.label}</span>
-                <span className="block text-[13px] text-muted-foreground">{shortDay.format(parse(e.date))}</span>
+                <span className="block text-[13px] text-muted-foreground">
+                  {shortDay.format(parse(e.date))}
+                  {e.forecast && (e.counted === false ? " · not counted" : " · from your calendar · estimate")}
+                </span>
               </span>
               <SignedAmount kind={e.kind} value={e.amount} />
             </button>
@@ -140,6 +165,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
 function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: string; asOf: string; offset: number; events: DayEvent[]; custom: CustomEvent[]; onClose: () => void }) {
   const [adding, setAdding] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<CountedItem | null>(null);
   const past = date <= asOf;
   const [actual, setActual] = useState<DayResult | "loading" | "error">("loading");
 
@@ -156,6 +182,7 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
   }, [date, past, offset]);
 
   if (adding) return <AddSheet date={date} onClose={() => setAdding(false)} />;
+  if (editing) return <ForecastEditSheet item={editing} onClose={() => setEditing(null)} />;
 
   const label = dayName.format(parse(date));
   const box = "overflow-hidden rounded-2xl bg-muted/50";
@@ -169,6 +196,25 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
           <div className={box}>
             {events.length ? (
               events.map((e) => {
+                if (e.forecast) {
+                  const f = e.forecast;
+                  return (
+                    <div key={e.id} className={`flex min-h-14 items-center gap-3 py-2 pr-2 pl-4 [&+&]:border-t ${f.counted ? "" : "opacity-60"}`}>
+                      <CategoryIcon category={f.category} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[15px] leading-snug font-medium">{e.label}</div>
+                        <div className="mt-0.5 text-[13px] text-muted-foreground">
+                          {f.counted ? "From your calendar · estimate" : "Not counted"}
+                          {f.detail ? ` · ${f.detail}` : ""}
+                        </div>
+                      </div>
+                      <SignedAmount kind="out" value={e.amount} />
+                      <button type="button" aria-label={`Change ${e.label}`} onClick={() => setEditing(f)} className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted">
+                        <Pencil className="size-4" aria-hidden />
+                      </button>
+                    </div>
+                  );
+                }
                 const mine = e.source === "you";
                 const repeats = mine && custom.find((c) => c.id === e.id)?.monthly;
                 return (

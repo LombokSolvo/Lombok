@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { clearBanksCookie } from "@/lib/banks";
+import { clearCalendarFile } from "@/lib/calendar-file-store";
 import { resetCalendar } from "@/lib/calendar-store";
+import { resetForecast } from "@/lib/forecast-store";
 import { resetLearn } from "@/lib/learn-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
 import { DEMO_COOKIE, type DemoMode } from "@/lib/demo-mode";
@@ -172,6 +174,8 @@ export function resetDemo() {
   billStore.set(null);
   resetOnboarding();
   resetCalendar();
+  resetForecast();
+  clearCalendarFile();
   clearBanksCookie();
   resetLearn();
 }

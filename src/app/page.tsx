@@ -9,6 +9,7 @@ import { LinkedBankCard } from "@/components/linked-bank-card";
 import { LiveNordnetCard } from "@/components/live-nordnet-card";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
+import { ConnectCalendarNudge, ForecastNote, ForecastProvider } from "@/components/forecast-ui";
 import { UpcomingCard } from "@/components/upcoming-card";
 import { CompareSummary } from "@/components/compare-card";
 import { Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
@@ -16,6 +17,7 @@ import { compareAgainst, ownGroups } from "@/lib/cohorts";
 import { safeToSpend, topCategories } from "@/lib/coach";
 import type { Basket } from "@/lib/demo";
 import { todayIso } from "@/lib/demo-clock";
+import { getCalendarState } from "@/lib/calendar-source";
 import { scheduleFor } from "@/lib/schedule-server";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
@@ -39,6 +41,7 @@ async function HomeScreen() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
   const { base, customer: c, local, real, banks, view, platform, bankName, mode } = await getEffective(await pageMode());
+  const calendar = await getCalendarState();
   const s = safeToSpend(c);
   const schedule = scheduleFor(c);
   const compareGroup = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
@@ -60,6 +63,7 @@ async function HomeScreen() {
 
   return (
     <Screen>
+      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
       <main className={PAGE}>
         <OnboardingGate />
         {local && (
@@ -122,6 +126,7 @@ async function HomeScreen() {
           <p className="mt-4 border-t border-white/10 pt-3 text-[13px] text-white/60">
             {eur.format(s.spentThisWeek)} spent so far this week
           </p>
+          <ForecastNote className="mt-2" />
         </Slab>
 
         {/* The dentist e-invoice and its call are part of Aino's demo story only. */}
@@ -138,6 +143,8 @@ async function HomeScreen() {
         </Suspense>
 
         <UpcomingCard items={schedule.items} today={realToday} />
+
+        <ConnectCalendarNudge />
 
         {/* Where the salary goes: the budget and the three baskets in one card */}
         <Group
@@ -236,6 +243,7 @@ async function HomeScreen() {
           <ResetDemoButton className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4" />
         </footer>
       </main>
+      </ForecastProvider>
     </Screen>
   );
 }

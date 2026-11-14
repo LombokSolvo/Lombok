@@ -95,6 +95,24 @@ try {
     const to = res.headers.get("location") ?? "";
     if (res.status !== 307 || !to.includes("/profile?bank=failed")) throw new Error(`got ${res.status} ${to}`);
   });
+  // Real Google Calendar is local only (SOLVO_GOOGLE=1): on the public app every route is a 404 and Profile offers nothing of it.
+  await check("real Google Calendar routes are off by default", async () => {
+    const post = (path) => fetch(BASE + path, { method: "POST", headers: { Origin: BASE } });
+    const statuses = (await Promise.all(["/api/google/start", "/api/google/sync", "/api/google/disconnect"].map(post))).map((r) => r.status);
+    const callback = await fetch(BASE + "/callback/google?code=x&state=y", { redirect: "manual" });
+    if (statuses.some((s) => s !== 404) || callback.status !== 404) throw new Error(`expected only 404, got ${statuses.join(", ")} and ${callback.status}`);
+    const profile = await (await fetch(BASE + "/profile")).text();
+    if (/Connect Google Calendar|GOOGLE_CLIENT/.test(profile)) throw new Error("Profile offers Google Calendar");
+    if (!profile.includes("Connect calendar")) throw new Error("Profile has no calendar row");
+  });
+  // Nothing is shown from a calendar until a real one is connected: no simulated calendar, no cookie that fakes one.
+  await check("no calendar is shown until a real one is connected", async () => {
+    const home = await (await fetch(BASE + "/", { headers: { Cookie: "solvo_calendar=demo" } })).text();
+    if (home.includes("set aside for your calendar")) throw new Error("Home shows a calendar that was never connected");
+    if (!home.includes("Budget for what is coming")) throw new Error("Home has no way in to connect a calendar");
+    const onboarding = await (await fetch(BASE + "/onboarding")).text();
+    if (!onboarding.includes("Connect calendar")) throw new Error("First-run setup does not offer the calendar");
+  });
   await check("POST /api/coach (offline answer)", async () => {
     const data = await postJson("/api/coach", { messages: [{ role: "user", text: "How much did I spend on restaurants?" }] });
     if (typeof data.answer !== "string" || !data.answer) throw new Error(`unexpected response: ${JSON.stringify(data).slice(0, 200)}`);

@@ -1,8 +1,11 @@
 "use client";
 
+import { CalendarConnect } from "@/components/calendar-connect";
 import { LiveNordea } from "@/components/live-nordea";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
+import type { GoogleStatus } from "@/lib/google-calendar";
+import type { LinkStatus } from "@/lib/ics-link";
 import type { LiveStatus } from "@/lib/live-nordea";
 
 import {
@@ -54,6 +57,7 @@ export function ProfileClient(props: {
   view: View;
   showBanks: boolean; // the Other banks picker; always on (real Nordea merges into the same picture as any other bank)
   live: LiveStatus; // the real, local-only Nordea connection; renders nothing unless the app runs with SOLVO_LIVE=1
+  calendar: { google: GoogleStatus; link: LinkStatus; notice: string | null }; // the calendar Solvo reads to foresee trips and dinners
   linkedBank: { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null }; // Enable Banking sandbox bank
 }) {
   const mode = useDemoMode();
@@ -241,6 +245,8 @@ export function ProfileClient(props: {
       <LiveNordea status={props.live} />
 
       {(props.showBanks || props.linkedBank.enabled) && <OtherBanks banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
+
+      <CalendarConnect {...props.calendar} />
 
       <Group
         title="Your data"
