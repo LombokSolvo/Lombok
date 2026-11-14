@@ -6,6 +6,13 @@ export type View = "all" | "spankki";
 
 export const BANKS_COOKIE = "solvo_banks";
 export const VIEW_COOKIE = "solvo_view";
+// Set once the first-run "Connect your account" step finishes, so coming back from Google or a bank doesn't ask again.
+export const CONNECTED_COOKIE = "solvo_connected";
+
+/** Browser only. Remembers that the person connected their S-Pankki account in the first run. */
+export function writeConnectedCookie() {
+  document.cookie = `${CONNECTED_COOKIE}=1; path=/; max-age=31536000; samesite=lax`;
+}
 
 export const BANK_INFO: Record<BankId, { name: string }> = {
   nordea: { name: "Nordea" },
@@ -48,6 +55,7 @@ export function clearBanksCookie() {
   document.cookie = `${BANKNAME_COOKIE}=; path=/; max-age=0`;
   document.cookie = `${BANKS_COOKIE}=; path=/; max-age=0`;
   document.cookie = `${VIEW_COOKIE}=; path=/; max-age=0`;
+  document.cookie = `${CONNECTED_COOKIE}=; path=/; max-age=0`;
   // The investing-platform choice of an earlier version, if this browser still has it.
   document.cookie = "solvo_platform=; path=/; max-age=0";
 }

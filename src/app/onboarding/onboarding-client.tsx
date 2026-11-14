@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Check, ExternalLink, Home, Landmark, LoaderCircle, Pencil, PiggyBank, Plane, Plus, ReceiptText, ShieldCheck, Sprout, Trash2, Wallet } from "lucide-react";
+import { Bookmark, Check, ExternalLink, Home, Pencil, PiggyBank, Plane, Plus, ReceiptText, ShieldCheck, Sprout, Trash2, Wallet } from "lucide-react";
 import { ApproveSheet, StickyAction } from "@/app/bills/switch-ui";
 import { CalendarConnect } from "@/components/calendar-connect";
+import { BrandTile, ConnectOverlay, useStages } from "@/components/connect-motion";
 import { useForecast } from "@/components/forecast-ui";
 import { OtherBanks } from "@/components/other-banks";
-import type { BankId, View } from "@/lib/banks";
+import { writeConnectedCookie, type BankId, type View } from "@/lib/banks";
 import type { GoogleStatus } from "@/lib/google-calendar";
 import type { LinkStatus } from "@/lib/ics-link";
 import { NumberField, Stepper } from "@/components/solvo/fields";
@@ -42,6 +43,7 @@ const GOAL_PRESETS: Record<GoalKind, { label: string; target: number; months: nu
 };
 
 const radioRow = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t";
+const CONNECT_STAGES = ["Signed with your bank ID", "Reading 24 months of payments", "Reading your e-invoices", "Building your profile"];
 const enter = "animate-in fade-in slide-in-from-right-4 duration-200 motion-reduce:animate-none";
 
 function Radio({ on }: { on: boolean }) {
@@ -154,6 +156,13 @@ export function OnboardingClient({
 }) {
   const router = useRouter();
   const [connect, setConnect] = useState<"ask" | "connecting" | "done">(askConnect ? "ask" : "done");
+  const connectDone = useStages(CONNECT_STAGES.length, { running: connect === "connecting" });
+  useEffect(() => {
+    if (connect !== "connecting" || connectDone < CONNECT_STAGES.length) return;
+    writeConnectedCookie();
+    const t = window.setTimeout(() => setConnect("done"), 1100); // let the check land before the profile slides in
+    return () => window.clearTimeout(t);
+  }, [connect, connectDone]);
   const [step, setStep] = useState(1);
   const [sheet, setSheet] = useState<SheetName>(null);
   const [status, setStatus] = useState<Status>(profile.status);
@@ -243,7 +252,6 @@ export function OnboardingClient({
     const start = () => {
       if (connect !== "ask") return;
       setConnect("connecting");
-      setTimeout(() => setConnect("done"), 1600);
     };
     return (
       <main className={wrap}>
@@ -253,21 +261,13 @@ export function OnboardingClient({
             We build your plan from your payments and e-invoices.
           </PageTitle>
           <Group title="Solvo will read" footer="Read only. You can disconnect any time.">
-            <Row icon={<IconTile><Landmark /></IconTile>} title="Your account and payments" subtitle="The last 24 months" />
+            <Row icon={<BrandTile brand="spankki" />} title="Your account and payments" subtitle="The last 24 months" />
             <Row icon={<IconTile><ReceiptText /></IconTile>} title="E-invoices from your suppliers" subtitle="Electricity, phone, internet and others" />
             <Row icon={<IconTile><ShieldCheck /></IconTile>} title="Nothing else" subtitle="No passwords, no other banks" />
           </Group>
         </div>
-        <StickyAction onClick={start}>
-          {connect === "connecting" ? (
-            <>
-              <LoaderCircle className="size-[18px] animate-spin" aria-hidden />
-              Connecting…
-            </>
-          ) : (
-            "Connect"
-          )}
-        </StickyAction>
+        <StickyAction onClick={start}>Connect</StickyAction>
+        {connect === "connecting" && <ConnectOverlay brand="spankki" title="Connecting S-Pankki" doneTitle="S-Pankki connected" stages={CONNECT_STAGES} done={connectDone} />}
       </main>
     );
   }

@@ -6,6 +6,7 @@ import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lu
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
 import { LiveBankRows } from "@/components/live-banks";
+import { BrandTile, ConnectOverlay, brandFor, useStages } from "@/components/connect-motion";
 import { Chip, Group, IconTile } from "@/components/solvo/ui";
 import { FALLBACK_BANKS, readBankNameCookie, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
@@ -34,6 +35,7 @@ const GROUPS: { id: Group3; label: string }[] = [
 const groupOf = (kind: string): Group3 => (kind === "Bank" ? "bank" : kind === "Trading platform" ? "invest" : "app");
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
+const SIM_STAGES = ["Signed with your bank ID", "Downloading your transactions", "Matching transfers between banks", "Adding it to your plan"];
 const COUNTRIES = ["FI", "SE", "NO", "DK", "EE", "DE", "NL", "FR"];
 const NOTICES: Record<string, string> = {
   connected: "Connected. Your bank now shows on Home.",
@@ -95,22 +97,33 @@ export function OtherBanks({
     writeBanksCookie(next, view);
     router.refresh();
   };
-  const simulate = (bank: BankId) => {
-    setStep("waiting");
-    window.setTimeout(() => {
-      save([...new Set([...banks, bank])]);
+  const simulate = () => setStep("waiting");
+  const waitDone = useStages(SIM_STAGES.length, { running: step === "waiting" });
+  useEffect(() => {
+    if (step !== "waiting" || waitDone < SIM_STAGES.length) return;
+    const t = window.setTimeout(() => {
+      save([...new Set([...banks, "nordea" as BankId])]);
       setStep("closed");
-    }, 1600);
-  };
-  const go = async (path: string, body?: unknown) => {
+    }, 1100);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, waitDone]);
+  const [opening, setOpening] = useState<string | null>(null); // the bank whose sign-in is opening
+  const openDone = useStages(2, { running: opening !== null, finished: false });
+  const go = async (path: string, body: unknown, name: string) => {
     setStep("closed");
     setBusy("start");
     setError(null);
+    setOpening(name);
+    const began = Date.now();
     const r = await postJson(path, body);
     if (r.ok && typeof r.data.url === "string") {
-      window.location.assign(r.data.url); // the bank's own approval page
+      const url = r.data.url;
+      // Hold the connecting screen a moment so the hand-over to the bank reads as one motion, not a flash.
+      window.setTimeout(() => window.location.assign(url), Math.max(0, 1400 - (Date.now() - began))); // the bank's own approval page
       return;
     }
+    setOpening(null);
     setError(r.ok ? "The bank didn't return an approval address." : r.error);
     setBusy(null);
   };
@@ -124,11 +137,11 @@ export function OtherBanks({
   };
   const confirm = () => {
     if (!choice) return;
-    if (choice.kind === "live") return void go("/api/live/start", { bank: choice.bank });
-    if (sandbox.enabled) return void go("/api/banks/start", { bank: choice.name, country: choice.country });
+    if (choice.kind === "live") return void go("/api/live/start", { bank: choice.bank }, LIVE_BANKS[choice.bank].name);
+    if (sandbox.enabled) return void go("/api/banks/start", { bank: choice.name, country: choice.country }, choice.name);
     writeBankNameCookie(choice.name);
     window.dispatchEvent(new Event(cookieEvent));
-    simulate("nordea");
+    simulate();
   };
 
   // Everything the picker can offer, each in one group. With real banks set up here, the ones in src/lib/live-bank-ids.ts connect for
@@ -186,7 +199,7 @@ export function OtherBanks({
       <Group title={title}>
         {mainBank && (
           <div className={row}>
-            <IconTile><Landmark /></IconTile>
+            <BrandTile brand="spankki" />
             <div className="min-w-0 flex-1">
               <div className="text-[15px] leading-snug font-medium">S-Pankki</div>
               <div className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground">
@@ -201,7 +214,7 @@ export function OtherBanks({
           const name = bankName;
           return (
             <div key={b} className="flex min-h-14 items-center gap-3 py-2 pr-2 pl-4 [&+&]:border-t">
-              <IconTile><Landmark /></IconTile>
+              {brandFor(name) ? <BrandTile brand={brandFor(name)!} /> : <IconTile><Landmark /></IconTile>}
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] leading-snug font-medium">{name}</div>
                 <div className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground">
@@ -300,7 +313,7 @@ export function OtherBanks({
                 }}
                 className={row}
               >
-                <IconTile><Landmark /></IconTile>
+                {brandFor(e.name) ? <BrandTile brand={brandFor(e.name)!} /> : <IconTile><Landmark /></IconTile>}
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-medium">{e.name}</span>
                   {e.sub && <span className="block text-[13px] leading-snug text-muted-foreground">{e.sub}</span>}
@@ -317,13 +330,11 @@ export function OtherBanks({
         <ApproveSheet title={consent.title} points={consent.points} confirmLabel={consent.label} onConfirm={confirm} onCancel={() => setStep("pick")} />
       )}
 
+      {opening && (
+        <ConnectOverlay brand={brandFor(opening) ?? "bank"} title={`Connecting ${opening}`} doneTitle={`Connecting ${opening}`} stages={["Secure connection opened", `Opening ${opening} sign-in`]} done={openDone} />
+      )}
       {step === "waiting" && (
-        <Sheet title="Waiting for your bank" onClose={() => {}} hideDone>
-          <div className="flex items-center gap-3 py-2 text-[15px]" role="status">
-            <Loader2 className="size-5 animate-spin" aria-hidden />
-            Waiting for your approval…
-          </div>
-        </Sheet>
+        <ConnectOverlay brand={brandFor(bankName) ?? "bank"} title={`Connecting ${bankName}`} doneTitle={`${bankName} connected`} stages={SIM_STAGES} done={waitDone} />
       )}
     </>
   );

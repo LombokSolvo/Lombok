@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Landmark, Loader2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { IconTile, Row } from "@/components/solvo/ui";
+import { BrandTile, brandFor } from "@/components/connect-motion";
 import { postJson } from "@/lib/client-request";
 import { plainFormat } from "@/lib/demo-clock";
 import { LIVE_BANKS, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
@@ -69,7 +70,7 @@ export function LiveBankRows({ status }: { status: LiveStatus }) {
         <>
           {connected.map((b) => (
             <div key={b.id} className="flex min-h-14 items-center gap-1 py-2 pr-2 pl-4 [&+&]:border-t">
-              <IconTile><Landmark /></IconTile>
+              {brandFor(b.name) ? <BrandTile brand={brandFor(b.name)!} /> : <IconTile><Landmark /></IconTile>}
               <div className="ml-2 min-w-0 flex-1">
                 <div className="text-[15px] leading-snug font-medium">{b.name}</div>
                 <div className="mt-0.5 flex items-start gap-1 text-[13px] leading-snug text-muted-foreground">

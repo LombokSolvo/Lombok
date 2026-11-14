@@ -246,6 +246,31 @@
   background-size: 200% 100%;
   animation: solvo-shimmer 1.4s linear infinite;
 }
+/* Connecting a bank or calendar: light runs along the line between Solvo and the service, and the service's tile breathes. */
+@keyframes connect-beam {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+@keyframes connect-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+@utility connect-beam {
+  animation: connect-beam 1.1s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@utility connect-ping {
+  animation: connect-ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
