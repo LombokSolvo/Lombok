@@ -7,9 +7,11 @@ import { AINO_PLAN, portfolio, portfolioDaily, portfolioToday, type Point } from
 import { NumberField } from "@/components/solvo/fields";
 import { Sheet } from "@/components/solvo/sheet";
 import { ApproveSheet } from "@/app/bills/switch-ui";
+import { CutList, PlanOverview } from "@/components/plan-overview";
 import { LearnChip } from "@/components/learn/learn-chip";
 import { Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
+import type { Trim } from "@/lib/plan-view";
 import type { DemoMode } from "@/lib/demo-mode";
 import { FUND_TYPES, FUNDS, FUNDS_SOURCE, SAVINGS_ACCOUNT, SAVINGS_ACCOUNT_ID, fundById, isSavingsAccount, projectFund, type FundType } from "@/lib/funds";
 import {
@@ -125,6 +127,9 @@ type Props = {
   savingsGoal: number;
   hasFunds: boolean; // Aino's fund holdings and saving plan are demo data; the new customer has neither
   mode: DemoMode;
+  leftover: number; // EUR a month a usual month leaves before saving
+  trims: Trim[]; // everyday categories well above the person's age group
+  peer: string | null; // the age group's name, "25–34"
 };
 
 function FundsSlab() {
@@ -212,7 +217,17 @@ export function SaveClient(props: Props) {
       )}
     </>
   );
-  const goalsGroup = <Goals mode={props.mode} goals={goals} plan={plan} freed={freed} />;
+  const goalsGroup = <Goals mode={props.mode} goals={goals} plan={plan} freed={freed} title="Where you are" />;
+
+  const funds = plan ? planFunds(plan) : [];
+  const into = [
+    ...(funds.some((f) => !isSavingsAccount(f.fundId)) ? [funds.filter((f) => !isSavingsAccount(f.fundId)).length === 1 ? "one fund" : `${funds.filter((f) => !isSavingsAccount(f.fundId)).length} funds`] : []),
+    ...(savesToAccount ? ["your savings account"] : []),
+  ].join(" and ");
+  const overview = (
+    <PlanOverview planMonthly={plan?.monthly ?? null} target={props.savingsGoal} leftover={props.leftover} mode={props.mode} into={into || "your funds"} />
+  );
+  const cuts = <CutList mode={props.mode} trims={props.trims} peer={props.peer} leftover={props.leftover} target={plan?.monthly ?? props.savingsGoal} />;
 
   const now = !props.hasFunds ? (
     <Group title="Your money">{account}</Group>
@@ -239,15 +254,18 @@ export function SaveClient(props: Props) {
   );
 
   if (plan && !editing) {
-    const funds = planFunds(plan);
     const fromBudget = plan.fromBudget ?? 0;
     return (
       <main className={PAGE}>
         <TopBar />
-        <PageTitle title="Your investments" />
+        <PageTitle title="Your plan">What you are saving towards, where you are now, and how to get there.</PageTitle>
+        {overview}
+        {goalsGroup}
+        {cuts}
+        <h2 className="mt-9 px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">Your investments</h2>
         {now}
         <Group
-          title="Your saving plan"
+          title="What goes where"
           aside={`${eur.format(plan.monthly)} a month`}
           footer={fromBudget > 0 ? `${weekly(fromBudget)} less to spend a week.` : undefined}
         >
@@ -274,7 +292,6 @@ export function SaveClient(props: Props) {
         <button type="button" onClick={() => setEditing(true)} className={`${primaryButton} mt-6`}>
           Edit plan
         </button>
-        {goalsGroup}
       </main>
     );
   }
@@ -287,6 +304,8 @@ export function SaveClient(props: Props) {
       next={next}
       now={now}
       goals={goalsGroup}
+      overview={overview}
+      cuts={cuts}
       onDone={() => {
         setEditing(false);
         window.scrollTo({ top: 0 });
@@ -297,7 +316,7 @@ export function SaveClient(props: Props) {
 
 /** Pick funds and monthly amounts, then approve. Starts from the current plan when editing one. */
 function PlanEditor(
-  props: Props & { plan: SavingsPlan | null; freed: number; next: string; now: React.ReactNode; goals: React.ReactNode; onDone: () => void },
+  props: Props & { plan: SavingsPlan | null; freed: number; next: string; now: React.ReactNode; goals: React.ReactNode; overview: React.ReactNode; cuts: React.ReactNode; onDone: () => void },
 ) {
   const { plan, freed } = props;
   const [rows, setRows] = useState<PlanFund[]>(() =>
@@ -320,16 +339,18 @@ function PlanEditor(
   return (
     <main className={PAGE}>
       <TopBar />
-      <PageTitle title={plan ? "Edit your plan" : "Your investments"}>
+      <PageTitle title={plan ? "Edit your plan" : "Your plan"}>
         {plan
           ? "Change the amounts, add a fund or your savings account, or take one out. Nothing changes until you approve."
           : props.hasFunds
             ? "How your S-Pankki funds are doing, and a monthly plan to keep them growing."
-            : "You don't have funds yet. A small monthly plan is an easy way to start."}
+            : "You don't have a plan yet. A small monthly plan is an easy way to start."}
       </PageTitle>
 
-      {!plan && props.now}
+      {!plan && props.overview}
       {!plan && props.goals}
+      {!plan && props.cuts}
+      {!plan && props.now}
 
       {!plan && (
         <h2 className="mt-9 px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">
@@ -338,7 +359,7 @@ function PlanEditor(
       )}
 
       <Group
-        title="Your plan"
+        title="Funds in the plan"
         aside={`${eur.format(total)} a month`}
         footer={
           rows.length === 0
@@ -495,11 +516,11 @@ function CheckRow({ on, onClick, title, subtitle, aside }: { on: boolean; onClic
 
 /** The person's savings goals with their progress, and adding or changing one. Each goal's monthly amount goes to the
  * savings account in the saving plan, so adding a goal is approved on its sheet like any plan change. */
-function Goals({ mode, goals, plan, freed }: { mode: DemoMode; goals: SavingsGoal[]; plan: SavingsPlan | null; freed: number }) {
+function Goals({ mode, goals, plan, freed, title }: { mode: DemoMode; goals: SavingsGoal[]; plan: SavingsPlan | null; freed: number; title: string }) {
   const [open, setOpen] = useState<SavingsGoal | "new" | null>(null);
   return (
     <>
-      <Group title="Your goals" className="mt-9" aside={goals.length ? `${eur.format(goals.reduce((s, g) => s + g.monthly, 0))} a month` : undefined}>
+      <Group title={title} className="mt-9" aside={goals.length ? `${eur.format(goals.reduce((s, g) => s + g.monthly, 0))} a month` : undefined}>
         {goals.map((g) => (
           <GoalRow key={g.id} g={g} onOpen={() => setOpen(g)} />
         ))}
