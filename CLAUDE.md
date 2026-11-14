@@ -87,6 +87,7 @@ Cloned from https://github.com/hackjunction/Junction-2026-S-pankki into `data/s-
 - Seed realistic demo data instead of building admin or CRUD screens.
 - Don't add dependencies or refactor unless asked.
 - Secrets go in `.env.local`, never committed.
+- Paid API routes (coach chat, e-invoice and photo reading, market agent) go through `checkLimit()` in `src/lib/rate-limit.ts` (in memory: per visitor cookie `solvo_vid`, per IP set high for shared venue Wi-Fi, and a daily total; `LIMIT_*` env vars override). Over a limit they answer from offline or saved data, never an error page. Same chat question in the same state is answered from a 30 min cache; a live market agent run is replayed to everyone for 6 h. A new route that calls a paid API must do the same.
 
 ## Who owns what
 - Pietu: product and pitch (story, deck, presenting the demo).

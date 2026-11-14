@@ -1,5 +1,6 @@
 import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
+import { checkLimit, withCookie } from "@/lib/rate-limit";
 import { READING_PROMPT, READING_SCHEMA, type Reading } from "@/lib/einvoice";
 
 // Reads one demo e-invoice with Gemini. Falls back to the saved reading so the demo never breaks.
@@ -48,19 +49,22 @@ export async function POST(request: Request) {
   const started = Date.now();
   const key = process.env.GEMINI_API_KEY;
   if (key) {
+    // Over the limit, the saved reading of the same invoice is shown: same fields, no cost.
+    const limit = checkLimit(request, "invoice");
+    if (!limit.ok) return withCookie(Response.json({ reading: saved, source: "saved", ms: 0, limited: limit.reason }), limit);
     let error: unknown;
     for (const model of MODELS) {
       try {
         const reading = await readWithGemini(model, invoice.xml, key);
         cache.set(invoice.id, { reading, model });
-        return Response.json({ reading, source: "gemini", model, ms: Date.now() - started });
+        return withCookie(Response.json({ reading, source: "gemini", model, ms: Date.now() - started }), limit);
       } catch (e) {
         error = e;
         const status = (e as { status?: number }).status;
         if (status !== 429 && status !== 503) break;
       }
     }
-    return Response.json({ reading: saved, source: "saved", ms: Date.now() - started, error: String(error) });
+    return withCookie(Response.json({ reading: saved, source: "saved", ms: Date.now() - started, error: String(error) }), limit);
   }
   return Response.json({ reading: saved, source: "saved", ms: 0, error: "GEMINI_API_KEY not set" });
 }
