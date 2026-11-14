@@ -96,9 +96,10 @@ export async function listAspsps(cfg: EbConfig, country: string): Promise<AspspS
 }
 
 export type EbBalance = { name?: string; balance_type?: string; balance_amount: { amount: string; currency: string } };
-/** The balance a person would call "what is in the account": available (CLAV), else interim available (ITAV), else the first one. */
+/** The euro balance a person would call "what is in the account": available (CLAV), else interim available (ITAV), else the first one. Null when the account holds no euros. */
 export function pickBalance(balances: EbBalance[]): number | null {
-  const b = balances.find((x) => x.balance_type === "CLAV") ?? balances.find((x) => x.balance_type === "ITAV") ?? balances[0];
+  const euro = balances.filter((x) => !x.balance_amount.currency || x.balance_amount.currency === "EUR");
+  const b = euro.find((x) => x.balance_type === "CLAV") ?? euro.find((x) => x.balance_type === "ITAV") ?? euro[0];
   return b ? Number(b.balance_amount.amount) : null;
 }
 export const fetchBalances = async (cfg: EbConfig, uid: string) =>

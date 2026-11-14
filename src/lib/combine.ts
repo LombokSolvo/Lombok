@@ -1,9 +1,9 @@
 // One customer made of several banks. Merges Aino's S-Pankki data with the demo Nordea accounts and recomputes the sums the
 // rest of the app reads (baskets, income, monthly totals), so Home, the plan, the calendar and the coach all see the full picture.
-// Transfers between her own accounts and deposits to Nordnet are not spending, so they stay out of every basket.
+// Transfers between her own accounts and deposits to an investment account are not spending, so they stay out of every basket.
 import type { DemoCustomer, Tx } from "@/lib/demo";
 import type { RealBank } from "@/lib/live-bank-ids";
-import type { BankId, Platform } from "@/lib/banks";
+import type { BankId } from "@/lib/banks";
 import { daysBetween, shiftIso, todayIso } from "@/lib/demo-clock";
 import { syntheticBanks, type BankAccount, type SecondBanks } from "@/lib/second-bank";
 
@@ -63,7 +63,7 @@ function matchOwnTransfers(rows: Tx[]) {
   }
 }
 
-/** Both second-bank kinds in one place: the real banks (or the simulated Nordea) and the separate investing platform (always simulated). */
+/** The second bank(s): the real banks, or the simulated Nordea when there are none. */
 export function secondBanksFor(base: DemoCustomer, real: RealBank[] = []): SecondBanks {
   const synthetic = syntheticBanks(base.asOf);
   return real.length ? { ...synthetic, nordea: realBanksAsSecond(base, real) } : synthetic;
@@ -130,20 +130,18 @@ export function bankFacts(base: DemoCustomer, banks: BankId[], real: RealBank[] 
           movedBetweenAccountsMonthly: Math.round(-per((t) => t.category === "Transfer" && t.amount < 0) - per((t) => t.category === "Invest Deposit")),
         }
       : null,
-    nordnet: banks.includes("nordnet") ? sb.nordnet : null,
   };
 }
 
 /** A paragraph for the coach when other banks are connected: what they add and that the numbers already include them. */
-export function banksNoteFor(base: DemoCustomer, banks: BankId[], platform: Platform = "Nordnet", bankName = "Nordea"): string {
+export function banksNoteFor(base: DemoCustomer, banks: BankId[], bankName = "Nordea"): string {
   const f = bankFacts(base, banks);
   const parts: string[] = [];
   if (f.nordea) {
     const bills = f.nordea.bills.map((b) => `${b.label} ${f.nordea ? "€" + b.monthly : ""}/month (${b.names})`).join("; ");
     parts.push(
-      `${bankName} (demo data): everyday account €${f.nordea.everyday}, savings account €${f.nordea.savings}; side income €${f.nordea.sideIncomeMonthly}/month that S-Pankki cannot see; bills paid from ${bankName}: ${bills}; about €${f.nordea.movedBetweenAccountsMonthly}/month moves between her own accounts and to her investing platform (${platform}), which is saving, not spending.`,
+      `${bankName} (demo data): everyday account €${f.nordea.everyday}, savings account €${f.nordea.savings}; side income €${f.nordea.sideIncomeMonthly}/month that S-Pankki cannot see; bills paid from ${bankName}: ${bills}; about €${f.nordea.movedBetweenAccountsMonthly}/month moves between her own accounts and to an investment account, which is saving, not spending.`,
     );
   }
-  if (f.nordnet) parts.push(`Separate investing platform, ${platform} (demo data): invested €${f.nordnet.invested}, worth €${f.nordnet.value}, €${f.nordnet.monthlyDeposit}/month deposits.`);
   return `\n\nOther banks the customer connected: ${parts.join(" ")} The safe-to-spend, budgets and spending figures above ALREADY include these banks. When it helps, say that an answer covers all her banks, and mention what S-Pankki alone would not show.`;
 }

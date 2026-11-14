@@ -107,7 +107,7 @@ export function LiveBanks({ status }: { status: LiveStatus }) {
       {asking && (
         <ApproveSheet
           title={`Connect ${LIVE_BANKS[asking].name} again`}
-          points={["The new approval replaces the earlier one, and the transactions are downloaded again.", ...liveConsentPoints(asking).slice(1)]}
+          points={["The new approval replaces the old one, and your payments are downloaded again.", ...liveConsentPoints(asking).slice(1)]}
           confirmLabel={`Continue to ${LIVE_BANKS[asking].name}`}
           onConfirm={() => again(asking)}
           onCancel={() => setAsking(null)}

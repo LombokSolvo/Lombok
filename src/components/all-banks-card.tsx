@@ -3,26 +3,25 @@ import { ViewToggle } from "@/components/view-toggle";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
 import { Group, IconTile, Row, eur } from "@/components/solvo/ui";
 import { bankFacts } from "@/lib/combine";
-import type { BankId, Platform, View } from "@/lib/banks";
+import type { BankId, View } from "@/lib/banks";
 import type { DemoCustomer } from "@/lib/demo";
 import type { RealBank } from "@/lib/live-bank-ids";
 import { portfolio } from "@/data/portfolio";
 
 /**
  * Home, only once another bank is connected: the whole money picture across banks, and what the other bank adds that S-Pankki
- * alone cannot see. DEMO data for the second bank and Nordnet (src/lib/second-bank.ts).
+ * alone cannot see. DEMO data for the second bank when none is real (src/lib/second-bank.ts).
  */
-export function AllBanksCard({ base, banks, view, platform = "Nordnet", bankName = "Nordea", real = [] }: { base: DemoCustomer; banks: BankId[]; view: View; platform?: Platform; bankName?: string; real?: RealBank[] }) {
+export function AllBanksCard({ base, banks, view, bankName = "Nordea", real = [] }: { base: DemoCustomer; banks: BankId[]; view: View; bankName?: string; real?: RealBank[] }) {
   if (!banks.length) return null;
   const f = bankFacts(base, banks, real);
   const funds = Math.round(portfolio().value);
   const cash = f.spankki.cash + (f.nordea ? f.nordea.everyday + f.nordea.savings : 0);
-  const invested = funds + (f.nordnet ? Math.round(f.nordnet.value) : 0);
   const subs = f.nordea?.bills.find((b) => b.label === "Subscriptions");
   const insurance = f.nordea?.bills.find((b) => b.label === "Insurance");
 
   return (
-    <Group title="All your banks" className="mt-4" footer={real.length ? `Your real ${real.map((r) => r.name).join(", ")}, merged with the example S-Pankki and investing data. Transfers between your own accounts are not counted as spending.` : "Demo: example data for the connected banks and investing platform. Transfers between your own accounts are not counted as spending."}>
+    <Group title="All your banks" className="mt-4" footer={real.length ? `Your real ${real.map((r) => r.name).join(", ")}, merged with the example S-Pankki data. Transfers between your own accounts are not counted as spending.` : "Demo: example data for the connected banks. Transfers between your own accounts are not counted as spending."}>
       <div className="p-3">
         <ViewToggle banks={banks} view={view} />
       </div>
@@ -37,8 +36,8 @@ export function AllBanksCard({ base, banks, view, platform = "Nordnet", bankName
           <Row
             icon={<IconTile><TrendingUp /></IconTile>}
             title="Investments"
-            subtitle={`S-Pankki funds ${eur.format(funds)}${f.nordnet ? ` · ${platform} ${eur.format(Math.round(f.nordnet.value))}` : ""}`}
-            value={eur.format(invested)}
+            subtitle={`S-Pankki funds ${eur.format(funds)}`}
+            value={eur.format(funds)}
           />
           {f.nordea && f.nordea.sideIncomeMonthly > 0 && (
             <Row icon={<MoneyBadge kind="in" />} title={real.length ? "Income at your other banks" : `Income at ${bankName}`} subtitle="S-Pankki can't see this" value={<SignedAmount kind="in" value={f.nordea.sideIncomeMonthly} />} valueSub="a month" />
@@ -53,7 +52,7 @@ export function AllBanksCard({ base, banks, view, platform = "Nordnet", bankName
             <Row
               icon={<IconTile tone="grey"><PiggyBank /></IconTile>}
               title="Moved between your accounts"
-              subtitle={`To savings and to ${platform}. Saving, not spending.`}
+              subtitle="To savings and investing. Saving, not spending."
               value={eur.format(f.nordea.movedBetweenAccountsMonthly)}
               valueSub="a month"
             />

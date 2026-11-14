@@ -1,17 +1,15 @@
-// DEMO DATA for the multi-bank view: what Aino's Nordea accounts and Nordnet account would add to her S-Pankki picture.
+// DEMO DATA for the multi-bank view: what Aino's Nordea accounts would add to her S-Pankki picture.
 // Everything here is made up by a seeded generator (the same output every time). It uses the same kinds of payments a real
 // export has, but contains no real rows and nothing from any real account.
 //
 // The story it tells: S-Pankki alone doesn't see (1) a side income that lands at Nordea, (2) bills paid from Nordea (insurance,
-// gym, streaming), (3) money moved between her own accounts and to Nordnet, which is saving and not spending, and
-// (4) savings and investments held elsewhere. Connecting the banks changes her safe-to-spend and her coach's answers.
+// gym, streaming), (3) money moved between her own accounts and to an investment account, which is saving and not spending, and
+// (4) savings held elsewhere. Connecting the banks changes her safe-to-spend and her coach's answers.
 import type { Tx } from "@/lib/demo";
 
 export type BankAccount = { id: string; label: string; balance: number; bank?: string };
-export type NordnetHolding = { name: string; invested: number; value: number };
 export type SecondBanks = {
   nordea: { accounts: BankAccount[]; transactions: Tx[] };
-  nordnet: { invested: number; value: number; monthlyDeposit: number; holdings: NordnetHolding[] };
 };
 
 const rng = (seed: number) => () => {
@@ -50,7 +48,7 @@ export function syntheticBanks(endIso: string): SecondBanks {
     e(20, "N1", "Side income", 590 + Math.round(rand() * 40), "income", "Freelance client");
     e(21, "N1", "Transfer", -200, "own_transfer", "To savings account");
     e(21, "N2", "Transfer", 200, "own_transfer", "From everyday account");
-    e(22, "N1", "Invest Deposit", -100, "own_transfer", "Nordnet");
+    e(22, "N1", "Invest Deposit", -100, "own_transfer", "Investment account");
     for (let i = 0; i < 6; i++) e(1 + Math.floor(rand() * 28), "N1", "Groceries", -(14 + rand() * 28), "card_payment", "Grocery shop");
     for (let i = 0; i < 2 + Math.floor(rand() * 2); i++) e(1 + Math.floor(rand() * 28), "N1", "Restaurants", -(11 + rand() * 25), "card_payment", "Restaurant");
   }
@@ -69,15 +67,6 @@ export function syntheticBanks(endIso: string): SecondBanks {
         { id: "N2", label: "Savings account", balance: balance.N2 },
       ],
       transactions,
-    },
-    nordnet: {
-      invested: 3900,
-      value: 4380,
-      monthlyDeposit: 100,
-      holdings: [
-        { name: "World equity index ETF", invested: 2600, value: 3050 },
-        { name: "Nordic equity fund", invested: 1300, value: 1330 },
-      ],
     },
   };
 }

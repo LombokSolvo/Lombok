@@ -6,7 +6,6 @@ import { ArrowRight, CalendarDays, MessageCircle } from "lucide-react";
 import { LiveWeekBar, LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { AllBanksCard } from "@/components/all-banks-card";
 import { LinkedBankCard } from "@/components/linked-bank-card";
-import { LiveNordnetCard } from "@/components/live-nordnet-card";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { ConnectCalendarNudge, ForecastNote, ForecastProvider } from "@/components/forecast-ui";
@@ -40,7 +39,7 @@ export default function Home() {
 async function HomeScreen() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
-  const { base, customer: c, local, real, banks, view, platform, bankName, mode } = await getEffective(await pageMode());
+  const { base, customer: c, local, real, banks, view, bankName, mode } = await getEffective(await pageMode());
   const calendar = await getCalendarState();
   const s = safeToSpend(c);
   const schedule = scheduleFor(c);
@@ -125,9 +124,7 @@ async function HomeScreen() {
 
         <PlanCard />
 
-        <AllBanksCard base={base} banks={banks} view={view} platform={platform} bankName={bankName} real={real} />
-
-        {local && <LiveNordnetCard />}
+        <AllBanksCard base={base} banks={banks} view={view} bankName={bankName} real={real} />
 
         <Suspense fallback={null}>
           <LinkedBankCard />
