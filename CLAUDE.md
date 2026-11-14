@@ -24,7 +24,7 @@ Three baskets (1 fixed and regular, 2 fixed and irregular, 3 everyday leakage) a
 - No auth: hardcoded demo customer. No database planned: 1–3 demo customers preprocessed from the S-Pankki data into static JSON under the app. Add Supabase only if asked.
 - Synthetic Finvoice e-invoices for the demo customer(s), tied to their Utilities rows.
 - Electricity spot price: a free API (porssisahko.net or ENTSO-E). Supplier prices: a hand-maintained table first, Context.dev later (optional bonus). ElevenLabs voice is an optional wow-factor.
-- Deployed on Vercel from `main`
+- Deployed on Vercel from `main` (Hobby plan, which caps deployments per day). `vercel.json` turns off preview deployments for `claude/*` branches, so only `main` deploys; CI still runs on every PR.
 
 ## Data (S-Pankki challenge dataset)
 Cloned from https://github.com/hackjunction/Junction-2026-S-pankki into `data/s-pankki/` (gitignored, never commit it).
@@ -67,6 +67,11 @@ Cloned from https://github.com/hackjunction/Junction-2026-S-pankki into `data/s-
 - One look for money moving, everywhere: use `MoneyBadge` and `SignedAmount` from `src/components/solvo/money-badge.tsx` (money out = warm circle with a minus, money in = green circle with a plus; the sign carries the meaning, not only the colour). Other shared bits: `Sheet` (bottom sheet for small edits), `NumberField` and `Stepper` (`fields.tsx`; NumberField keeps raw text so a field can be emptied and retyped, never use a controlled type=number input), the pencil `EditButton` pattern in the onboarding client. All tap targets 44px.
 - Investing: Solvo never recommends a product. It sizes a budget ("room to invest": half of what is left after bills, buffer and goals, zero before a starter buffer or while between jobs) and `src/lib/fund-match.ts` screens a catalogue by the person's stated safety, horizon and "environmentally friendly" wish, showing only standard facts (1-7 risk class, EU SFDR label, fee). The person can save funds as interesting and "Start saving" opens the fund's page; nothing is bought. No ranking, no "best", no wording like "we recommend". Keep disclaimers short.
 - Property goal: the goal is "Home or property" (a home, a cabin, anything bought with a down payment), not ASP specifically. ASP is only a pointer for first-home buyers: its rules changed in June 2026 and sources disagree on eligibility, so the app states no age limits, saving periods or percentages. Do not add any without a checked source.
+
+## Demo accounts and comparisons
+- Profile's "Demo account" switch picks Aino (CUST01787, default) or a new customer (CUST01590, own bank data, onboarding starts with a simulated Connect step). The choice is in localStorage and in the `solvo-demo` cookie; server pages read it with `getSource(await pageMode())` from `src/lib/source.ts` inside `<Suspense>`, route handlers with `requestMode()`. Aino-only demo extras: the e-invoices, the dentist bill and its demo call, fund holdings, card subscriptions (`src/data/subscriptions.ts`).
+- "How you compare" (Home card and `/compare`): group statistics from the dataset (`scripts/build-cohorts.mjs` writes `src/data/cohorts.json`, deciles only, at least 100 people per group), by age band, city (everyone in the data lives in Helsinki, Vantaa or Espoo) and income band. Never show one other customer's data.
+- `/costs`: every category by basket; Aino's utilities open up by her e-invoices.
 
 ## Rules
 - Keep `main` deployable. Small commits, clear messages.

@@ -1,6 +1,9 @@
+import { Suspense } from "react";
 import { connection } from "next/server";
+import { PAGE } from "@/components/solvo/ui";
 import { inferProfile } from "@/lib/profile";
 import { scheduleFor } from "@/lib/schedule-server";
+import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { OnboardingClient } from "./onboarding-client";
 
@@ -8,10 +11,18 @@ export const metadata = { title: "Your plan · Solvo" };
 
 // Runs on the server: the transactions never reach the phone, only the profile, the usual dates and a few
 // monthly numbers.
-export default async function OnboardingPage() {
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<main className={PAGE} />}>
+      <Onboarding />
+    </Suspense>
+  );
+}
+
+async function Onboarding() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
-  const { customer: c, local, cookieBanks: banks, view } = await getEffective();
+  const { customer: c, local, mode, cookieBanks: banks, view } = await getEffective(await pageMode());
   const profile = inferProfile(c);
   const schedule = scheduleFor(c);
   const base = {
@@ -23,5 +34,5 @@ export default async function OnboardingPage() {
     cashBalance: profile.cashBalance === null ? null : Math.round(profile.cashBalance),
     investsMonthlyToday: Math.round(profile.investsMonthly),
   };
-  return <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} banks={banks} view={view} />;
+  return <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new"} banks={banks} view={view} />;
 }

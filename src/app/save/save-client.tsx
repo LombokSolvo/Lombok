@@ -6,6 +6,7 @@ import { CalendarDays, Landmark, PiggyBank, Receipt, Target, TrendingUp } from "
 import { PortfolioChart } from "@/components/portfolio-chart";
 import { PORTFOLIO_MONTHS, portfolio } from "@/data/portfolio";
 import { ApproveSheet } from "@/app/bills/switch-ui";
+import { LearnChip } from "@/components/learn/learn-chip";
 import { Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { FUND_TYPES, FUNDS, FUNDS_SOURCE, fundById, projectFund, type FundType } from "@/lib/funds";
 import { approveSavingsPlan, cancelSavingsPlan, monthlyFreed, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
@@ -50,6 +51,7 @@ type Props = {
   inFunds: number;
   fundDeposits: number;
   savingsGoal: number;
+  hasFunds: boolean; // Aino's fund holdings are demo data; the new customer has none
 };
 
 export function SaveClient(props: Props) {
@@ -67,7 +69,22 @@ export function SaveClient(props: Props) {
   const fund = fundById(fundId);
   const next = nextInvestDate(props.asOf);
 
-  const now = (
+  const account = (
+    <Row
+      icon={
+        <IconTile tone="grey">
+          <Landmark />
+        </IconTile>
+      }
+      title="On your account"
+      subtitle={`Cash, ${dateFmt.format(new Date(`${props.asOf}T00:00:00Z`))}`}
+      value={eur.format(props.balance)}
+    />
+  );
+
+  const now = !props.hasFunds ? (
+    <Group title="Your money">{account}</Group>
+  ) : (
     <>
       <Slab>
         <p className="text-[15px] text-white/70">Your funds are worth</p>
@@ -102,16 +119,7 @@ export function SaveClient(props: Props) {
             />
           );
         })}
-        <Row
-          icon={
-            <IconTile tone="grey">
-              <Landmark />
-            </IconTile>
-          }
-          title="On your account"
-          subtitle={`Cash, ${dateFmt.format(new Date(`${props.asOf}T00:00:00Z`))}`}
-          value={eur.format(props.balance)}
-        />
+        {account}
       </Group>
     </>
   );
@@ -178,12 +186,16 @@ export function SaveClient(props: Props) {
     <main className={PAGE}>
       <TopBar />
       <PageTitle title="Your investments">
-        How your S-Pankki funds are doing, and a monthly plan to keep them growing.
+        {props.hasFunds
+          ? "How your S-Pankki funds are doing, and a monthly plan to keep them growing."
+          : "You don't have funds yet. A small monthly plan is an easy way to start."}
       </PageTitle>
 
       {now}
 
-      <h2 className="mt-9 px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">Start investing again</h2>
+      <h2 className="mt-9 px-1 font-display text-[22px] font-semibold tracking-[-0.015em]">
+        {props.hasFunds ? "Start investing again" : "Start investing"}
+      </h2>
       <p className="mt-1 px-1 text-[15px] leading-snug text-muted-foreground">
         Your monthly savings goal, plus what your cheaper bills free up.
       </p>
@@ -195,12 +207,12 @@ export function SaveClient(props: Props) {
             fromBills < freed ? (
               `The rest of the bill savings, ${eur.format(((freed - fromBills) * 12) / 52)} a week, stays in your budget.`
             ) : (
-              "Your weekly budget stays the same: this money was never in it."
+              `Your cheaper bills had added ${eur.format((freed * 12) / 52)} a week to your budget. That now goes to your fund instead.`
             )
           ) : (
             <>
               Switch a bill to add more.{" "}
-              <Link href="/bills" className="font-medium text-primary underline underline-offset-4">
+              <Link href="/bills" className="-my-3 inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4">
                 See your bills
               </Link>
             </>
@@ -294,6 +306,9 @@ export function SaveClient(props: Props) {
           </button>
         ))}
       </Group>
+      <LearnChip pack="fees" className="mt-3 self-start">
+        Learn why: how fund fees add up
+      </LearnChip>
 
       <Projection monthly={monthly} fundId={fund.id} />
 

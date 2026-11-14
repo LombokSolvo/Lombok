@@ -1,20 +1,23 @@
+import { Screen } from "@/components/solvo/screen";
+import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Screen } from "@/components/solvo/screen";
-import { LinkedBankCard } from "@/components/linked-bank-card";
-import Link from "next/link";
-import { ArrowRight, CalendarDays, MessageCircle, ReceiptText } from "lucide-react";
-import { LiveWeeklyEuro, ResetDemoButton, SwitchBoostNote } from "@/components/live-budget";
+import { ArrowRight, CalendarDays, MessageCircle } from "lucide-react";
+import { LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { AllBanksCard } from "@/components/all-banks-card";
+import { LinkedBankCard } from "@/components/linked-bank-card";
 import { LiveNordnetCard } from "@/components/live-nordnet-card";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
-import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur, primaryButton } from "@/components/solvo/ui";
-import { safeToSpend, topCategories, unknownBills } from "@/lib/coach";
-import { BASKET_LABELS, type Basket } from "@/lib/demo";
-import { scheduleFor } from "@/lib/schedule-server";
+import { CompareSummary } from "@/components/compare-card";
+import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
+import { compareAgainst, ownGroups } from "@/lib/cohorts";
+import { safeToSpend, topCategories } from "@/lib/coach";
+import type { Basket } from "@/lib/demo";
 import { todayIso } from "@/lib/demo-clock";
+import { scheduleFor } from "@/lib/schedule-server";
+import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
@@ -23,13 +26,21 @@ const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const BASKET_COLOR: Record<Basket, string> = { 1: "bg-chart-1", 2: "bg-chart-2", 3: "bg-chart-4" };
 
-export default async function Home() {
+export default function Home() {
+  return (
+    <Suspense fallback={<main className={PAGE} />}>
+      <HomeScreen />
+    </Suspense>
+  );
+}
+
+async function HomeScreen() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
-  const { base, customer: c, local, real, banks, view, platform, bankName } = await getEffective();
+  const { base, customer: c, local, real, banks, view, platform, bankName, mode } = await getEffective(await pageMode());
   const s = safeToSpend(c);
   const schedule = scheduleFor(c);
-  const bills = unknownBills(c);
+  const compareGroup = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
   const baskets = [1, 2, 3] as Basket[];
   const yearTotal = baskets.reduce((sum, b) => sum + c.summary.basketYear[b], 0);
   const over = s.remaining < 0;
@@ -103,10 +114,10 @@ export default async function Home() {
           <p className="mt-4 border-t border-white/10 pt-3 text-[13px] text-white/60">
             {eur.format(s.spentThisWeek)} spent so far this week
           </p>
-          <SwitchBoostNote className="mt-2 text-[13px] font-semibold text-mint" />
         </Slab>
 
-        <OverdueBillCard asOf={c.asOf} />
+        {/* The dentist e-invoice and its call are part of Aino's demo story only. */}
+        {mode === "aino" && <OverdueBillCard asOf={c.asOf} />}
 
         <PlanCard />
 
@@ -120,28 +131,8 @@ export default async function Home() {
 
         <UpcomingCard items={schedule.items} today={realToday} />
 
-        {/* The bank's blind spot, and Solvo's hook */}
-        <section className="mt-4 rounded-[24px] bg-card p-5 shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
-          <div className="flex items-start gap-3">
-            <IconTile tone="warn">
-              <ReceiptText />
-            </IconTile>
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-[19px] leading-tight font-semibold tracking-[-0.01em]">
-                <span className="num">{eur.format(bills.perYear)}</span> a year goes to bills your bank can&apos;t name
-              </p>
-              <p className="mt-2 text-[14px] leading-snug text-muted-foreground">
-                {Math.round(bills.withoutMerchant * 100)}% of these {Math.round(bills.paymentsPerMonth)} monthly
-                payments have no merchant or contract attached. Solvo reads the e-invoices to find out what you pay for,
-                and whether you&apos;re overpaying.
-              </p>
-            </div>
-          </div>
-          <Link href="/bills" transitionTypes={["nav-forward"]} className={`${primaryButton} mt-4`}>
-            See what Solvo found
-            <ArrowRight className="size-[18px]" aria-hidden />
-          </Link>
-        </section>
+        {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
+        {!local && compareGroup && <CompareSummary group={compareGroup} />}
 
         {/* Coach chat entry */}
         <section className="mt-4">
@@ -165,7 +156,7 @@ export default async function Home() {
                 key={q}
                 href={`/coach?q=${encodeURIComponent(q)}`}
                 transitionTypes={["nav-forward"]}
-                className="flex h-9 shrink-0 items-center rounded-full border border-border bg-card/60 px-3.5 text-[13px] font-medium whitespace-nowrap text-foreground/80 active:bg-muted"
+                className="flex h-11 shrink-0 items-center rounded-full border border-border bg-card/60 px-3.5 text-[13px] font-medium whitespace-nowrap text-foreground/80 active:bg-muted"
               >
                 {q}
               </Link>
@@ -173,43 +164,19 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* How the number is built */}
+        {/* Where the salary goes: the budget and the three baskets in one card */}
         <Group
-          title="How your budget is built"
-          aside="per month"
+          title="Your money each month"
+          aside="last 12 months"
           footer={
             <>
               You usually spend {eur.format(s.usualWeeklyEveryday)} a week on everyday things.
               {s.usualWeeklyEveryday > s.weeklyBudget
-                ? ` That's ${eur.format(s.usualWeeklyEveryday - s.weeklyBudget)} more than your budget allows.`
+                ? ` That's ${eur.format(Math.round(s.usualWeeklyEveryday) - Math.round(s.weeklyBudget))} more than your budget allows.`
                 : " That fits your budget."}
             </>
           }
         >
-          <dl className="num px-4 py-1 text-[15px]">
-            <div className="flex justify-between py-2.5">
-              <dt>Salary</dt>
-              <dd className="font-medium">{eur.format(s.incomePerMonth)}</dd>
-            </div>
-            {[
-              ["Fixed and regular bills", s.fixedRegularPerMonth],
-              ["Set aside for irregular costs", s.irregularSetAsidePerMonth],
-              ["Savings goal (you set this)", s.savingsGoalPerMonth],
-            ].map(([label, v]) => (
-              <div key={label} className="flex justify-between py-2.5 text-muted-foreground">
-                <dt>{label}</dt>
-                <dd>−{eur.format(v as number)}</dd>
-              </div>
-            ))}
-            <div className="flex justify-between border-t py-3 font-semibold">
-              <dt>Everyday budget</dt>
-              <dd>{eur.format(s.everydayBudgetPerMonth)}</dd>
-            </div>
-          </dl>
-        </Group>
-
-        {/* Three baskets */}
-        <Group title="Your three baskets" aside="last 12 months">
           <div className="px-4 pt-4 pb-1">
             <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full">
               {baskets.map((b) => (
@@ -221,21 +188,34 @@ export default async function Home() {
               ))}
             </div>
           </div>
-          {baskets.map((b) => {
-            const perYear = c.summary.basketYear[b];
-            return (
-              <Row
-                key={b}
-                icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[b]}`} aria-hidden />}
-                title={BASKET_LABELS[b].title}
-                subtitle={topCategories(c, b)
-                  .map((t) => t.category)
-                  .join(", ")}
-                value={`${eur.format(perYear / 12)}/mo`}
-                valueSub={`${Math.round((perYear / yearTotal) * 100)}%`}
-              />
-            );
-          })}
+          <Row title="Salary" value={eur.format(s.incomePerMonth)} />
+          <Row
+            icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[1]}`} aria-hidden />}
+            title="Fixed and regular bills"
+            subtitle={topCategories(c, 1).map((t) => t.category).join(", ")}
+            value={`−${eur.format(s.fixedRegularPerMonth)}`}
+          />
+          <Row
+            icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[2]}`} aria-hidden />}
+            title="Set aside for irregular costs"
+            subtitle={topCategories(c, 2).map((t) => t.category).join(", ")}
+            value={`−${eur.format(s.irregularSetAsidePerMonth)}`}
+          />
+          <Row title="Savings goal" subtitle="You set this" value={`−${eur.format(s.savingsGoalPerMonth)}`} />
+          <Row
+            icon={<span className={`size-2.5 shrink-0 rounded-full ${BASKET_COLOR[3]}`} aria-hidden />}
+            title={<span className="font-semibold">Everyday budget</span>}
+            subtitle={`You spend ${eur.format(c.summary.basketYear[3] / 12)}: ${topCategories(c, 3).map((t) => t.category).join(", ")}`}
+            value={<span className="font-semibold">{eur.format(s.everydayBudgetPerMonth)}</span>}
+          />
+          <Link
+            href="/costs"
+            transitionTypes={["nav-forward"]}
+            className="flex min-h-12 items-center justify-between border-t px-4 text-[15px] font-semibold text-primary active:bg-muted"
+          >
+            See every cost in detail
+            <ArrowRight className="size-[18px]" aria-hidden />
+          </Link>
         </Group>
 
         <footer className="mt-8 flex flex-col items-start gap-2 px-1 text-[12px] leading-snug text-muted-foreground">

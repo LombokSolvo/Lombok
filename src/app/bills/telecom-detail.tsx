@@ -4,9 +4,17 @@ import { useMemo, useState } from "react";
 import { Group, PageTitle, eur, eur2 } from "@/components/solvo/ui";
 import type { Reading } from "@/lib/einvoice";
 import { approveSwitch, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
-import { compareTelecom, telecomTermsFrom, type TelecomTerms } from "@/lib/telecom-offers";
+import { Gauge, Leaf } from "lucide-react";
+import {
+  DEFAULT_TELECOM_PREFERENCE,
+  compareTelecom,
+  telecomTermsFrom,
+  type TelecomPreference,
+  type TelecomTerms,
+} from "@/lib/telecom-offers";
 import { SAVED_TELECOM_DB, domainOf, type TelecomDb } from "@/lib/market";
-import { MarketAgentCard } from "./market-agent-card";
+import { MarketAgentCard, agentHasRun } from "./market-agent-card";
+import { PreferencePicker } from "./preference-picker";
 import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -29,8 +37,19 @@ export function TelecomDetail(props: {
   const r = props.reading;
   const [terms, setTerms] = useState<TelecomTerms>(() => telecomTermsFrom(r));
   const [db, setDb] = useState<TelecomDb>(SAVED_TELECOM_DB);
-  const cmp = useMemo(() => compareTelecom(terms, db), [terms, db]);
+  const [ran, setRan] = useState(() => agentHasRun("telecom")); // offers appear once the agent has run
+  const revealOffers = () => {
+    setRan(true);
+    // Bring the saving into view: it appears at the top of the screen.
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 600);
+  };
+  const [preference, setPreference] = useState<TelecomPreference>(DEFAULT_TELECOM_PREFERENCE);
+  const cmp = useMemo(() => compareTelecom(terms, db, preference), [terms, db, preference]);
   const [chosenId, setChosenId] = useState<string | null>(null);
+  const prefer = (p: Partial<TelecomPreference>) => {
+    setPreference((x) => ({ ...x, ...p }));
+    setChosenId(null); // the coach's new pick becomes the selection
+  };
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
   const switches = useSwitches();
@@ -54,14 +73,39 @@ export function TelecomDetail(props: {
             </>
           )
         }
+        steps={
+          isMatch
+            ? [
+                { title: "Approved with your bank ID", detail: "You approved the request in the bank app." },
+                { title: `Request sent to ${r.supplier}`, detail: "Solvo shows them the lower public price it found." },
+                { title: "Their answer", detail: "Solvo tells you what they say. Nothing changes if they say no." },
+                { title: "Next e-invoice checked", detail: "If they agree, Solvo checks the new price on your next e-invoice." },
+              ]
+            : [
+                { title: "Signed with your bank ID", detail: "You approved the switch in the bank app, so no separate contract to sign." },
+                { title: `Order sent to ${chosen.operator}`, detail: "Solvo passes the order to the new operator through a partner interface." },
+                {
+                  title: "Numbers moved",
+                  detail: `${chosen.operator} ports your numbers in 1 to 3 working days, which ends your ${r.supplier} contract automatically.`,
+                },
+                {
+                  title: "First new e-invoice checked",
+                  detail: `When ${chosen.operator}'s first e-invoice reaches your bank, Solvo checks the price matches the offer.`,
+                },
+              ]
+        }
         remainingBefore={props.remaining + boost - perWeek}
         remainingAfter={props.remaining + boost}
         perWeek={perWeek}
         footnote={
+          chosen.saving < 0 ? (
+            <>You chose a plan that costs {eur.format(-chosen.saving)} more a year. Solvo has included it in your bills.</>
+          ) : (
           <>
             Your weekly budget is now {eur.format(props.weeklyBudget + boost)}, up from {eur.format(props.weeklyBudget)},
             because your fixed costs got smaller. That&apos;s {eur.format(Math.max(0, chosen.saving))} a year.
           </>
+          )
         }
       />
     );
@@ -75,13 +119,21 @@ export function TelecomDetail(props: {
         {r.supplier}, {r.product}. Valid until further notice, one month&apos;s notice.
       </PageTitle>
 
-      <SavingSlab
-        label={isMatch ? "Asking for a better price saves" : "Switching saves you"}
-        saving={chosen.saving}
-        before={{ label: `Do nothing, ${eur2.format(cmp.currentMonthly)} a month`, yearly: cmp.current }}
-        after={{ label: `${chosen.operator}${chosen.kind === "switch" ? ` ${chosen.product}` : ", price match"}`, yearly: chosen.yearly }}
-        footnote={<>That&apos;s +{eur.format(perWeek)} to your safe-to-spend every week.</>}
-      />
+      {ran && (
+        <SavingSlab
+          label={chosen.saving < 0 ? "This choice costs you more" : isMatch ? "Asking for a better price saves" : "Switching saves you"}
+          saving={Math.abs(chosen.saving)}
+          before={{ label: `Do nothing, ${eur2.format(cmp.currentMonthly)} a month`, yearly: cmp.current }}
+          after={{ label: `${chosen.operator}${chosen.kind === "switch" ? ` ${chosen.product}` : ", price match"}`, yearly: chosen.yearly }}
+          footnote={
+            chosen.saving < 0 ? (
+              <>More than you pay today. It&apos;s your choice, Solvo just shows the price.</>
+            ) : (
+              <>That&apos;s +{eur.format(perWeek)} to your safe-to-spend every week.</>
+            )
+          }
+        />
+      )}
 
       <ReadFields badge={props.badge}>
         <EditField label="Mobile lines" value={terms.lines} unit="lines" step="1" min={0} onChange={set("lines")} />
@@ -89,47 +141,11 @@ export function TelecomDetail(props: {
         <EditField label="Home internet" value={terms.homeInternet} unit="€/mo" min={0} onChange={set("homeInternet")} />
       </ReadFields>
 
-      <Group
-        title="Your options for a year"
-        aside={`${terms.lines} ${terms.lines === 1 ? "line" : "lines"} + internet`}
-        footer="Real public prices found by Solvo's market agent. Regular prices after any campaign."
-      >
-        <div role="radiogroup" aria-label="Phone and internet offers">
-          {cmp.offers.map((o) => (
-            <OfferOption
-              key={o.id}
-              chosen={o.id === chosen.id}
-              onSelect={() => setChosenId(o.id)}
-              title={`${o.operator}${o.kind === "switch" ? ` ${o.product}` : ""}`}
-              yearly={o.yearly}
-              detail={
-                <>
-                  {o.kind === "price_match" ? `${o.product}. ` : ""}
-                  {eur2.format(o.perLine)}/line ({o.lineSpeed})
-                  {o.homeInternet != null ? ` + ${o.homeSpeed} ${eur2.format(o.homeInternet)}` : " + your current home internet"}
-                  {o.note ? `. ${o.note}` : ""}
-                  {o.sourceUrl && o.checkedAt && (
-                    <span className="mt-0.5 block">
-                      Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
-                    </span>
-                  )}
-                </>
-              }
-              pick={
-                o.id === cmp.recommended.id
-                  ? o.likeForLike
-                    ? "Coach's pick: same speed, lower price"
-                    : "Coach's pick: fast enough, and you keep the saving"
-                  : undefined
-              }
-            />
-          ))}
-        </div>
-      </Group>
-
       <MarketAgentCard
         db={db}
         onResult={setDb}
+        onFinished={revealOffers}
+        shortlist={cmp.offers.map((o) => o.id)}
         forYou={
           <>
             For you it compares plans at every speed for your {terms.lines} {terms.lines === 1 ? "line" : "lines"}, and
@@ -138,9 +154,75 @@ export function TelecomDetail(props: {
         }
       />
 
-      <StickyAction onClick={() => setStage("confirm")}>
-        {isMatch ? `Ask ${r.supplier} for a better price` : `Switch to ${chosen.operator}`}
-      </StickyAction>
+      {ran && (
+        <>
+          <PreferencePicker
+            title="How fast does it need to be?"
+            value={preference.speed}
+            onChange={(speed) => prefer({ speed })}
+            options={[
+              { value: "slower", label: "A bit slower is fine" },
+              { value: "same", label: "Same speed" },
+              { value: "faster", label: "Faster", icon: <Gauge className="size-4 shrink-0" aria-hidden /> },
+            ]}
+          />
+          <PreferencePicker
+            value={preference.priority}
+            onChange={(priority) => prefer({ priority })}
+            options={[
+              { value: "price", label: "Lowest price" },
+              { value: "sustainable", label: "Sustainable", icon: <Leaf className="size-4 shrink-0" aria-hidden /> },
+            ]}
+          />
+        </>
+      )}
+
+      {ran && (
+        <Group
+          title="Your options for a year"
+          aside={`${terms.lines} ${terms.lines === 1 ? "line" : "lines"} + internet`}
+          footer="Real public prices found by Solvo's market agent. Regular prices after any campaign."
+        >
+          <div role="radiogroup" aria-label="Phone and internet offers">
+            {cmp.offers.map((o) => (
+              <OfferOption
+                key={o.id}
+                chosen={o.id === chosen.id}
+                onSelect={() => setChosenId(o.id)}
+                title={`${o.operator}${o.kind === "switch" ? ` ${o.product}` : ""}`}
+                yearly={o.yearly}
+                detail={
+                  <>
+                    {o.kind === "price_match" ? `${o.product}. ` : ""}
+                    {eur2.format(o.perLine)}/line ({o.lineSpeed})
+                    {o.homeInternet != null ? ` + ${o.homeSpeed} ${eur2.format(o.homeInternet)}` : " + your current home internet"}
+                    {o.note ? `. ${o.note}` : ""}
+                    {o.climate && (
+                      <span className="mt-0.5 flex items-center gap-1">
+                        <Leaf className="size-3.5 shrink-0 text-primary" aria-hidden />
+                        {o.operator}: {o.climate}
+                      </span>
+                    )}
+                    {o.sourceUrl && o.checkedAt && (
+                      <span className="mt-0.5 block">
+                        Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
+                      </span>
+                    )}
+                  </>
+                }
+                pick={o.id === cmp.recommended.id ? cmp.pickReason : undefined}
+              />
+            ))}
+          </div>
+        </Group>
+      )}
+
+
+      {ran && (
+        <StickyAction onClick={() => setStage("confirm")}>
+          {isMatch ? `Ask ${r.supplier} for a better price` : `Switch to ${chosen.operator}`}
+        </StickyAction>
+      )}
 
       {stage === "confirm" && (
         <ApproveSheet

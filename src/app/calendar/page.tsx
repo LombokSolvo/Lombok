@@ -1,15 +1,26 @@
+import { Suspense } from "react";
 import { connection } from "next/server";
+import { PAGE } from "@/components/solvo/ui";
 import { offsetDays, todayIso } from "@/lib/demo-clock";
 import { scheduleFor } from "@/lib/schedule-server";
+import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { CalendarClient } from "./calendar-client";
 
 export const metadata = { title: "Calendar · Solvo" };
 
 // The server works out the usual dates from the transactions; only the dates and amounts reach the phone.
-export default async function CalendarPage() {
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={<main className={PAGE} />}>
+      <Calendar />
+    </Suspense>
+  );
+}
+
+async function Calendar() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
-  const { customer: c } = await getEffective();
+  const { customer: c } = await getEffective(await pageMode());
   return <CalendarClient items={scheduleFor(c).items} today={todayIso()} offset={offsetDays()} />;
 }

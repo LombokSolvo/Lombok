@@ -97,16 +97,17 @@ export async function* runTelecomAgent(): AsyncGenerator<AgentEvent> {
   for (const p of raw) {
     if (p.lowConfidence || !plausible(p) || !/^https?:\/\//.test(p.sourceUrl)) continue;
     const product = p.product.replace(new RegExp(`^${p.operator.split(" ")[0]}\\s+`, "i"), "") || p.product;
-    const id = slug(`${p.operator}-${product}`);
+    // One id per plan, however the page writes the speed ("200M", "200 Mbit", "200 Mbit/s").
+    const id = slug(`${p.operator}-${product.replace(/(\d+)\s*(Mbit\/s|Mbit|Mbps|M)\b/gi, "$1m")}`);
     if (byId.has(id)) continue;
     byId.set(id, {
       id,
-      operator: p.operator,
+      operator: p.operator.replace(/\s+(Oy|Oyj|Ab)$/i, ""),
       product,
       kind: p.kind,
       monthlyPrice: Math.round(p.monthlyPrice * 100) / 100,
       speedMbps: Math.round(p.speedMbps),
-      conditions: p.conditions || null,
+      conditions: p.conditions && !/^(none|standard (contract|offer|price))/i.test(p.conditions) ? p.conditions : null,
       sourceUrl: p.sourceUrl,
       sourceTitle: sources.find((s) => s.url === p.sourceUrl)?.title ?? p.sourceUrl,
       checkedAt: today,
@@ -121,6 +122,11 @@ export async function* runTelecomAgent(): AsyncGenerator<AgentEvent> {
   const operators = new Set(offers.map((p) => p.operator)).size;
   yield { type: "step", step: "check", status: "done", detail: `${offers.length} plans from ${operators} operators passed` };
 
+  // The database keeps what earlier runs found: offers seen today replace their old entry,
+  // offers not seen today stay with their older check date. One weak search can't empty the market.
+  const fresh = new Set(offers.map((x) => x.id));
+  const merged = [...offers, ...saved.offers.filter((x) => !fresh.has(x.id))];
+
   yield { type: "step", step: "segment", status: "running", detail: "Ranking plans for each speed tier" };
   const db: TelecomDb = {
     agent: "telecom",
@@ -128,10 +134,10 @@ export async function* runTelecomAgent(): AsyncGenerator<AgentEvent> {
     mode: "exa",
     queries: Object.values(SEARCHES).map((s) => s.query),
     pagesRead: sources.length,
-    sources: sources.filter((s) => offers.some((p) => p.sourceUrl === s.url)),
-    offers,
-    segments: buildTelecomSegments(offers),
+    sources: uniqueSources([sources, saved.sources]).filter((s) => merged.some((x) => x.sourceUrl === s.url)),
+    offers: merged,
+    segments: buildTelecomSegments(merged),
   };
-  yield { type: "step", step: "segment", status: "done", detail: `Best plans ready for ${db.segments.length} speed tiers` };
+  yield { type: "step", step: "segment", status: "done", detail: `${merged.length} plans in the database, best ones ready for ${db.segments.length} speed tiers` };
   yield { type: "result", db, live: true };
 }
