@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   try {
     const { found, kept } = await connectLink(body.url);
     const items = forecast(kept, await baselinesFor(), todayIso(), "link", { keepTitle: true });
-    return Response.json({ found, counted: items.length, preview: items.map((i) => ({ label: i.label, date: i.date, amount: i.amount, title: i.detail })) });
+    return Response.json({ found, counted: items.length, preview: items.map((i) => ({ label: i.label, date: i.date, amount: i.amount, title: i.detail, category: i.category })) });
   } catch (e) {
     if (e instanceof LinkError) return Response.json({ error: e.message }, { status: 422 });
     return Response.json({ error: "Something went wrong reading that calendar." }, { status: 500 });

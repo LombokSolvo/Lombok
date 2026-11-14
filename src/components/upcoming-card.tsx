@@ -55,7 +55,7 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
                     {when}{f.detail ? ` · ${e.label}` : ""} · estimate
                   </span>
                 </span>
-                <SignedAmount kind="out" value={e.amount} />
+                <SignedAmount kind="out" value={e.amount} estimate />
               </button>
             );
           }

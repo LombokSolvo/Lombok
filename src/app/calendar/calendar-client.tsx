@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, ChevronLeft, ChevronRight, Pencil, Repeat, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Repeat, Trash2 } from "lucide-react";
 import { CategoryIcon, ForecastEditSheet, useForecast } from "@/components/forecast-ui";
 import type { DayResult } from "@/app/api/day/route";
 import { NumberField } from "@/components/solvo/fields";
@@ -14,6 +14,7 @@ import type { CountedItem } from "@/lib/forecast";
 import { useOnboarding } from "@/lib/onboarding-store";
 import { daysIn, eventsForMonth, isoDay, ordinal, type CustomEvent, type DayEvent, type Item } from "@/lib/schedule";
 
+const NEXT_BILLS_SHOWN = 4; // the summary lists the next few costs, not the whole month
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
 // These show REAL calendar dates, so they must not go through the demo clock's shift (see src/lib/demo-clock.ts).
 const real = (o: Intl.DateTimeFormatOptions) => {
@@ -22,6 +23,7 @@ const real = (o: Intl.DateTimeFormatOptions) => {
 };
 const monthName = real({ month: "long", year: "numeric" });
 const dayName = real({ weekday: "long", day: "numeric", month: "long" });
+const monthOnly = real({ month: "long" });
 const shortDay = real({ weekday: "short", day: "numeric", month: "short" });
 const parse = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
@@ -38,7 +40,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   const [openDay, setOpenDay] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<CountedItem | null>(null);
 
-  const { items: forecast, mode, reserve } = useForecast();
+  const { items: forecast, mode } = useForecast();
   const countedForecast = forecast.filter((f) => f.counted && f.date >= asOf);
   const events = eventsForMonth(items, custom, year, month, forecast);
   const byDate = new Map<string, DayEvent[]>();
@@ -48,6 +50,14 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   const counted = events.filter((e) => e.counted !== false);
   const totalIn = counted.filter((e) => e.kind === "in").reduce((s, e) => s + e.amount, 0);
   const totalOut = counted.filter((e) => e.kind === "out").reduce((s, e) => s + e.amount, 0);
+  // What is still to come: from today on in the current month, the whole month for any other. Calendar items the person switched off are left out.
+  const isCurrentMonth = year === today.getUTCFullYear() && month === today.getUTCMonth();
+  const coming = counted.filter((e) => e.kind === "out" && (!isCurrentMonth || e.date >= asOf));
+  const comingCalendar = Math.round(coming.filter((e) => e.forecast).reduce((s, e) => s + e.amount, 0));
+  const comingBills = Math.round(coming.filter((e) => !e.forecast).reduce((s, e) => s + e.amount, 0));
+  const billsComing = coming.filter((e) => !e.forecast);
+  const nextBills = billsComing.slice(0, NEXT_BILLS_SHOWN);
+  const moreBills = billsComing.length - nextBills.length;
 
   const first = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7; // Monday first
   const cells = [...Array.from({ length: first }, () => 0), ...Array.from({ length: daysIn(year, month) }, (_, i) => i + 1)];
@@ -62,21 +72,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   return (
     <main className={PAGE}>
       <TopBar back={<BackLink href="/" label="Home" />} />
-      <PageTitle title="Calendar">Tap any day to see what is expected and what you spent. Add your own dates there.</PageTitle>
-      {mode && (
-        <p className="-mt-2 mb-4 rounded-xl bg-accent px-3 py-2.5 text-[13px] leading-snug text-accent-foreground">
-          <span className="flex items-center gap-2 font-medium">
-            <CalendarClock className="size-4 shrink-0" aria-hidden />
-            {`From ${mode === "google" ? "your Google Calendar" : mode === "link" ? "your calendar link" : "your calendar file"}`}
-          </span>
-          <span className="mt-1 block">
-            {countedForecast.length
-              ? `Icons mark trips, dinners and events. Solvo sets aside ${eur.format(Math.round(reserve))} a week for them, as estimates. Tap a day to change one.`
-              : "Nothing in the next 45 days looks like spending."}
-          </span>
-        </p>
-      )}
-
+      <PageTitle title="Calendar" />
       <section className="rounded-2xl bg-card p-3 shadow-[0_1px_3px_rgba(15,42,31,0.06)]" aria-label={heading}>
         <div className="flex items-center justify-between">
           <button type="button" className={nav} onClick={() => shift(-1)} aria-label="Previous month">
@@ -128,7 +124,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
                 {span && (
                   <span
                     aria-hidden
-                    className={`absolute bottom-1 h-[3px] bg-warn/45 ${spanStart ? "left-[calc(50%-11px)] rounded-l-full" : "left-0"} ${spanEnd ? "right-[calc(50%-11px)] rounded-r-full" : "right-0"}`}
+                    className={`absolute bottom-1 h-[3px] bg-event/45 ${spanStart ? "left-[calc(50%-11px)] rounded-l-full" : "left-0"} ${spanEnd ? "right-[calc(50%-11px)] rounded-r-full" : "right-0"}`}
                   />
                 )}
               </button>
@@ -136,6 +132,20 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
           })}
         </div>
 
+        {mode && (
+          <div className="mt-3 flex items-center gap-4 border-t px-1 pt-3 text-[12px] text-muted-foreground" aria-hidden>
+            <span className="flex items-center gap-1.5">
+              <MoneyBadge kind="out" size="sm" />
+              Bills and costs
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex size-[18px] items-center justify-center rounded-full bg-event-soft text-event">
+                <span className="size-1.5 rounded-full bg-event" />
+              </span>
+              From your calendar, estimates
+            </span>
+          </div>
+        )}
         <div className="mt-3 flex items-center justify-between border-t px-1 pt-3 text-[14px]">
           <span className="text-muted-foreground">This month</span>
           <span className="flex items-center gap-4">
@@ -153,7 +163,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
 
       {/* Everything coming from the calendar in the next 45 days, across months: the grid only shows the month you are looking at. */}
       {forecast.some((f) => f.date >= asOf) && (
-        <Group title="From your calendar" aside="next 45 days" footer="Estimates. Tap one to change the amount or stop counting it.">
+        <Group title="From your calendar" aside="next 45 days">
           {forecast
             .filter((f) => f.date >= asOf)
             .map((f) => (
@@ -168,32 +178,31 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
                     {f.counted ? " · estimate" : " · not counted"}
                   </span>
                 </span>
-                <SignedAmount kind="out" value={f.amount} />
+                <SignedAmount kind="out" value={f.amount} estimate />
               </button>
             ))}
         </Group>
       )}
 
-      <Group title="This month" footer="Tap a line or any day to open it.">
-        {events.length ? (
-          events.map((e) => (
-            <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t ${e.counted === false ? "opacity-55" : ""}`}>
-              {e.forecast ? <CategoryIcon category={e.forecast.category} /> : <MoneyBadge kind={e.kind} />}
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] leading-snug font-medium">{e.forecast?.detail ?? e.label}</span>
-                <span className="block text-[13px] text-muted-foreground">
-                  {e.forecast?.detail ? `${e.label} · ` : ""}
-                  {shortDay.format(parse(e.date))}
-                  {e.forecast?.endDate ? ` to ${shortDay.format(parse(e.forecast.endDate))}` : ""}
-                  {e.forecast && (e.counted === false ? " · not counted" : " · estimate")}
-                </span>
-              </span>
-              <SignedAmount kind={e.kind} value={e.amount} />
-            </button>
-          ))
-        ) : (
-          <p className="px-4 py-4 text-[14px] text-muted-foreground">Nothing expected this month. Tap a day to add something.</p>
-        )}
+      {/* Below the events: what is still to pay, as one total and the next few costs one by one (not the whole month: the days, Home's Coming up and the bills page already list them). */}
+      <Group
+        title={isCurrentMonth ? "Still to come this month" : `Expected in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`}
+        footer={moreBills > 0 ? `and ${moreBills} more` : undefined}
+      >
+        <div className="px-4 pt-4 pb-3">
+          <span className="num font-display text-[34px] leading-none font-semibold tracking-[-0.02em]">−{eur.format(comingBills + comingCalendar)}</span>
+          {mode && comingCalendar > 0 && <p className="mt-1.5 text-[13px] text-event">Includes {eur.format(comingCalendar)} estimated from your calendar</p>}
+        </div>
+        {nextBills.map((e) => (
+          <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className="flex min-h-14 w-full items-center gap-3 border-t px-4 py-3 text-left">
+            <MoneyBadge kind="out" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] leading-snug font-medium">{e.label}</span>
+              <span className="block text-[13px] text-muted-foreground">{shortDay.format(parse(e.date))}</span>
+            </span>
+            <SignedAmount kind="out" value={e.amount} />
+          </button>
+        ))}
       </Group>
 
       {editItem && <ForecastEditSheet item={editItem} onClose={() => setEditItem(null)} />}
@@ -263,7 +272,7 @@ function DaySheet({ date, asOf, offset, events, custom, onClose }: { date: strin
                           {f.endDate ? ` · to ${shortDay.format(parse(f.endDate))}` : ""}
                         </div>
                       </div>
-                      <SignedAmount kind="out" value={e.amount} />
+                      <SignedAmount kind="out" value={e.amount} estimate />
                       <button type="button" aria-label={`Change ${e.label}`} onClick={() => setEditing(f)} className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted">
                         <Pencil className="size-4" aria-hidden />
                       </button>

@@ -25,10 +25,10 @@ export function MoneyBadge({ kind, size = "md", className }: { kind: "in" | "out
   );
 }
 
-/** An amount with its sign written out: +€4 076 or −€909. */
-export function SignedAmount({ kind, value, className }: { kind: "in" | "out"; value: number; className?: string }) {
+/** An amount with its sign written out: +€4 076 or −€909. `estimate` is for possible spending from the calendar: its own colour, not the warm one of real money out. */
+export function SignedAmount({ kind, value, className, estimate = false }: { kind: "in" | "out"; value: number; className?: string; estimate?: boolean }) {
   return (
-    <span className={cn("num font-medium", kind === "in" ? "text-primary" : "text-warn", className)}>
+    <span className={cn("num font-medium", kind === "in" ? "text-primary" : estimate ? "text-event" : "text-warn", className)}>
       {kind === "in" ? "+" : "−"}
       {eur.format(value)}
     </span>

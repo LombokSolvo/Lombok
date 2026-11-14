@@ -16,6 +16,8 @@
   --color-mint: var(--mint);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
+  --color-event: var(--event);
+  --color-event-soft: var(--event-soft);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -97,6 +99,9 @@
   --mint: #8fe3b0; /* positive numbers on the slab */
   --warn: #b5731a; /* "you're overpaying" */
   --warn-soft: #fbf1df;
+  /* Possible spending that comes from the person's calendar (a trip, a dinner): an estimate, not a fixed cost, so not the warm "money out" colour. */
+  --event: #4a4eb0;
+  --event-soft: #e8e9f8;
 }
 
 .dark {

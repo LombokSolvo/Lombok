@@ -101,11 +101,11 @@ const ICONS: Record<ForecastCategory, { icon: typeof Plane; name: string }> = {
   gift: { icon: Gift, name: "Gift or party" },
 };
 
-/** What a calendar item is, as a small icon in the warm "money out" circle: a plane for trips, a fork for dinners. Used on the calendar. */
+/** What a calendar item is, as a small icon in its own colour (not the warm one of bills, because it is possible spending, not a fixed cost): a plane for trips, a fork for dinners. */
 export function CategoryIcon({ category, size = "md" }: { category: ForecastCategory; size?: "sm" | "md" }) {
   const { icon: Icon, name } = ICONS[category];
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-warn-soft text-warn ${size === "sm" ? "size-[22px]" : "size-7"}`}>
+    <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-event-soft text-event ${size === "sm" ? "size-[22px]" : "size-7"}`}>
       <Icon className={size === "sm" ? "size-3.5" : "size-4"} strokeWidth={2.25} aria-hidden />
       <span className="sr-only">{name}</span>
     </span>
