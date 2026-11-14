@@ -6,7 +6,7 @@ import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lu
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
 import { LiveBankRows } from "@/components/live-banks";
-import { Chip, Group, IconTile } from "@/components/solvo/ui";
+import { Group, IconTile } from "@/components/solvo/ui";
 import { FALLBACK_BANKS, readBankNameCookie, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
 import { LIVE_BANKS, LIVE_BANK_IDS, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
@@ -132,7 +132,7 @@ export function OtherBanks({
   };
 
   // Everything the picker can offer, each in one group. With real banks set up here, the ones in src/lib/live-bank-ids.ts connect for
-  // real (marked Real) and the rest are simulated (marked Demo); a real bank that is already connected is not offered again. With the
+  // real and any other name is simulated; every row shows the same Connect button; a real bank that is already connected is not offered again. With the
   // demo-bank list on, the Banks group is Enable Banking's test banks for the chosen country, and the simulated names are not offered.
   const liveActive = !!live?.enabled && !!live.configured;
   const connected = new Set(live?.banks.filter((b) => b.connected).map((b) => b.id));
@@ -315,7 +315,7 @@ export function OtherBanks({
                   <span className="block text-[15px] font-medium">{e.name}</span>
                   {e.sub && <span className="block text-[13px] leading-snug text-muted-foreground">{e.sub}</span>}
                 </span>
-                {liveActive && <Chip tone={e.live ? "green" : "grey"}>{e.live ? "Real" : "Demo"}</Chip>}
+                <span className="flex h-8 shrink-0 items-center rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground">Connect</span>
               </button>
             ))}
           </div>
@@ -326,7 +326,7 @@ export function OtherBanks({
               : sandbox.enabled
                 ? "Banks here are Enable Banking's test banks. In production the list is your real banks."
                 : liveActive
-                  ? "Real connects to your own account. Demo shows example data."
+                  ? "Connects to your own account through Enable Banking. Read only: Solvo can never move money."
                   : "Demo: connecting is simulated and shows example data."}
           </p>
         </Sheet>
