@@ -14,6 +14,11 @@ import type { CountedItem } from "@/lib/forecast";
 import { useOnboarding } from "@/lib/onboarding-store";
 import { daysIn, eventsForMonth, isoDay, ordinal, type CustomEvent, type DayEvent, type Item } from "@/lib/schedule";
 
+// The "Coming up" table: a date column and an amount column of fixed widths, right-aligned, so the numbers line up from row to row and
+// the section subtotals sit in the same column as the amounts above and below them.
+const SECTION = "flex items-center gap-2.5 px-4 pt-3 pb-1 font-semibold";
+const DATE_COL = "w-[66px] shrink-0 text-right";
+const AMOUNT_COL = "num w-[62px] shrink-0 text-right";
 const NEXT_BILLS_SHOWN = 4; // the summary lists the next few costs, not the whole month
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
 // These show REAL calendar dates, so they must not go through the demo clock's shift (see src/lib/demo-clock.ts).
@@ -174,35 +179,37 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
 
       {/* One compact section for the month being looked at: what is coming, split into calendar events (estimates) and bills, with the total. */}
       {(monthEvents.length > 0 || billsComing.length > 0) && (
-        <Group title={isCurrentMonth ? "Coming up this month" : `Coming up in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`} aside={<span className="num text-[15px] font-semibold text-foreground">−{eur.format(comingBills + comingCalendar)}</span>}>
+        <Group title={isCurrentMonth ? "Coming up this month" : `Coming up in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`} aside={<span className="num font-display text-[22px] leading-none font-semibold tracking-[-0.01em] text-foreground">−{eur.format(comingBills + comingCalendar)}</span>}>
           {monthEvents.length > 0 && (
             <>
-              <div className="flex items-baseline justify-between px-4 pt-3 pb-1 text-[12px] font-semibold tracking-wide text-event uppercase">
-                <span>Events, estimates</span>
-                <span className="num">−{eur.format(comingCalendar)}</span>
+              <div className={`${SECTION} text-event`}>
+                <span className="flex-1 text-[12px] tracking-wide uppercase">Events, estimates</span>
+                <span className={DATE_COL} aria-hidden />
+                <span className={`${AMOUNT_COL} text-[15px] font-semibold`}>−{eur.format(comingCalendar)}</span>
               </div>
               {monthEvents.map((f) => (
-                <button key={f.id} type="button" onClick={() => setEditItem(f)} className={`flex min-h-12 w-full items-center gap-3 px-4 py-1.5 text-left ${f.counted ? "" : "opacity-50"}`}>
+                <button key={f.id} type="button" onClick={() => setEditItem(f)} className={`flex min-h-12 w-full items-center gap-2.5 px-4 py-1.5 text-left ${f.counted ? "" : "opacity-50"}`}>
                   <CategoryIcon category={f.category} />
                   <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{f.detail ?? f.label}</span>
-                  <span className="shrink-0 text-[13px] text-muted-foreground">{f.counted ? range(f.date, f.endDate) : "not counted"}</span>
-                  <SignedAmount kind="out" value={f.amount} estimate className="w-14 shrink-0 text-right" />
+                  <span className={`${DATE_COL} text-[13px] text-muted-foreground`}>{f.counted ? range(f.date, f.endDate) : "not counted"}</span>
+                  <SignedAmount kind="out" value={f.amount} estimate className={`${AMOUNT_COL} text-[15px]`} />
                 </button>
               ))}
             </>
           )}
           {billsComing.length > 0 && (
             <>
-              <div className={`flex items-baseline justify-between px-4 pt-3 pb-1 text-[12px] font-semibold tracking-wide text-warn uppercase ${monthEvents.length ? "border-t" : ""}`}>
-                <span>Bills</span>
-                <span className="num">−{eur.format(comingBills)}</span>
+              <div className={`${SECTION} text-warn ${monthEvents.length ? "border-t" : ""}`}>
+                <span className="flex-1 text-[12px] tracking-wide uppercase">Bills</span>
+                <span className={DATE_COL} aria-hidden />
+                <span className={`${AMOUNT_COL} text-[15px] font-semibold`}>−{eur.format(comingBills)}</span>
               </div>
               {nextBills.map((e) => (
-                <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className="flex min-h-12 w-full items-center gap-3 px-4 py-1.5 text-left">
+                <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className="flex min-h-12 w-full items-center gap-2.5 px-4 py-1.5 text-left">
                   <MoneyBadge kind="out" />
                   <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{e.label}</span>
-                  <span className="shrink-0 text-[13px] text-muted-foreground">{range(e.date, null)}</span>
-                  <SignedAmount kind="out" value={e.amount} className="w-14 shrink-0 text-right" />
+                  <span className={`${DATE_COL} text-[13px] text-muted-foreground`}>{range(e.date, null)}</span>
+                  <SignedAmount kind="out" value={e.amount} className={`${AMOUNT_COL} text-[15px]`} />
                 </button>
               ))}
               {moreBills > 0 && <p className="px-4 pt-0.5 pb-3 text-[13px] text-muted-foreground">and {moreBills} more</p>}
