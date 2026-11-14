@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { DEFAULT_SAVINGS_GOAL_PER_MONTH, safeToSpend } from "@/lib/coach";
+import { compareAgainst, ownGroups } from "@/lib/cohorts";
+import { leftoverPerMonth, trimsFrom } from "@/lib/plan-view";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { SaveClient } from "./save-client";
@@ -22,12 +24,14 @@ export default function SavePage() {
 async function Save() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
-  const { base, customer: c, mode } = await getEffective(await pageMode());
+  const { base, customer: c, mode, local } = await getEffective(await pageMode());
   // The balance shown is S-Pankki's own, whichever other banks are merged in.
   const last = base.transactions[base.transactions.length - 1];
   // Fund deposits and withdrawals in the data (neither demo customer has any; Aino's holdings are demo data).
   const fundTx = c.transactions.filter((t) => t.category === "Invest Deposit" || t.category === "Invest Withdraw");
   const inFunds = -fundTx.reduce((sum, t) => sum + t.amount, 0);
+  // Where to cut: categories well above the person's age group (not shown for a local bank, whose data the groups don't describe).
+  const peers = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
   return (
     <SaveClient
       remaining={safeToSpend(c).remaining}
@@ -38,6 +42,9 @@ async function Save() {
       savingsGoal={DEFAULT_SAVINGS_GOAL_PER_MONTH}
       hasFunds={mode === "aino"}
       mode={mode}
+      leftover={leftoverPerMonth(c)}
+      trims={trimsFrom(peers)}
+      peer={peers?.label.startsWith("Aged ") ? `customer aged ${peers.label.slice(5)}` : null}
     />
   );
 }
