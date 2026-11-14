@@ -25,7 +25,15 @@ const monthName = real({ month: "long", year: "numeric" });
 const dayName = real({ weekday: "long", day: "numeric", month: "long" });
 const monthOnly = real({ month: "long" });
 const shortDay = real({ weekday: "short", day: "numeric", month: "short" });
+const dayMonth = real({ day: "numeric", month: "short" });
+const dayOnly = real({ day: "numeric" });
 const parse = (iso: string) => new Date(`${iso}T00:00:00Z`);
+
+/** "20 Nov", "25–27 Nov", "30 Nov – 2 Dec". */
+const range = (from: string, to: string | null) => {
+  if (!to || to === from) return dayMonth.format(parse(from));
+  return from.slice(0, 7) === to.slice(0, 7) ? `${dayOnly.format(parse(from))}–${dayMonth.format(parse(to))}` : `${dayMonth.format(parse(from))} – ${dayMonth.format(parse(to))}`;
+};
 
 // `today` is the real date. `offset` is how many days the demo data lags behind it, to find what happened on a past day.
 export function CalendarClient({ items: detected, today: asOf, offset }: { items: Item[]; today: string; offset: number }) {
@@ -53,11 +61,14 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   // What is still to come: from today on in the current month, the whole month for any other. Calendar items the person switched off are left out.
   const isCurrentMonth = year === today.getUTCFullYear() && month === today.getUTCMonth();
   const coming = counted.filter((e) => e.kind === "out" && (!isCurrentMonth || e.date >= asOf));
-  const comingCalendar = Math.round(coming.filter((e) => e.forecast).reduce((s, e) => s + e.amount, 0));
   const comingBills = Math.round(coming.filter((e) => !e.forecast).reduce((s, e) => s + e.amount, 0));
   const billsComing = coming.filter((e) => !e.forecast);
+  // Calendar events of the month being looked at (from today on in the current month). Switched-off ones stay listed, muted, so they can be switched back on.
+  const monthKey = isoDay(year, month, 1).slice(0, 7);
+  const monthEvents = forecast.filter((f) => f.date.startsWith(monthKey) && (!isCurrentMonth || f.date >= asOf));
   const nextBills = billsComing.slice(0, NEXT_BILLS_SHOWN);
   const moreBills = billsComing.length - nextBills.length;
+  const comingCalendar = Math.round(monthEvents.filter((f) => f.counted).reduce((s, f) => s + f.amount, 0));
 
   const first = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7; // Monday first
   const cells = [...Array.from({ length: first }, () => 0), ...Array.from({ length: daysIn(year, month) }, (_, i) => i + 1)];
@@ -161,49 +172,44 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
         </div>
       </section>
 
-      {/* Everything coming from the calendar in the next 45 days, across months: the grid only shows the month you are looking at. */}
-      {forecast.some((f) => f.date >= asOf) && (
-        <Group title="From your calendar" aside="next 45 days">
-          {forecast
-            .filter((f) => f.date >= asOf)
-            .map((f) => (
-              <button key={f.id} type="button" onClick={() => setEditItem(f)} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left [&+&]:border-t ${f.counted ? "" : "opacity-55"}`}>
-                <CategoryIcon category={f.category} />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] leading-snug font-medium">{f.detail ?? f.label}</span>
-                  <span className="block text-[13px] text-muted-foreground">
-                    {f.detail ? `${f.label} · ` : ""}
-                    {shortDay.format(parse(f.date))}
-                    {f.endDate ? ` to ${shortDay.format(parse(f.endDate))}` : ""}
-                    {f.counted ? " · estimate" : " · not counted"}
-                  </span>
-                </span>
-                <SignedAmount kind="out" value={f.amount} estimate />
-              </button>
-            ))}
+      {/* One compact section for the month being looked at: what is coming, split into calendar events (estimates) and bills, with the total. */}
+      {(monthEvents.length > 0 || billsComing.length > 0) && (
+        <Group title={isCurrentMonth ? "Coming up this month" : `Coming up in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`} aside={<span className="num text-[15px] font-semibold text-foreground">−{eur.format(comingBills + comingCalendar)}</span>}>
+          {monthEvents.length > 0 && (
+            <>
+              <div className="flex items-baseline justify-between px-4 pt-3 pb-1 text-[12px] font-semibold tracking-wide text-event uppercase">
+                <span>Events, estimates</span>
+                <span className="num">−{eur.format(comingCalendar)}</span>
+              </div>
+              {monthEvents.map((f) => (
+                <button key={f.id} type="button" onClick={() => setEditItem(f)} className={`flex min-h-12 w-full items-center gap-3 px-4 py-1.5 text-left ${f.counted ? "" : "opacity-50"}`}>
+                  <CategoryIcon category={f.category} />
+                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{f.detail ?? f.label}</span>
+                  <span className="shrink-0 text-[13px] text-muted-foreground">{f.counted ? range(f.date, f.endDate) : "not counted"}</span>
+                  <SignedAmount kind="out" value={f.amount} estimate className="w-14 shrink-0 text-right" />
+                </button>
+              ))}
+            </>
+          )}
+          {billsComing.length > 0 && (
+            <>
+              <div className={`flex items-baseline justify-between px-4 pt-3 pb-1 text-[12px] font-semibold tracking-wide text-warn uppercase ${monthEvents.length ? "border-t" : ""}`}>
+                <span>Bills</span>
+                <span className="num">−{eur.format(comingBills)}</span>
+              </div>
+              {nextBills.map((e) => (
+                <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className="flex min-h-12 w-full items-center gap-3 px-4 py-1.5 text-left">
+                  <MoneyBadge kind="out" />
+                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{e.label}</span>
+                  <span className="shrink-0 text-[13px] text-muted-foreground">{range(e.date, null)}</span>
+                  <SignedAmount kind="out" value={e.amount} className="w-14 shrink-0 text-right" />
+                </button>
+              ))}
+              {moreBills > 0 && <p className="px-4 pt-0.5 pb-3 text-[13px] text-muted-foreground">and {moreBills} more</p>}
+            </>
+          )}
         </Group>
       )}
-
-      {/* Below the events: what is still to pay, as one total and the next few costs one by one (not the whole month: the days, Home's Coming up and the bills page already list them). */}
-      <Group
-        title={isCurrentMonth ? "Still to come this month" : `Expected in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`}
-        footer={moreBills > 0 ? `and ${moreBills} more` : undefined}
-      >
-        <div className="px-4 pt-4 pb-3">
-          <span className="num font-display text-[34px] leading-none font-semibold tracking-[-0.02em]">−{eur.format(comingBills + comingCalendar)}</span>
-          {mode && comingCalendar > 0 && <p className="mt-1.5 text-[13px] text-event">Includes {eur.format(comingCalendar)} estimated from your calendar</p>}
-        </div>
-        {nextBills.map((e) => (
-          <button key={e.id + e.date} type="button" onClick={() => setOpenDay(e.date)} className="flex min-h-14 w-full items-center gap-3 border-t px-4 py-3 text-left">
-            <MoneyBadge kind="out" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] leading-snug font-medium">{e.label}</span>
-              <span className="block text-[13px] text-muted-foreground">{shortDay.format(parse(e.date))}</span>
-            </span>
-            <SignedAmount kind="out" value={e.amount} />
-          </button>
-        ))}
-      </Group>
 
       {editItem && <ForecastEditSheet item={editItem} onClose={() => setEditItem(null)} />}
       {openDay && <DaySheet key={openDay} date={openDay} asOf={asOf} offset={offset} events={byDate.get(openDay) ?? []} custom={custom} onClose={() => setOpenDay(null)} />}
