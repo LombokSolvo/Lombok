@@ -10,7 +10,7 @@ import { Sheet } from "@/components/solvo/sheet";
 import { eur, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
 import { useCalendarFile } from "@/lib/calendar-file-store";
-import { applyChoices, forecast, weeklyReserve, type Baselines, type CalendarMode, type CountedItem, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
+import { applyChoices, forecast, restOfMonthTotal, weeklyReserve, type Baselines, type CalendarMode, type CountedItem, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
 import { setChoice, useChoices } from "@/lib/forecast-store";
 
 // What the person's calendar adds to the budget, on every screen that shows it. The server page hands over the forecast items
@@ -19,8 +19,8 @@ import { setChoice, useChoices } from "@/lib/forecast-store";
 
 const dayFmt = plainFormat({ weekday: "short", day: "numeric", month: "short" });
 
-type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines };
-const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null } };
+type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; monthReserve: number; baselines: Baselines };
+const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, monthReserve: 0, baselines: { dining: null, entertainment: null, trip: null } };
 const Ctx = createContext<State>(EMPTY);
 
 /**
@@ -34,7 +34,14 @@ export function ForecastProvider({ mode, items, today, baselines, children }: { 
     const useFile = !!file && mode !== "google" && mode !== "link";
     const raw = useFile ? forecast(file.events, baselines, today, "file", { keepTitle: true }) : items;
     const counted = applyChoices(raw, choices);
-    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines };
+    return {
+      mode: useFile ? "file" : mode,
+      today,
+      items: counted,
+      reserve: weeklyReserve(counted, today),
+      monthReserve: restOfMonthTotal(counted, today),
+      baselines,
+    };
   }, [mode, items, today, baselines, choices, file]);
   return (
     <Ctx.Provider value={value}>
@@ -86,6 +93,8 @@ function CalendarAutoSync({ mode }: { mode: "google" | "link" | null }) {
 export const useForecast = () => useContext(Ctx);
 /** EUR a week the calendar takes out of the weekly budget. */
 export const useWeeklyReserve = () => useContext(Ctx).reserve;
+/** EUR the calendar sets aside from today to the end of this month, taken off Home's monthly safe-to-spend. */
+export const useMonthReserve = () => useContext(Ctx).monthReserve;
 
 const ICONS: Record<ForecastCategory, { icon: typeof Plane; name: string }> = {
   travel: { icon: Plane, name: "Trip" },
@@ -107,12 +116,12 @@ export function CategoryIcon({ category, size = "md" }: { category: ForecastCate
 
 /** Under the safe-to-spend number: one line saying why it is lower. The items themselves are on the calendar, as icons. */
 export function ForecastNote({ className }: { className?: string }) {
-  const { mode, items, reserve, today } = useForecast();
-  if (!mode || !items.some((i) => i.counted && i.date >= today)) return null;
+  const { mode, monthReserve } = useForecast();
+  if (!mode || monthReserve < 0.5) return null;
   return (
     <Link href="/calendar" className={`${className ?? ""} flex min-h-11 items-center justify-between gap-2 text-[13px] text-white/70 active:text-white`}>
       <span>
-        Includes {eur.format(Math.round(reserve))} a week set aside for your calendar
+        Includes {eur.format(Math.round(monthReserve))} set aside for your calendar this month
       </span>
       <ChevronRight className="size-4 shrink-0 text-white/50" aria-hidden />
     </Link>

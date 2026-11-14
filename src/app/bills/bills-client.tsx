@@ -19,7 +19,8 @@ import {
   eur2,
   primaryButton,
 } from "@/components/solvo/ui";
-import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
+import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction, type MonthMoney } from "./switch-ui";
+import { WEEKS_PER_MONTH } from "@/lib/plan";
 import { LearnChip } from "@/components/learn/learn-chip";
 import type { Reading } from "@/lib/einvoice";
 import { compare, type ContractTerms, type ElectricityPreference } from "@/lib/offers";
@@ -81,8 +82,7 @@ function termsFrom(r: Reading): ContractTerms {
 export function BillsClient(props: {
   asOf: string;
   invoices: InvoiceMeta[];
-  weeklyBudget: number;
-  remaining: number;
+  month: MonthMoney;
   history: PaidBill[];
   dentalBill: boolean; // Aino's unpaid dentist e-invoice, part of her demo story only
   subscriptions: Subscription[]; // Aino's card subscriptions, demo data
@@ -155,15 +155,13 @@ export function BillsClient(props: {
             <TelecomDetail
               reading={openInvoice.reading}
               badge={<SourceBadge l={openInvoice} />}
-              weeklyBudget={props.weeklyBudget}
-              remaining={props.remaining}
+              month={props.month}
               asOf={props.asOf}
             />
           ) : open && openInvoice ? (
             <ElectricityDetail
               loaded={openInvoice}
-              weeklyBudget={props.weeklyBudget}
-              remaining={props.remaining}
+              month={props.month}
               asOf={props.asOf}
             />
           ) : (
@@ -345,7 +343,7 @@ function InvoiceRow({ meta, loaded, switched }: { meta: InvoiceMeta; loaded?: Lo
   );
 }
 
-function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remaining: number; asOf: string }) {
+function ElectricityDetail(props: { loaded: Loaded; month: MonthMoney; asOf: string }) {
   const r = props.loaded.reading;
   const [terms, setTerms] = useState<ContractTerms>(() => termsFrom(r));
   const set = (k: keyof ContractTerms) => (v: number | null) =>
@@ -363,8 +361,9 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
-  const perWeek = chosen.saving / 52;
-  const boost = weeklyBoost(useSwitches(), useSavingsPlan()); // all approved switches, including this one once approved
+  const perMonth = chosen.saving / 12;
+  // All approved switches, including this one once approved, as EUR a month.
+  const boost = weeklyBoost(useSwitches(), useSavingsPlan()) * WEEKS_PER_MONTH;
   const startDate = r.contractEndDate ? nextDay(r.contractEndDate) : null;
 
   if (stage === "done") {
@@ -377,12 +376,13 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
             contract for you, so there&apos;s nothing else to do.
           </>
         }
-        remainingBefore={props.remaining + boost - Math.max(0, perWeek)}
-        remainingAfter={props.remaining + boost}
-        perWeek={Math.max(0, perWeek)}
+        month={props.month.name}
+        remainingBefore={props.month.left + boost - Math.max(0, perMonth)}
+        remainingAfter={props.month.left + boost}
+        perMonth={Math.max(0, perMonth)}
         footnote={
           <>
-            Your weekly budget grows from {eur.format(props.weeklyBudget)} to {eur.format(props.weeklyBudget + boost)},
+            Your monthly budget grows from {eur.format(props.month.budget)} to {eur.format(props.month.budget + boost)},
             because a fixed cost just got smaller. That&apos;s {eur.format(chosen.saving)} a year.
           </>
         }
@@ -424,7 +424,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
           saving={chosen.saving}
           before={{ label: `Do nothing, rolls over ${fmtDate(startDate)}`, yearly: cmp.doNothing }}
           after={{ label: `${chosen.supplier} ${chosen.product}`, yearly: chosen.yearly }}
-          footnote={<>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>}
+          footnote={<>That&apos;s +{eur.format(Math.max(0, perMonth))} to your safe-to-spend every month.</>}
         />
       )}
 

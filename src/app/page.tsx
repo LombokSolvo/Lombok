@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ArrowRight, CalendarDays, MessageCircle } from "lucide-react";
-import { LiveWeekBar, LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
+import { LiveBudgetStatus, LiveMonthBar, LiveMonthEuro, LivePerDay, ResetDemoButton } from "@/components/live-budget";
 import { AllBanksCard } from "@/components/all-banks-card";
 import { LinkedBankCard } from "@/components/linked-bank-card";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
@@ -13,9 +13,9 @@ import { UpcomingCard } from "@/components/upcoming-card";
 import { CompareSummary } from "@/components/compare-card";
 import { Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
 import { compareAgainst, ownGroups } from "@/lib/cohorts";
-import { safeToSpend } from "@/lib/coach";
+import { monthSoFar, safeToSpend } from "@/lib/coach";
 import type { Basket } from "@/lib/demo";
-import { todayIso } from "@/lib/demo-clock";
+import { plainFormat, todayIso } from "@/lib/demo-clock";
 import { getCalendarState } from "@/lib/calendar-source";
 import { scheduleFor } from "@/lib/schedule-server";
 import { pageMode } from "@/lib/source";
@@ -24,7 +24,6 @@ import { getEffective } from "@/lib/source-banks";
 const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
 
-const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const BASKET_COLOR: Record<Basket, string> = { 1: "bg-chart-1", 2: "bg-chart-2", 3: "bg-chart-4" };
 const SAVINGS_COLOR = "bg-sky-600"; // savings, its own colour so it reads apart from the three baskets
 
@@ -53,11 +52,10 @@ async function HomeScreen() {
   ];
   const splitTotal = split.reduce((sum, x) => sum + x.amount, 0) || 1;
   const share = (v: number) => `${Math.round((Math.max(0, v) / Math.max(s.incomePerMonth, 1)) * 100)}% of salary`;
-  const over = s.remaining < 0;
-  // The week strip follows the REAL weekday. The demo data's own "today" is a Wednesday, which would show on a Saturday.
+  // Safe to spend is counted for the REAL month (the demo clock shows real dates): its days so far map onto the data's last days.
   const realToday = todayIso();
-  const today = (new Date(`${realToday}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
-  const daysLeft = 7 - today;
+  const month = monthSoFar(c, realToday, s.everydayBudgetPerMonth);
+  const monthName = plainFormat({ month: "long" })(realToday);
 
   return (
     <Screen>
@@ -74,10 +72,10 @@ async function HomeScreen() {
           <span className="text-[13px] text-muted-foreground">{fmtDate(c.asOf)}</span>
         </header>
 
-        {/* The one number */}
+        {/* The one number: what is left of this month's everyday money, in plain words, and whether that is on track. */}
         <Slab className="mt-4">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-[15px] text-white/70">Safe to spend this week</p>
+            <p className="text-[15px] text-white/70">Left to spend in {monthName}</p>
             <Link
               href="/calendar"
               className="-mt-1 -mr-1 flex h-11 items-center gap-1.5 rounded-full bg-white/12 px-3.5 text-[14px] font-medium text-white active:bg-white/20"
@@ -86,39 +84,15 @@ async function HomeScreen() {
               Calendar
             </Link>
           </div>
-          <p
-            className={`num animate-rise mt-1 font-display text-[64px] leading-none font-semibold tracking-[-0.035em] ${over ? "text-[#ffb4a3]" : ""}`}
-          >
-            <LiveWeeklyEuro base={s.remaining} signed />
+          <p className="num animate-rise mt-1 font-display text-[64px] leading-none font-semibold tracking-[-0.035em]">
+            <LiveMonthEuro base={month.remaining} signed />
           </p>
-          <p className="mt-2 text-[15px] text-white/70">
-            of your <LiveWeeklyEuro base={s.weeklyBudget} /> weekly budget, {daysLeft}{" "}
-            {daysLeft === 1 ? "day" : "days"} left
-          </p>
+          <LivePerDay remaining={month.remaining} daysLeft={month.daysLeft} month={monthName} className="mt-2 text-[15px] text-white/75" />
+          <LiveBudgetStatus spent={month.spent} budget={month.budget} day={month.day} daysInMonth={month.daysInMonth} className="mt-3" />
 
           <div className="mt-5">
-            <LiveWeekBar spent={s.spentThisWeek} budget={s.weeklyBudget} />
-            <div className="mt-2 grid grid-cols-7 text-center text-[11px] font-medium">
-              {DAYS.map((d, i) => (
-                <span
-                  key={i}
-                  className={
-                    i === today
-                      ? "mx-auto flex size-5 items-center justify-center rounded-full bg-white text-slab"
-                      : i < today
-                        ? "leading-5 text-white/55"
-                        : "leading-5 text-white/30"
-                  }
-                >
-                  {d}
-                </span>
-              ))}
-            </div>
+            <LiveMonthBar spent={month.spent} budget={month.budget} />
           </div>
-
-          <p className="mt-4 border-t border-white/10 pt-3 text-[13px] text-white/60">
-            {eur.format(s.spentThisWeek)} spent so far this week
-          </p>
           <ForecastNote className="mt-2" />
         </Slab>
 

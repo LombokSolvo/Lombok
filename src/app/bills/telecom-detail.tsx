@@ -15,7 +15,8 @@ import {
 import { SAVED_TELECOM_DB, domainOf, type TelecomDb } from "@/lib/market";
 import { MarketAgentCard, agentHasRun } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
-import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
+import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction, type MonthMoney } from "./switch-ui";
+import { WEEKS_PER_MONTH } from "@/lib/plan";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
@@ -30,8 +31,7 @@ function startDateFrom(asOf: string) {
 export function TelecomDetail(props: {
   reading: Reading;
   badge: React.ReactNode;
-  weeklyBudget: number;
-  remaining: number;
+  month: MonthMoney;
   asOf: string;
 }) {
   const r = props.reading;
@@ -55,11 +55,11 @@ export function TelecomDetail(props: {
   const switches = useSwitches();
   const plan = useSavingsPlan();
   const startDate = startDateFrom(props.asOf);
-  const perWeek = Math.max(0, chosen.saving) / 52;
+  const perMonth = Math.max(0, chosen.saving) / 12;
   const isMatch = chosen.kind === "price_match";
 
   if (stage === "done") {
-    const boost = weeklyBoost(switches, plan);
+    const boost = weeklyBoost(switches, plan) * WEEKS_PER_MONTH; // EUR a month
     return (
       <DoneView
         title={isMatch ? "Price-match request sent" : "Switch requested"}
@@ -94,15 +94,16 @@ export function TelecomDetail(props: {
                 },
               ]
         }
-        remainingBefore={props.remaining + boost - perWeek}
-        remainingAfter={props.remaining + boost}
-        perWeek={perWeek}
+        month={props.month.name}
+        remainingBefore={props.month.left + boost - perMonth}
+        remainingAfter={props.month.left + boost}
+        perMonth={perMonth}
         footnote={
           chosen.saving < 0 ? (
             <>You chose a plan that costs {eur.format(-chosen.saving)} more a year. Solvo has included it in your bills.</>
           ) : (
           <>
-            Your weekly budget is now {eur.format(props.weeklyBudget + boost)}, up from {eur.format(props.weeklyBudget)},
+            Your monthly budget is now {eur.format(props.month.budget + boost)}, up from {eur.format(props.month.budget)},
             because your fixed costs got smaller. That&apos;s {eur.format(Math.max(0, chosen.saving))} a year.
           </>
           )
@@ -129,7 +130,7 @@ export function TelecomDetail(props: {
             chosen.saving < 0 ? (
               <>More than you pay today. It&apos;s your choice, Solvo just shows the price.</>
             ) : (
-              <>That&apos;s +{eur.format(perWeek)} to your safe-to-spend every week.</>
+              <>That&apos;s +{eur.format(perMonth)} to your safe-to-spend every month.</>
             )
           }
         />

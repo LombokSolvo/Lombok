@@ -6,7 +6,8 @@ import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { SUBSCRIPTIONS, subscriptionCharges } from "@/data/subscriptions";
 import { namedBillsFor } from "@/lib/bill-names";
-import { safeToSpend } from "@/lib/coach";
+import { monthSoFar, safeToSpend } from "@/lib/coach";
+import { plainFormat, todayIso } from "@/lib/demo-clock";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import type { PaidBill } from "./bill-history";
@@ -32,6 +33,9 @@ async function Bills() {
   const invoices = mode === "aino" ? INVOICES : [];
   const subscriptions = mode === "aino" ? SUBSCRIPTIONS : []; // demo data, see src/data/subscriptions.ts
   const s = safeToSpend(c);
+  // The same monthly numbers as Home's safe-to-spend card, for the after-switch screen.
+  const realToday = todayIso();
+  const m = monthSoFar(c, realToday, s.everydayBudgetPerMonth);
   // Rent and utility payments in the last 12 months. A payment that matches an e-invoice Solvo has read gets the
   // supplier's name; the others have none, because utility payments in the data carry no merchant.
   const from = `${c.summary.last12Months[0]}-01`;
@@ -62,8 +66,7 @@ async function Bills() {
     <BillsClient
       asOf={c.asOf}
       invoices={invoices.map(({ id, payment }) => ({ id, payment }))}
-      weeklyBudget={s.weeklyBudget}
-      remaining={s.remaining}
+      month={{ name: plainFormat({ month: "long" })(realToday), budget: m.budget, left: m.remaining }}
       history={history}
       subscriptions={subscriptions}
       dentalBill={mode === "aino"}

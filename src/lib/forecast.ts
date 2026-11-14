@@ -254,5 +254,9 @@ export function totalWithin(items: CountedItem[], today: string, days = 30): num
   return items.filter((i) => i.counted && i.date >= today && i.date <= until).reduce((s, i) => s + i.amount, 0);
 }
 
+/** Counted spending from today to the end of today's month: what Home's monthly safe-to-spend sets aside for the calendar. */
+export const restOfMonthTotal = (items: CountedItem[], today: string) =>
+  items.filter((i) => i.counted && i.date >= today && i.date.startsWith(today.slice(0, 7))).reduce((s, i) => s + i.amount, 0);
+
 /** Counted spending that falls in one calendar month (YYYY-MM). */
 export const monthTotal = (items: CountedItem[], month: string) => items.filter((i) => i.counted && i.date.startsWith(month)).reduce((s, i) => s + i.amount, 0);

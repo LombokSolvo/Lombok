@@ -199,6 +199,9 @@ export function ApproveSheet(props: {
   );
 }
 
+/** This month's everyday money, as Home's safe-to-spend card shows it: the month's name, its budget and what is left. */
+export type MonthMoney = { name: string; budget: number; left: number };
+
 /** Counts from one amount to another once, so the user sees the safe-to-spend number move. */
 function CountUp({ from, to }: { from: number; to: number }) {
   const [v, setV] = useState(from);
@@ -223,9 +226,11 @@ function CountUp({ from, to }: { from: number; to: number }) {
 export function DoneView(props: {
   title: string;
   body: ReactNode;
+  /** The month's name, for "Left to spend in November". */
+  month: string;
   remainingBefore: number;
   remainingAfter: number;
-  perWeek: number;
+  perMonth: number;
   footnote: ReactNode;
   reminder?: ReactNode;
   /** What would happen next in real use. The switch itself is simulated in the demo. */
@@ -245,13 +250,13 @@ export function DoneView(props: {
       </div>
 
       <Slab className="mt-7">
-        <p className="text-[15px] text-white/70">Safe to spend this week</p>
+        <p className="text-[15px] text-white/70">Left to spend in {props.month}</p>
         <p className="num mt-1 font-display text-[56px] leading-none font-semibold tracking-[-0.035em]">
           <CountUp from={props.remainingBefore} to={props.remainingAfter} />
         </p>
-        {props.perWeek > 0 && (
+        {props.perMonth > 0 && (
           <p className="mt-3 inline-flex h-7 items-center rounded-full bg-mint/15 px-2.5 text-[13px] font-semibold text-mint">
-            +{eur.format(props.perWeek)} every week
+            +{eur.format(props.perMonth)} every month
           </p>
         )}
         <p className="mt-4 border-t border-white/10 pt-3 text-[13px] leading-snug text-white/65">{props.footnote}</p>

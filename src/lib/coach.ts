@@ -60,6 +60,30 @@ export function safeToSpend(c: DemoCustomer, savingsGoalPerMonth = DEFAULT_SAVIN
   };
 }
 
+/** Everyday (basket 3) spending in the current month so far, for Home's safe-to-spend card. */
+export type MonthSoFar = {
+  day: number; // day of the month today, 1-based
+  daysInMonth: number;
+  daysLeft: number; // including today
+  spent: number;
+  budget: number; // the everyday budget for a month
+  remaining: number; // can be negative
+};
+
+/**
+ * The month is the REAL one, because the demo clock shows real dates (src/lib/demo-clock.ts): the data's last day (asOf) is shown as
+ * today, so day d of the real month sits d - 1 days before asOf in the data. `realToday` is YYYY-MM-DD.
+ */
+export function monthSoFar(c: DemoCustomer, realToday: string, budget: number): MonthSoFar {
+  const day = Number(realToday.slice(8, 10));
+  const daysInMonth = new Date(Date.UTC(Number(realToday.slice(0, 4)), Number(realToday.slice(5, 7)), 0)).getUTCDate();
+  const start = isoDate(new Date(Date.parse(`${c.asOf}T00:00:00Z`) - (day - 1) * DAY_MS));
+  const spent = c.transactions
+    .filter((t) => t.date >= start && t.date <= c.asOf && c.basketOf[t.category] === 3)
+    .reduce((s, t) => s - t.amount, 0);
+  return { day, daysInMonth, daysLeft: daysInMonth - day + 1, spent, budget, remaining: budget - spent };
+}
+
 export type CategoryShare = { category: string; perYear: number };
 
 export function topCategories(c: DemoCustomer, basket: Basket, n = 3): CategoryShare[] {
