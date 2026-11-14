@@ -6,9 +6,9 @@ import { LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { UpcomingCard } from "@/components/upcoming-card";
-import { CompareCard } from "@/components/compare-card";
+import { CompareSummary } from "@/components/compare-card";
 import { Chip, Group, IconTile, Logo, PAGE, Row, Slab, eur } from "@/components/solvo/ui";
-import { compareWith } from "@/lib/cohorts";
+import { compareAgainst, ownGroups } from "@/lib/cohorts";
 import { safeToSpend, topCategories } from "@/lib/coach";
 import { BASKET_LABELS, type Basket } from "@/lib/demo";
 import { inferSchedule } from "@/lib/schedule";
@@ -32,6 +32,7 @@ async function HomeScreen() {
   const { customer: c, local, mode } = getSource(await pageMode());
   const s = safeToSpend(c);
   const schedule = inferSchedule(c);
+  const compareGroup = local ? null : compareAgainst(c, ownGroups(c).age ?? "all");
   const baskets = [1, 2, 3] as Basket[];
   const yearTotal = baskets.reduce((sum, b) => sum + c.summary.basketYear[b], 0);
   const over = s.remaining < 0;
@@ -112,7 +113,7 @@ async function HomeScreen() {
         <UpcomingCard items={schedule.items} asOf={c.asOf} />
 
         {/* Group statistics only, and only for the synthetic customers (a private local customer has no age). */}
-        {!local && <CompareCard groups={compareWith(c)} />}
+        {!local && compareGroup && <CompareSummary group={compareGroup} />}
 
         {/* Coach chat entry */}
         <section className="mt-4">
