@@ -34,6 +34,7 @@ import {
 
 export function ProfileClient(props: {
   name: string;
+  ownName: boolean; // a name set in SOLVO_NAME: shown instead of the demo customer, with no demo age or postcode
   id: string;
   age: number;
   postalCode: string;
@@ -51,11 +52,12 @@ export function ProfileClient(props: {
   const learned = Object.keys(useLearnProgress().done).length > 0;
   const anything =
     switches.length > 0 || !!plan || Object.keys(bills).length > 0;
-  const name = mode === "new" ? "New customer" : props.name;
+  const name = props.ownName ? props.name : mode === "new" ? "New customer" : props.name;
   const initials = name
     .split(" ")
     .map((w) => w[0].toUpperCase())
-    .join("");
+    .join("")
+    .slice(0, 2);
 
   return (
     <main className={PAGE}>
@@ -68,9 +70,11 @@ export function ProfileClient(props: {
           <h1 className="font-display text-[26px] leading-tight font-semibold tracking-[-0.02em]">
             {name}
           </h1>
-          <p className="text-[15px] text-muted-foreground">
-            {props.age} years, {props.postalCode} Espoo{mode === "new" ? ", first time in Solvo" : ""}
-          </p>
+          {!props.ownName && (
+            <p className="text-[15px] text-muted-foreground">
+              {props.age} years, {props.postalCode} Espoo{mode === "new" ? ", first time in Solvo" : ""}
+            </p>
+          )}
         </div>
       </section>
 
