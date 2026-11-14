@@ -113,7 +113,7 @@ async function HomeScreen() {
         {mode === "aino" && <OverdueBillCard asOf={c.asOf} />}
 
 
-        <AllBanksCard base={base} banks={banks} view={view} bankName={bankName} real={real} />
+        <AllBanksCard base={base} banks={banks} view={view} bankName={bankName} real={real} funds={mode === "aino"} />
 
         <Suspense fallback={null}>
           <LinkedBankCard />

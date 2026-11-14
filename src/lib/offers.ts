@@ -80,9 +80,9 @@ export function compare(
   const green = offers.find((o) => o.renewable);
   const [recommended, pickReason] =
     preference === "cheapest"
-      ? [offers[0], "Coach's pick: the lowest expected cost"]
+      ? [offers[0], "Solvo's pick: the lowest expected cost"]
       : preference === "renewable" && green
-        ? [green, "Coach's pick: the cheapest renewable electricity"]
-        : [fixed ?? offers[0], "Coach's pick: a fixed price is easier to budget"];
+        ? [green, "Solvo's pick: the cheapest renewable electricity"]
+        : [fixed ?? offers[0], "Solvo's pick: a fixed price is easier to budget"];
   return { current, doNothing, offers, recommended, pickReason, segment };
 }

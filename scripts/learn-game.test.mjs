@@ -56,7 +56,7 @@ test("a course is complete when all its lessons are done, and the next lesson is
   const all = Object.fromEntries(investing.lessons.map((l) => [l.id, rec(0)]));
   const full = courseState(investing, all);
   assert.deepEqual([full.complete, full.next], [true, null]);
-  assert.deepEqual(earnedBadges(all), ["Investing basics"]);
+  assert.deepEqual(earnedBadges(all), ["Fund explorer"]);
 });
 
 test("the rank grows with lessons finished", () => {

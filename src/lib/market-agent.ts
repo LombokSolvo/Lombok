@@ -103,7 +103,7 @@ export async function* runElectricityAgent(): AsyncGenerator<AgentEvent> {
   const saved = SAVED_ELECTRICITY_DB;
   const fallback = (error: string): AgentEvent => ({ type: "result", db: saved, live: false, error });
 
-  yield { type: "step", step: "search", status: "running", detail: "Searching Finnish electricity prices with Exa" };
+  yield { type: "step", step: "search", status: "running", detail: "Searching Finnish electricity prices" };
   if (!key) {
     yield { type: "step", step: "search", status: "failed", detail: "Live search is off, using the last saved run" };
     yield fallback("EXA_API_KEY not set");

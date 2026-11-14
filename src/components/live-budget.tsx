@@ -2,30 +2,54 @@
 
 import Link from "next/link";
 import { useWeeklyReserve } from "@/components/forecast-ui";
-import { budgetEditsMonthly, useBudgetEdits } from "@/lib/budget-edits-store";
+import { budgetEditsMonthly, readBudgetEdits, useBudgetEdits, type BudgetEdits } from "@/lib/budget-edits-store";
 import { useLearnProgress } from "@/lib/learn-store";
-import { onboardingWeeklyDelta, useOnboarding } from "@/lib/onboarding-store";
+import { onboardingWeeklyDelta, readOnboarding, useOnboarding, type OnboardingState } from "@/lib/onboarding-store";
 import { SUBSCRIPTIONS } from "@/data/subscriptions";
-import { WEEKS_PER_YEAR, resetDemo, useBillActions, useCancelledSubs, useSavingsPlan, useSwitches, weeklyBoost } from "@/lib/switches";
+import {
+  WEEKS_PER_YEAR,
+  readCancelledSubs,
+  readSavingsPlan,
+  readSwitches,
+  resetDemo,
+  useBillActions,
+  useCancelledSubs,
+  useSavingsPlan,
+  useSwitches,
+  weeklyBoost,
+  type SavingsPlan,
+  type Switches,
+} from "@/lib/switches";
 
 // Small client islands for the server-rendered home page: they add the effect of approved switches
 // to the safe-to-spend numbers without moving the page's layout into the client.
 
 /** What the subscriptions stopped from the chat free up each week. */
+const cancelledWeekly = (cancelled: Record<string, unknown>) =>
+  (SUBSCRIPTIONS.filter((x) => cancelled[x.id]).reduce((sum, x) => sum + x.monthly, 0) * 12) / WEEKS_PER_YEAR;
 export function useCancelledWeekly() {
-  const cancelled = useCancelledSubs();
-  return (SUBSCRIPTIONS.filter((x) => cancelled[x.id]).reduce((sum, x) => sum + x.monthly, 0) * 12) / WEEKS_PER_YEAR;
+  return cancelledWeekly(useCancelledSubs());
+}
+
+/** The person's choices in this browser, as EUR a week on top of the server's numbers (everything but the calendar). */
+function choicesWeekly(sw: Switches, plan: SavingsPlan | null, cancelled: Record<string, unknown>, onboarding: OnboardingState, edits: BudgetEdits) {
+  return weeklyBoost(sw, plan) + cancelledWeekly(cancelled) + onboardingWeeklyDelta(onboarding) + (budgetEditsMonthly(edits) * 12) / WEEKS_PER_YEAR;
+}
+
+/** The same, read once outside React: the chat sends it with each question, so its safe-to-spend matches Home. */
+export function readWeeklyDelta() {
+  return choicesWeekly(readSwitches(), readSavingsPlan(), readCancelledSubs(), readOnboarding(), readBudgetEdits());
 }
 
 const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-/** What the person's choices in this browser add to (or take off) the weekly numbers, EUR a week. */
-function useWeeklyDelta() {
+/** What the person's choices in this browser add to (or take off) the weekly numbers, EUR a week. Home's slab uses it, and
+ * so do the "Switch requested" screens, so the number they count up to is the one Home then shows. */
+export function useWeeklyDelta() {
   // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume; what the person's
   // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why); the person's own corrections
   // on "Your money each month" (irregular set-aside, bills Solvo missed) move it too.
-  const edits = (budgetEditsMonthly(useBudgetEdits()) * 12) / WEEKS_PER_YEAR;
-  return weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve() + edits;
+  return choicesWeekly(useSwitches(), useSavingsPlan(), useCancelledSubs(), useOnboarding(), useBudgetEdits()) - useWeeklyReserve();
 }
 
 /** A weekly amount (remaining or budget) plus what approved switches free up each week, minus what the calendar sets aside. */

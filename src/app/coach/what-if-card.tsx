@@ -82,8 +82,9 @@ export function WhatIfCard({ r }: { r: WhatIfResult }) {
     );
   } else {
     title = `Reach ${eur.format(r.target)}`;
-    headline = r.months === null ? "Not yet" : r.months === 0 ? "Already there" : `${r.months} ${r.months === 1 ? "month" : "months"}`;
-    sub = r.months === null ? "Nothing is left to save safely right now." : r.date && r.months ? `Around ${fmtMonth(r.date)}.` : "";
+    const tooLong = r.months !== null && r.months > 120; // "1000 months, around March 2110" helps nobody
+    headline = r.months === null || tooLong ? "Not at this pace" : r.months === 0 ? "Already there" : `${r.months} ${r.months === 1 ? "month" : "months"}`;
+    sub = r.months === null ? "Nothing is left to save safely right now." : tooLong ? "It would take more than ten years." : r.date && r.months ? `Around ${fmtMonth(r.date)}.` : "";
     rows = (
       <>
         <Line label="To go">{eur.format(r.toGo)}</Line>

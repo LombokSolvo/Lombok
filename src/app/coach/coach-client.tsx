@@ -2,6 +2,7 @@
 
 import { ArrowUp, ArrowUpRight, Check, GraduationCap, ReceiptText, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useReadWeeklyReserve } from "@/components/forecast-ui";
 import { LearnPack } from "@/components/learn/learn-pack";
 import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
 import { LAST_PAGE_KEY, followUpsFor, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
@@ -68,6 +69,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
     lastAnswer?.role === "coach" ? followUpsFor(lastAnswer, messages.filter((m) => m.role === "user").map((m) => m.text), lastAnswer.suggestions) : suggestionsFor(from, mode === "aino");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const readReserve = useReadWeeklyReserve(); // the calendar set-aside Home takes off safe-to-spend
   const bottom = useRef<HTMLDivElement>(null);
   const progress = useLearnProgress();
 
@@ -108,7 +110,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
         // Learning packs stay in the browser; the coach sees the conversation text and what is already done in the app.
         body: JSON.stringify({
           messages: history.filter((m) => !m.pack).map(({ role, text }) => ({ role, text })),
-          state: chatState(mode),
+          state: chatState(mode, readReserve()),
         }),
       });
       const d = await res.json();
@@ -263,7 +265,9 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
             ))}
           </div>
         )}
-        <div ref={bottom} />
+        {/* The input bar and its chips (about 180px) stick over the end of the list: scroll past them, or the end of
+            each answer, and its Approve button, stays hidden under the bar. */}
+        <div ref={bottom} className="scroll-mb-48" />
       </div>
 
       <form
@@ -300,6 +304,10 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
             type="submit"
             disabled={busy || !input.trim()}
             aria-label="Send"
+            // Keep the focus in the field while pressing: otherwise the field blurs, the tab bar comes back,
+            // the bar jumps up and the press ends on another element, so the first tap sent nothing.
+            onPointerDown={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()}
             className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:bg-muted disabled:text-muted-foreground"
           >
             <ArrowUp className="size-5" strokeWidth={2.5} aria-hidden />

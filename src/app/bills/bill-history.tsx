@@ -5,6 +5,7 @@ import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
 import { Chip, Group, eur } from "@/components/solvo/ui";
 import { UNPAID } from "@/data/reminders";
 import { useBillActions } from "@/lib/switches";
+import { plainFormat, toShown } from "@/lib/demo-clock";
 
 export type PaidBill = {
   date: string; // YYYY-MM-DD
@@ -15,7 +16,8 @@ export type PaidBill = {
 };
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+// Months are grouped by the date as shown (the demo clock moves the days), so "Paid 14 Nov" sits under November.
+const monthFmt = plainFormat({ month: "long", year: "numeric" });
 const fmtDay = (iso: string) => dayFmt.format(new Date(`${iso}T00:00:00Z`));
 
 type Entry = {
@@ -64,7 +66,7 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
 
   const months = new Map<string, Entry[]>();
   for (const e of entries) {
-    const m = e.date.slice(0, 7);
+    const m = toShown(e.date).slice(0, 7);
     months.set(m, [...(months.get(m) ?? []), e]);
   }
   const list = [...months.entries()];
@@ -80,7 +82,7 @@ export function BillHistory({ bills, asOf, dentalBill }: { bills: PaidBill[]; as
         <Group
           key={month}
           className="mt-4"
-          title={monthFmt.format(new Date(`${month}-01T00:00:00Z`))}
+          title={monthFmt(`${month}-01`)}
           aside={<span className="num">{eur.format(rows.reduce((s, r) => s + (r.open ? 0 : r.amount), 0))}</span>}
         >
           {rows.map((r) => (

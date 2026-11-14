@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { ForecastProvider } from "@/components/forecast-ui";
 import { Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { SUBSCRIPTIONS, subscriptionCharges } from "@/data/subscriptions";
 import { namedBillsFor } from "@/lib/bill-names";
+import { getCalendarState } from "@/lib/calendar-source";
 import { safeToSpend } from "@/lib/coach";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
@@ -58,15 +60,19 @@ async function Bills() {
   for (const s of subscriptionCharges(subscriptions, from, c.asOf)) {
     history.push({ date: s.date, kind: "subscription", amount: s.amount, supplier: s.name });
   }
+  // The same calendar set-aside as Home, so the "Switch requested" screen counts up to the number Home then shows.
+  const calendar = await getCalendarState();
   return (
-    <BillsClient
-      asOf={c.asOf}
-      invoices={invoices.map(({ id, payment }) => ({ id, payment }))}
-      weeklyBudget={s.weeklyBudget}
-      remaining={s.remaining}
-      history={history}
-      subscriptions={subscriptions}
-      dentalBill={mode === "aino"}
-    />
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
+      <BillsClient
+        asOf={c.asOf}
+        invoices={invoices.map(({ id, payment }) => ({ id, payment }))}
+        weeklyBudget={s.weeklyBudget}
+        remaining={s.remaining}
+        history={history}
+        subscriptions={subscriptions}
+        dentalBill={mode === "aino"}
+      />
+    </ForecastProvider>
   );
 }

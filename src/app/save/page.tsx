@@ -7,7 +7,7 @@ import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { SaveClient } from "./save-client";
 
-export const metadata = { title: "Invest · Solvo" };
+export const metadata = { title: "Save · Solvo" };
 
 export default function SavePage() {
   return (

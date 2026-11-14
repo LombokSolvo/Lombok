@@ -15,7 +15,12 @@ export const BANK_INFO: Record<BankId, { name: string }> = {
 export const BANKNAME_COOKIE = "solvo_bankname";
 export const DEFAULT_BANKNAME = "Nordea";
 export const parseBankName = (raw: string | undefined | null): string => {
-  const v = raw ? decodeURIComponent(raw).trim() : "";
+  let v = "";
+  try {
+    v = raw ? decodeURIComponent(raw).trim() : "";
+  } catch {
+    return DEFAULT_BANKNAME; // a broken cookie must not break Home
+  }
   return /^[\p{L}\p{N} .&'-]{1,40}$/u.test(v) ? v : DEFAULT_BANKNAME;
 };
 export function writeBankNameCookie(name: string) {
@@ -26,9 +31,9 @@ export function readBankNameCookie(): string {
 }
 
 // Banks and neobanks as Enable Banking lists them for Finland (checked 14 Nov 2026), shown when the live list is not set up.
-// Connecting one is simulated.
+// Connecting one is simulated. S-Pankki is left out: it is the bank Solvo already runs in.
 export const FALLBACK_BANKS = [
-  "OP", "Nordea", "S-Pankki", "Danske Bank", "Säästöpankki", "Aktia", "Ålandsbanken", "POP Pankki", "Oma Säästöpankki",
+  "OP", "Nordea", "Danske Bank", "Säästöpankki", "Aktia", "Ålandsbanken", "POP Pankki", "Oma Säästöpankki",
   "Revolut", "Trade Republic", "bunq", "N26", "Wise", "Klarna", "PayPal",
 ];
 

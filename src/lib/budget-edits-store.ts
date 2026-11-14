@@ -75,6 +75,7 @@ function subscribe(listener: () => void) {
   };
 }
 
+export const readBudgetEdits = snapshot;
 export const useBudgetEdits = () => useSyncExternalStore(subscribe, snapshot, () => EMPTY);
 
 /** A new monthly set-aside for irregular costs; `base` is Solvo's estimate. Back to the estimate clears it. */

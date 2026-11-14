@@ -65,6 +65,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
   const totalOut = counted.filter((e) => e.kind === "out").reduce((s, e) => s + e.amount, 0);
   // What is still to come: from today on in the current month, the whole month for any other. Calendar items the person switched off are left out.
   const isCurrentMonth = year === today.getUTCFullYear() && month === today.getUTCMonth();
+  const isPastMonth = year < today.getUTCFullYear() || (year === today.getUTCFullYear() && month < today.getUTCMonth());
   const coming = counted.filter((e) => e.kind === "out" && (!isCurrentMonth || e.date >= asOf));
   const comingBills = Math.round(coming.filter((e) => !e.forecast).reduce((s, e) => s + e.amount, 0));
   const billsComing = coming.filter((e) => !e.forecast);
@@ -179,7 +180,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
 
       {/* One compact section for the month being looked at: what is coming, split into calendar events (estimates) and bills, with the total. */}
       {(monthEvents.length > 0 || billsComing.length > 0) && (
-        <Group title={isCurrentMonth ? "Coming up this month" : `Coming up in ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`} aside={<span className="num font-display text-[17px] font-semibold tracking-[-0.01em] text-foreground">−{eur.format(comingBills + comingCalendar)}</span>}>
+        <Group title={isCurrentMonth ? "Coming up this month" : `${isPastMonth ? "Expected in" : "Coming up in"} ${monthOnly.format(new Date(Date.UTC(year, month, 1)))}`} aside={<span className="num font-display text-[17px] font-semibold tracking-[-0.01em] text-foreground">−{eur.format(comingBills + comingCalendar)}</span>}>
           {monthEvents.length > 0 && (
             <>
               <div className={`${SECTION} text-event`}>

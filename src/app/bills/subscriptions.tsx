@@ -4,8 +4,17 @@ import { Repeat } from "lucide-react";
 import { Group, IconTile, Row, eur2 } from "@/components/solvo/ui";
 import { subscriptionsMonthly, type Subscription } from "@/data/subscriptions";
 import { restoreSubscription, useCancelledSubs } from "@/lib/switches";
+import { DATASET_END, plainFormat, toShown } from "@/lib/demo-clock";
 
-const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
+const dayFmt = plainFormat({ day: "numeric", month: "short" });
+
+/** The next charge as the person sees it: the charge day in the month after the data ends, moved by the demo clock. */
+function nextCharge(day: number) {
+  const [y, m] = DATASET_END.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate(); // days in the month after the data ends
+  const iso = new Date(Date.UTC(y, m, Math.min(day, last))).toISOString().slice(0, 10);
+  return dayFmt(toShown(iso));
+}
 
 /** Bills: card payments that repeat every month (streaming, music, cloud storage). Ones stopped from the chat show as cancelled. */
 export function Subscriptions({ subs }: { subs: Subscription[] }) {
@@ -46,7 +55,7 @@ export function Subscriptions({ subs }: { subs: Subscription[] }) {
               </IconTile>
             }
             title={s.name}
-            subtitle={`On the ${ordinal(s.day)}`}
+            subtitle={`Next ${nextCharge(s.day)}`}
             value={eur2.format(s.monthly)}
             valueSub="a month"
           />

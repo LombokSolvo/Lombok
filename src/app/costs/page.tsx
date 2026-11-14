@@ -57,7 +57,7 @@ const EXPLAIN = new Set(["Insurance", "Home & Tech", "Health", "Travel", "Entert
 
 const KIND_LABEL: Record<string, string> = {
   electricity_energy: "Electricity",
-  electricity_transmission: "Electricity transmission",
+  electricity_transmission: "Grid fee",
   telecom: "Phone and internet",
 };
 

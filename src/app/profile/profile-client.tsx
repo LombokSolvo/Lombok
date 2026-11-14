@@ -21,13 +21,9 @@ import {
   TopBar,
   secondaryButton,
 } from "@/components/solvo/ui";
-import { useLearnProgress } from "@/lib/learn-store";
 import {
   resetDemo,
   useDemoMode,
-  useBillActions,
-  useSavingsPlan,
-  useSwitches,
 } from "@/lib/switches";
 
 export function ProfileClient(props: {
@@ -43,12 +39,6 @@ export function ProfileClient(props: {
   linkedBank: { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null }; // Enable Banking sandbox bank
 }) {
   const mode = useDemoMode();
-  const switches = Object.values(useSwitches()).filter((s) => !!s);
-  const plan = useSavingsPlan();
-  const bills = useBillActions();
-  const learned = Object.keys(useLearnProgress().done).length > 0;
-  const anything =
-    switches.length > 0 || !!plan || Object.keys(bills).length > 0;
   const name = mode === "new" ? "New customer" : props.name;
   const initials = name
     .split(" ")
@@ -90,9 +80,9 @@ export function ProfileClient(props: {
               <PhoneCall />
             </IconTile>
           }
-          title="Call me before a bill is late"
+          title="Call me before a late fee"
           subtitle="A short voice call, never a collection call"
-          value={<Toggle label="Call me before a bill is late" />}
+          value={<Toggle label="Call me before a late fee" />}
         />
         <Row
           icon={
@@ -110,15 +100,18 @@ export function ProfileClient(props: {
 
       <CalendarConnect {...props.calendar} />
 
-      {(anything || learned) && (
-        <button
-          type="button"
-          onClick={resetDemo}
-          className={`${secondaryButton} mt-7`}
-        >
-          Reset demo
-        </button>
-      )}
+      {/* Always shown: some choices (budget edits, approved cuts, the chat) leave no other trace on this page. The reload
+          clears the chat and reads the bank cookies again. */}
+      <button
+        type="button"
+        onClick={() => {
+          resetDemo();
+          window.location.reload();
+        }}
+        className={`${secondaryButton} mt-7`}
+      >
+        Reset demo
+      </button>
     </main>
   );
 }
