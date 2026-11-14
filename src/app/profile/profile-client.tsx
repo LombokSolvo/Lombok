@@ -2,7 +2,6 @@
 
 import { CalendarConnect } from "@/components/calendar-connect";
 import { Toggle } from "@/components/solvo/toggle";
-import { LiveBanks } from "@/components/live-banks";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
 import type { GoogleStatus } from "@/lib/google-calendar";
@@ -230,8 +229,6 @@ export function ProfileClient(props: {
           Read my {readCount} e-invoices again with Gemini
         </button>
       )}
-
-      <LiveBanks status={props.live} />
 
       {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
