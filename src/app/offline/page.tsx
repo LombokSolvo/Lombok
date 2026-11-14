@@ -7,7 +7,7 @@ export default function OfflinePage() {
   return (
     <main className={PAGE}>
       <TopBar />
-      <PageTitle title="You're offline">Solvo needs a connection to show your numbers. Check your signal or Wi-Fi, then try again.</PageTitle>
+      <PageTitle title="You're offline">Check your connection and try again.</PageTitle>
       {/* A plain link on purpose: it makes a full page load, which is what we want after the connection is back. */}
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a href="/" className={primaryButton}>

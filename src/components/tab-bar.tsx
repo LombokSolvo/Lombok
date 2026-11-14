@@ -23,7 +23,7 @@ const TABS = [
 
 // Full-screen pages with no tab bar. Onboarding: the tabs appear only once the person has a plan or skips.
 const HIDDEN = ["/call", "/onboarding"];
-const HOME_CHILDREN = ["/costs", "/compare", "/calendar"];
+const HOME_CHILDREN = ["/costs", "/calendar"];
 
 /**
  * Bottom tab bar, like a native app. Its height is --tabbar-h (globals.css), which pages and fixed action bars use

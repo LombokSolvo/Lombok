@@ -37,7 +37,7 @@ export function LiveBankRows({ status }: { status: LiveStatus }) {
     setBusy(null);
   };
   const disconnect = (id: LiveBankId) => {
-    if (!window.confirm(`Disconnect ${LIVE_BANKS[id].name}? This ends the consent and deletes its downloaded data from this computer.`)) return;
+    if (!window.confirm(`Disconnect ${LIVE_BANKS[id].name}?`)) return;
     void call("/api/live/disconnect", `disconnect-${id}`, { bank: id });
   };
   // Run the bank's approval again. The new approval replaces the earlier one when it succeeds; nothing is deleted before that.
@@ -102,7 +102,7 @@ export function LiveBankRows({ status }: { status: LiveStatus }) {
       {asking && (
         <ApproveSheet
           title={`Connect ${LIVE_BANKS[asking].name} again`}
-          points={["The new approval replaces the old one, and your payments are downloaded again.", ...liveConsentPoints(asking).slice(1)]}
+          points={["Connecting again replaces the old connection.", ...liveConsentPoints(asking).slice(1)]}
           confirmLabel={`Continue to ${LIVE_BANKS[asking].name}`}
           onConfirm={() => again(asking)}
           onCancel={() => setAsking(null)}

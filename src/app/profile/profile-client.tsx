@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { CalendarConnect } from "@/components/calendar-connect";
-import { InstalledChip } from "@/components/install-guide";
 import { Toggle } from "@/components/solvo/toggle";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
@@ -12,26 +10,17 @@ import type { LiveStatus } from "@/lib/live-banks";
 
 import {
   Bell,
-  Check,
-  ChevronRight,
   FileText,
   PhoneCall,
-  Smartphone,
-  PiggyBank,
-  ShieldCheck,
 } from "lucide-react";
 import {
-  Chip,
   Group,
   IconTile,
   PAGE,
   Row,
   TopBar,
-  eur,
   secondaryButton,
 } from "@/components/solvo/ui";
-import { UNPAID } from "@/data/reminders";
-import { MoneySkills } from "@/components/learn/money-skills";
 import { useLearnProgress } from "@/lib/learn-store";
 import {
   clearCachedReadings,
@@ -44,11 +33,6 @@ import {
   useSavingsPlan,
   useSwitches,
 } from "@/lib/switches";
-
-const dateFmt = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-});
 
 export function ProfileClient(props: {
   name: string;
@@ -67,7 +51,6 @@ export function ProfileClient(props: {
   const plan = useSavingsPlan();
   const readCount = Object.keys(useCachedReadings()).length;
   const bills = useBillActions();
-  const paid = bills[UNPAID.id]?.action === "paid";
   const learned = Object.keys(useLearnProgress().done).length > 0;
   const anything =
     switches.length > 0 || !!plan || Object.keys(bills).length > 0;
@@ -94,14 +77,8 @@ export function ProfileClient(props: {
         </div>
       </section>
 
-      <Group
-        title="Demo account"
-        footer={
-          mode === "new"
-            ? "A first-time customer with their own bank data (another customer in the S-Pankki dataset). Starts with onboarding."
-            : "Switching starts the account from scratch: approvals and plans are cleared."
-        }
-      >
+
+      <Group title="Demo account">
         <div className="flex gap-2 p-2" role="radiogroup" aria-label="Demo account">
           {(
             [
@@ -128,68 +105,6 @@ export function ProfileClient(props: {
           ))}
         </div>
       </Group>
-
-      <Group
-        title="What you've approved"
-        footer="Solvo never switches, pays or saves without your tap."
-      >
-        {!anything && (
-          <Row
-            icon={
-              <IconTile tone="grey">
-                <ShieldCheck />
-              </IconTile>
-            }
-            title="Nothing yet"
-            subtitle="Switches, payments and savings plans you approve show up here."
-          />
-        )}
-        {switches.map((s) => (
-          <Row
-            key={s.bill}
-            icon={
-              <IconTile>
-                <Check />
-              </IconTile>
-            }
-            title={`${s.fromSupplier} → ${s.toSupplier}`}
-            subtitle={
-              s.startDate
-                ? `Switch approved, starts ${dateFmt.format(new Date(s.startDate))}`
-                : "Switch approved"
-            }
-            value={`${eur.format(s.yearlySaving)}`}
-            valueSub="saved a year"
-          />
-        ))}
-        {plan && (
-          <Row
-            icon={
-              <IconTile>
-                <PiggyBank />
-              </IconTile>
-            }
-            title={plan.fundName}
-            subtitle={`Monthly savings plan, on the ${plan.dayOfMonth}nd`}
-            value={eur.format(plan.monthly)}
-            valueSub="a month"
-          />
-        )}
-        {paid && (
-          <Row
-            icon={
-              <IconTile>
-                <Check />
-              </IconTile>
-            }
-            title={`Paid ${UNPAID.supplier}`}
-            subtitle="From your set-aside for irregular costs"
-            value={eur.format(UNPAID.amount)}
-          />
-        )}
-      </Group>
-
-      <MoneySkills />
 
       <Group title="Solvo settings">
         <Row
@@ -224,43 +139,19 @@ export function ProfileClient(props: {
         />
       </Group>
 
-      <Group>
-        <Link href="/install" className="flex min-h-14 items-center gap-3 px-4 py-3 active:bg-muted">
-          <IconTile>
-            <Smartphone />
-          </IconTile>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[15px] leading-snug font-medium">Put Solvo on your phone</span>
-            <span className="block text-[13px] leading-snug text-muted-foreground">Add it to your home screen, like an app</span>
-          </span>
-          <InstalledChip />
-          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        </Link>
-      </Group>
       {readCount > 0 && (
         <button
           type="button"
           onClick={clearCachedReadings}
           className="mt-2 flex min-h-11 items-center px-1 text-[13px] font-medium text-primary underline underline-offset-4"
         >
-          Read my {readCount} e-invoices again with Gemini
+          Read my {readCount} e-invoices again
         </button>
       )}
 
       {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
       <CalendarConnect {...props.calendar} />
-
-      <Group
-        title="Your data"
-        footer="Solvo works on the e-invoices and payments that already reach your bank. Nothing is sent to suppliers until you approve a switch."
-      >
-        <Row
-          title="Data in this demo"
-          subtitle="S-Pankki's synthetic Junction 2026 dataset"
-          value={<Chip>{props.id}</Chip>}
-        />
-      </Group>
 
       {(anything || learned) && (
         <button

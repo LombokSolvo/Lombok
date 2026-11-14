@@ -65,7 +65,7 @@ export function TelecomDetail(props: {
         title={isMatch ? "Price-match request sent" : "Switch requested"}
         body={
           isMatch ? (
-            <>Solvo asked {r.supplier} to lower your price. We&apos;ll tell you their answer. Nothing changes if they say no.</>
+            <>Solvo asked {r.supplier} to lower your price. We&apos;ll tell you their answer.</>
           ) : (
             <>
               {chosen.operator} {chosen.product} starts {fmtDate(startDate)}. Your phone numbers move with you, and{" "}
@@ -78,7 +78,7 @@ export function TelecomDetail(props: {
             ? [
                 { title: "Approved with your bank ID", detail: "You approved the request in the bank app." },
                 { title: `Request sent to ${r.supplier}`, detail: "Solvo shows them the lower public price it found." },
-                { title: "Their answer", detail: "Solvo tells you what they say. Nothing changes if they say no." },
+                { title: "Their answer", detail: "Solvo tells you what they say." },
                 { title: "Next e-invoice checked", detail: "If they agree, Solvo checks the new price on your next e-invoice." },
               ]
             : [
@@ -130,7 +130,7 @@ export function TelecomDetail(props: {
           after={{ label: `${chosen.operator}${chosen.kind === "switch" ? ` ${chosen.product}` : ", price match"}`, yearly: chosen.yearly }}
           footnote={
             chosen.saving < 0 ? (
-              <>More than you pay today. It&apos;s your choice, Solvo just shows the price.</>
+              <>More than you pay today.</>
             ) : (
               <>That&apos;s +{eur.format(perWeek)} to your safe-to-spend every week.</>
             )
@@ -193,7 +193,6 @@ export function TelecomDetail(props: {
         <Group
           title="Your options for a year"
           aside={`${terms.lines} ${terms.lines === 1 ? "line" : "lines"} + internet`}
-          footer="Real public prices found by Solvo's market agent. Regular prices after any campaign."
         >
           <div role="radiogroup" aria-label="Phone and internet offers">
             {cmp.offers.map((o) => (

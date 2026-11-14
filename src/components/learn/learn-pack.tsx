@@ -282,7 +282,7 @@ function ElectricityTry({ ctx }: { ctx: LearnContext }) {
       <p className="mt-1 text-[14px] leading-snug text-muted-foreground">
         {e.hasInvoice
           ? "Your use is from your e-invoice. Move the spot price to see when each one wins."
-          : "Solvo hasn't read your electricity e-invoice yet, so this starts from a small flat. Change it to your own use."}
+          : "Starts from a small flat. Change it to your own use."}
       </p>
       <div className="mt-3 flex">
         <NumberField label="Your yearly use" value={kwh} onChange={(n) => setKwh(Math.max(1, n))} suffix="kWh" max={40000} />

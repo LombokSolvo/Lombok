@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "smoke": "node scripts/smoke-test.mjs",
-    "test": "node --experimental-strip-types --test scripts/forecast.test.mjs scripts/google-calendar.test.mjs scripts/ics.test.mjs scripts/schedule.test.mjs scripts/spender.test.mjs scripts/what-if.test.mjs scripts/find-savings.test.mjs",
+    "test": "node --experimental-strip-types --test scripts/forecast.test.mjs scripts/google-calendar.test.mjs scripts/ics.test.mjs scripts/learn-game.test.mjs scripts/peer-compare.test.mjs scripts/plan-view.test.mjs scripts/schedule.test.mjs scripts/spender.test.mjs scripts/what-if.test.mjs scripts/find-savings.test.mjs",
     "dev:google": "SOLVO_GOOGLE=1 next dev -H 127.0.0.1 --experimental-https",
     "test:google-flow": "node scripts/google-flow-test.mjs",
     "setup:google": "node scripts/setup-google.mjs"

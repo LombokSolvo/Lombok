@@ -109,7 +109,7 @@ export function InstallGuide() {
       </div>
 
       {platform === "ios" ? (
-        <Group title="On iPhone" footer="Use Safari. Chrome on iPhone can do it too, on iOS 16.4 or later.">
+        <Group title="On iPhone" footer="Use Safari.">
           <Steps
             steps={[
               { icon: <Share />, title: "Tap Share", sub: "The square with an arrow, at the bottom of Safari." },
@@ -119,7 +119,7 @@ export function InstallGuide() {
           />
         </Group>
       ) : (
-        <Group title="On Android" footer="Use Chrome. Other browsers have the same option under their menu.">
+        <Group title="On Android" footer="Use Chrome.">
           {prompt && (
             <div className="border-b p-4">
               <button
@@ -146,7 +146,7 @@ export function InstallGuide() {
         </Group>
       )}
 
-      <Group title="On a computer?" footer="Open this address on your phone, then follow the steps above.">
+      <Group title="On a computer?" footer="Open this address on your phone.">
         <div className="flex items-center gap-3 px-4 py-3">
           <p className="num min-w-0 flex-1 text-[14px] leading-snug break-all">{address || "…"}</p>
           <button

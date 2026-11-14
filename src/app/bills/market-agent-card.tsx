@@ -144,12 +144,11 @@ export function MarketAgentCard<D extends AgentDb>(props: {
       </div>
       {fresh ? (
         <p className="mt-2 text-[14px] leading-snug text-muted-foreground">
-          Solvo&apos;s market agent searches the public prices of {noun.sellers} across Finland, checks them and picks the
-          best ones for you, with the source of every price. Nothing changes without your approval.
+          Public prices from {noun.sellers} across Finland, with the source of every price.
         </p>
       ) : (
         <p className="mt-2 text-[14px] leading-snug text-muted-foreground">
-          Solvo&apos;s market agent compares prices for everyone, every night. It last checked{" "}
+          Last checked{" "}
           <span className="num font-medium text-foreground">
             {db.offers.length} {noun.offers}
           </span>{" "}
@@ -265,7 +264,6 @@ export function MarketAgentCard<D extends AgentDb>(props: {
             <p className="pb-1 text-[12px] leading-snug text-muted-foreground">
               Prices are public list prices incl. VAT as shown on these pages
               {db.agent === "electricity" ? ". Transmission and electricity tax are billed separately by your grid company" : ""}.
-              Switching is simulated in this demo.
             </p>
           </details>
         </>
