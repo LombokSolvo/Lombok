@@ -31,10 +31,13 @@ async function Profile({ searchParams }: { searchParams: Promise<{ bank?: string
   const { bank, calendar: calendarNotice } = await searchParams;
   const calendar = await getCalendarState();
   const linked = await currentLinked();
+  // Running it yourself: SOLVO_NAME in .env.local puts your own name on Profile instead of the demo customer's.
+  const own = process.env.SOLVO_NAME?.trim();
   return (
     <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
     <ProfileClient
-      name="Aino Esimerkki"
+      name={own || "Aino Esimerkki"}
+      ownName={!!own}
       id={c.id}
       age={c.age}
       postalCode={c.postalCode}

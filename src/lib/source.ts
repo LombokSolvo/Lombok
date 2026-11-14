@@ -12,14 +12,14 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { cookies } from "next/headers";
 import { cacheLife } from "next/cache";
 import { DEMO_CUSTOMERS, MAIN_CUSTOMER, type DemoCustomer } from "@/lib/demo";
-import { DEMO_COOKIE, type DemoMode } from "@/lib/demo-mode";
+import { DEFAULT_MODE, DEMO_COOKIE, parseMode, type DemoMode } from "@/lib/demo-mode";
 import { LIVE_BANKS, LIVE_BANK_IDS, type LiveBankId, type RealBank } from "@/lib/live-bank-ids";
 import { customerFileOf } from "@/lib/live-banks";
 
 /** `customer` is always the synthetic base for the chosen demo account. `real` is the owner's real banks that are connected (none when empty); `local` says real data is in play. */
 export type Source = { customer: DemoCustomer; local: boolean; mode: DemoMode; real: RealBank[] };
 
-const parse = (v: string | undefined): DemoMode => (v === "new" ? "new" : "aino");
+const parse = parseMode;
 
 /** The demo account for a page. Private cache: the client router keeps it, so tab switches stay instant. */
 export async function pageMode(): Promise<DemoMode> {
@@ -39,7 +39,7 @@ export const demoCustomerFor = (mode: DemoMode): DemoCustomer => (mode === "new"
 // Each file is a few MB; parse it again only when a sync has rewritten it.
 const cached = new Map<LiveBankId, { mtimeMs: number; customer: DemoCustomer }>();
 
-export function getSource(mode: DemoMode = "aino"): Source {
+export function getSource(mode: DemoMode = DEFAULT_MODE): Source {
   const customer = demoCustomerFor(mode);
   if (process.env.SOLVO_LIVE !== "1") return { customer, local: false, mode, real: [] };
   if (process.env.VERCEL) throw new Error("SOLVO_LIVE=1 is local only and must not be set on Vercel");
