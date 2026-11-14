@@ -6,7 +6,7 @@ import { CalendarDays, MessageCircle } from "lucide-react";
 import { LiveWeekBar, LiveWeeklyEuro, ResetDemoButton } from "@/components/live-budget";
 import { AllBanksCard } from "@/components/all-banks-card";
 import { LinkedBankCard } from "@/components/linked-bank-card";
-import { OnboardingGate, PlanCard } from "@/components/onboarding-home";
+import { OnboardingGate } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
 import { ConnectCalendarNudge, ForecastNote, ForecastProvider } from "@/components/forecast-ui";
 import { UpcomingCard } from "@/components/upcoming-card";
@@ -112,7 +112,6 @@ async function HomeScreen() {
         {/* The dentist e-invoice and its call are part of Aino's demo story only. */}
         {mode === "aino" && <OverdueBillCard asOf={c.asOf} />}
 
-        <PlanCard />
 
         <AllBanksCard base={base} banks={banks} view={view} bankName={bankName} real={real} />
 

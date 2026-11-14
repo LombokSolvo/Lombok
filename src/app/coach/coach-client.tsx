@@ -28,6 +28,7 @@ type Msg = {
   savings?: SavingsPlanResult[]; // "help me save €100 more a month": a plan card
   compares?: PeerCompare[]; // "how do I compare" / "where could I save": spending lines against people like you
   styles?: SpenderProfile[]; // "what kind of spender am I"
+  suggestions?: string[]; // the questions the model would ask next, from the whole chat
   source?: "gemini" | "offline";
   ms?: number;
   pack?: PackId; // a learning pack, played inside the chat
@@ -64,7 +65,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
   // After an answer the chips follow on from what it showed (src/lib/chat-actions.ts followUpsFor); otherwise they fit the page the person came from.
   const lastAnswer = messages.at(-1);
   const suggestions =
-    lastAnswer?.role === "coach" ? followUpsFor(lastAnswer, messages.filter((m) => m.role === "user").map((m) => m.text)) : suggestionsFor(from, mode === "aino");
+    lastAnswer?.role === "coach" ? followUpsFor(lastAnswer, messages.filter((m) => m.role === "user").map((m) => m.text), lastAnswer.suggestions) : suggestionsFor(from, mode === "aino");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
@@ -114,7 +115,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
       if (id !== chatId.current) return;
       setMessages([
         ...history,
-        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, savings: d.savings, compares: d.compares, styles: d.styles, source: d.source, ms: d.ms },
+        { role: "coach", text: d.answer ?? "Sorry, something went wrong.", checks: d.checks, actions: d.actions, whatIfs: d.whatIfs, savings: d.savings, compares: d.compares, styles: d.styles, suggestions: d.suggestions, source: d.source, ms: d.ms },
       ]);
     } catch {
       if (id === chatId.current) setMessages([...history, { role: "coach", text: "I couldn't connect. Check your connection and try again." }]);

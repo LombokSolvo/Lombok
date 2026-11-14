@@ -21,7 +21,7 @@ import { peerCompare, type PeerCompare } from "@/lib/peer-compare";
 import { trimsFrom, type Trim } from "@/lib/plan-view";
 import { spenderProfile, type SpenderProfile } from "@/lib/spender";
 import { compareTelecom, telecomTermsFrom } from "@/lib/telecom-offers";
-import { MAX_ACTIONS, actionKey, type ChatAction, type ChatState, type ChatView } from "@/lib/chat-actions";
+import { MAX_ACTIONS, actionKey, splitSuggestions, type ChatAction, type ChatState, type ChatView } from "@/lib/chat-actions";
 
 // Coach chat. Gemini answers, but every spending number comes from the `spending` tool,
 // which runs exact queries over the customer's real S-Pankki transactions.
@@ -155,6 +155,7 @@ Rules:
 - Every euro amount about past spending must come from the spending tool or the context below. Never estimate or invent numbers. Round to whole euros, written like €84.
 - For questions about a type of spending (taxis, restaurants, groceries, a month, a period), call the spending tool. Pick merchantType for specific things like taxis, fuel, bars or cinema, and category for broad groups. Without a period, use the last 12 months (the default).
 - The bank data shows categories and merchant types, not shop names. If asked about a specific shop, say so and give the closest merchant type.
+- After your answer, add one last line in exactly this form: NEXT: question one | question two | question three. They are three short questions (under 8 words each) the user could ask next, written as the user would say them, based on what was just said and the whole chat so far, and never one they have already asked. Nothing else on that line.
 - End every answer with one short follow-up: a question or an offer tied to what you just said, such as "Want to see how that compares with others?", "Want me to look at where else you could save?" or "Want to know more about how that works?". Never end on a bare statement. Skip it only when you are already asking the user something, or you have refused or can't help. One follow-up, one line, never a list.
 - Be warm and practical, never judgemental. Give one concrete next step when it helps, such as a realistic weekly limit or opening the Bills view to switch electricity.
 - You never move money or switch contracts yourself. Switches happen only when the user approves them in the app.
@@ -492,12 +493,14 @@ async function converse(ctx: Ctx, model: string, messages: ChatMessage[], key: s
     const reply = await gemini(ctx, model, contents, key, signal);
     const calls = reply.parts.filter((p) => p.functionCall);
     if (!calls.length || round === MAX_TOOL_ROUNDS) {
-      const answer = reply.parts
-        .map((p) => p.text ?? "")
-        .join("")
-        .trim();
+      const { answer, suggestions } = splitSuggestions(
+        reply.parts
+          .map((p) => p.text ?? "")
+          .join("")
+          .trim(),
+      );
       if (!answer && !actions.length) throw new Error("Gemini returned no answer");
-      return { answer: answer || "You can approve it below.", checks, actions, whatIfs, savings, compares, styles };
+      return { answer: answer || "You can approve it below.", checks, actions, whatIfs, savings, compares, styles, suggestions };
     }
     // Send the model turn back unchanged (it carries Gemini's thought signatures), then the tool results.
     contents.push(reply as Content);

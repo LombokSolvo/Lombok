@@ -55,12 +55,42 @@ const PLAN_Q = "Help me save €100 more a month";
 /** What the last answer showed, for choosing the next questions to offer. */
 export type AnswerKind = { compares?: { label: string; focus: string }[]; styles?: unknown[]; savings?: unknown[]; whatIfs?: unknown[]; checks?: unknown[]; actions?: unknown[] };
 
+// More everyday questions, for when the ones that follow on from an answer have all been asked.
+const MORE_Q = [
+  "How much can I spend this week?",
+  "Which subscriptions could I cancel?",
+  "Can I save €3,000 by June?",
+  "What if I cut restaurants by half?",
+  "Am I overpaying for electricity?",
+  PLAN_Q,
+  "What's coming up this month?",
+  "How long until I have a €3,000 buffer?",
+];
+
+const norm = (q: string) => q.trim().toLowerCase();
+
 /**
- * Questions to offer after an answer, based on what it showed, so each answer leads on to the next: a comparison leads to
- * "where could I save" and other groups, "where could I save" to a plan, and so on. Anything the person already asked is left
- * out. Every answer gets some, so the chat never ends on a dead end: an answer with none of these cards gets the everyday ones.
+ * Splits the model's last line off its answer. The model ends with `NEXT: question | question | question`: the questions it
+ * would ask next, from the whole chat. The line is not shown; the questions become the chips.
  */
-export function followUpsFor(last: AnswerKind, asked: string[]): string[] {
+export function splitSuggestions(text: string): { answer: string; suggestions: string[] } {
+  const m = text.match(/(?:^|\n)[ \t]*NEXT:[ \t]*([^\n]+)[ \t]*$/i);
+  if (!m || m.index === undefined) return { answer: text.trim(), suggestions: [] };
+  const suggestions = m[1]
+    .split("|")
+    .map((q) => q.replace(/^[\s"“•*-]+|["”\s]+$/g, ""))
+    .filter((q) => q.length >= 4 && q.length <= 70)
+    .slice(0, 4);
+  return { answer: text.slice(0, m.index).trim(), suggestions };
+}
+
+/**
+ * Questions to offer after an answer. The model's own (`fromModel`, written from the whole chat) come first, then the ones that
+ * follow on from what the answer showed (a comparison leads to "where could I save", a plan to a comparison, and so on), then
+ * everyday ones. Anything already asked is left out. There are always some: when every one has been asked, they come round
+ * again rather than the chat running out.
+ */
+export function followUpsFor(last: AnswerKind, asked: string[], fromModel: string[] = []): string[] {
   const c = last.compares?.[0];
   let next: string[] | null = null;
   if (c) {
@@ -77,8 +107,9 @@ export function followUpsFor(last: AnswerKind, asked: string[]): string[] {
   else if (last.checks?.length) next = [COMPARE_Q, WHERE_Q, STYLE_Q];
   else if (last.actions?.length) next = [WHERE_Q, COMPARE_Q, DINNER_Q];
   next ??= [COMPARE_Q, WHERE_Q, STYLE_Q, DINNER_Q];
-  const done = new Set(asked.map((q) => q.trim().toLowerCase()));
-  return next.filter((q) => !done.has(q.toLowerCase())).slice(0, 4);
+  const done = new Set(asked.map(norm));
+  const fresh = [...new Map([...fromModel, ...next, ...MORE_Q].filter((q) => !done.has(norm(q))).map((q) => [norm(q), q])).values()];
+  return (fresh.length ? fresh : [...new Map([...next, ...MORE_Q].map((q) => [norm(q), q])).values()]).slice(0, 4);
 }
 
 /** Questions to offer under the chat input, by the page the person came from. */
