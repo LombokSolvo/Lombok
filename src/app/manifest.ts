@@ -2,10 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "Solvo",
     short_name: "Solvo",
     description: "Fixed costs aren't fixed.",
+    lang: "en",
+    categories: ["finance"],
     start_url: "/",
+    scope: "/",
     display: "standalone",
     orientation: "portrait",
     background_color: "#f2f4f1",

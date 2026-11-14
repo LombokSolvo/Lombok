@@ -6,6 +6,7 @@ import { Bricolage_Grotesque, Geist_Mono, Instrument_Sans } from "next/font/goog
 import "./globals.css";
 import { ClockConfig } from "@/components/clock-config";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { PwaRegister } from "@/components/pwa-register";
 import { TabBar } from "@/components/tab-bar";
 import { DATASET_END, configureDemoClock } from "@/lib/demo-clock";
 
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </Suspense>
           <TabBar />
           <PullToRefresh />
+          <PwaRegister />
         </div>
       </body>
     </html>
