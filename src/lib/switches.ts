@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { clearBanksCookie } from "@/lib/banks";
+import { resetBudgetEdits } from "@/lib/budget-edits-store";
 import { clearCalendarFile } from "@/lib/calendar-file-store";
 import { resetCalendar } from "@/lib/calendar-store";
 import { resetForecast } from "@/lib/forecast-store";
@@ -193,6 +194,7 @@ export function resetDemo() {
   billStore.set(null);
   cancelledStore.set(null);
   resetGoals();
+  resetBudgetEdits();
   resetOnboarding();
   resetCalendar();
   resetForecast();

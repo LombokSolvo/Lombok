@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useWeeklyReserve } from "@/components/forecast-ui";
+import { budgetEditsMonthly, useBudgetEdits } from "@/lib/budget-edits-store";
 import { useLearnProgress } from "@/lib/learn-store";
 import { onboardingWeeklyDelta, useOnboarding } from "@/lib/onboarding-store";
 import { SUBSCRIPTIONS } from "@/data/subscriptions";
@@ -21,8 +22,10 @@ const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR",
 /** What the person's choices in this browser add to (or take off) the weekly numbers, EUR a week. */
 function useWeeklyDelta() {
   // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume; what the person's
-  // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why).
-  return weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve();
+  // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why); the person's own corrections
+  // on "Your money each month" (irregular set-aside, bills Solvo missed) move it too.
+  const edits = (budgetEditsMonthly(useBudgetEdits()) * 12) / WEEKS_PER_YEAR;
+  return weeklyBoost(useSwitches(), useSavingsPlan()) + useCancelledWeekly() + onboardingWeeklyDelta(useOnboarding()) - useWeeklyReserve() + edits;
 }
 
 /** A weekly amount (remaining or budget) plus what approved switches free up each week, minus what the calendar sets aside. */
@@ -79,7 +82,9 @@ export function ResetDemoButton({ className }: { className?: string }) {
   const onboarding = useOnboarding();
   const learned = Object.keys(useLearnProgress().done).length > 0;
   const cancelled = Object.keys(useCancelledSubs()).length > 0;
-  if (!learned && !cancelled && !Object.keys(switches).length && !plan && !Object.keys(bills).length && !onboarding.completedAt && !onboarding.skipped) return null;
+  const edits = useBudgetEdits();
+  const edited = !!edits.irregular || edits.extras.length > 0;
+  if (!learned && !cancelled && !edited && !Object.keys(switches).length && !plan && !Object.keys(bills).length && !onboarding.completedAt && !onboarding.skipped) return null;
   return (
     <button type="button" className={className} onClick={resetDemo}>
       Reset demo

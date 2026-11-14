@@ -14,6 +14,7 @@ export function NumberField({
   suffix,
   min = 0,
   max,
+  decimals = false,
 }: {
   label: string;
   value: number;
@@ -21,23 +22,30 @@ export function NumberField({
   suffix?: string;
   min?: number;
   max?: number;
+  decimals?: boolean; // cents allowed, typed with a comma or a dot (9,99)
 }) {
-  const [text, setText] = useState(value ? String(value) : "");
+  const [text, setText] = useState(value ? (decimals ? String(value).replace(".", ",") : String(value)) : "");
   return (
     <label className="flex flex-1 flex-col gap-1">
       <span className="text-[13px] text-muted-foreground">{label}</span>
       <span className="flex h-11 items-center rounded-xl bg-muted px-3 focus-within:ring-2 focus-within:ring-primary/40">
         <input
           type="text"
-          inputMode="numeric"
+          inputMode={decimals ? "decimal" : "numeric"}
           enterKeyHint="done"
           autoComplete="off"
           value={text}
           placeholder="0"
           onChange={(e) => {
-            const digits = e.target.value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+            let digits: string;
+            if (decimals) {
+              // Keep the first comma or dot as the decimal mark and at most two decimals.
+              const [whole, ...rest] = e.target.value.replace(/\./g, ",").replace(/[^\d,]/g, "").split(",");
+              const w = whole.replace(/^0+(?=\d)/, "");
+              digits = rest.length ? `${w || "0"},${rest.join("").slice(0, 2)}` : w;
+            } else digits = e.target.value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
             setText(digits);
-            const n = digits === "" ? 0 : Number(digits);
+            const n = digits === "" ? 0 : Number(digits.replace(",", "."));
             onChange(Math.min(max ?? Infinity, Math.max(min, n)));
           }}
           className="num w-full min-w-0 bg-transparent outline-none"
