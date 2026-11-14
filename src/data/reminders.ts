@@ -7,6 +7,7 @@ export type UnpaidBill = {
   id: string;
   supplier: string;
   what: string;
+  visitDate: string; // YYYY-MM-DD
   amount: number; // EUR
   dueDate: string; // YYYY-MM-DD
   basket: 1 | 2 | 3; // which budget it comes from
@@ -17,7 +18,8 @@ export type UnpaidBill = {
 export const UNPAID: UnpaidBill = {
   id: "dentist-2026-09",
   supplier: "Hymy Hammasklinikka Oy",
-  what: "Dental check-up and filling, 9 Sept",
+  what: "Dental check-up and filling",
+  visitDate: "2026-09-09", // a demo date: format it with Intl so the demo clock moves it
   amount: 148,
   dueDate: "2026-09-25",
   basket: 2,
@@ -36,7 +38,7 @@ export const ESCALATION: EscalationStep[] = [
   {
     date: "2026-09-22",
     channel: "notification",
-    title: "Bill due Friday",
+    title: "Bill due in 3 days",
     text: "Hymy Hammasklinikka, €148. Tap to pay or schedule it.",
   },
   {
@@ -53,7 +55,11 @@ export const ESCALATION: EscalationStep[] = [
   },
 ];
 
-// Pre-generated with ElevenLabs (voice "Emily", eleven_v4) from this script.
-export const CALL_AUDIO = "/audio/solvo-call-en.mp3";
+// Spoken by ElevenLabs (voice "Emily", eleven_v4) from this script by /api/call/audio. It is the fallback when the two-way call can't start
+// ("Can't talk? Play the message instead"), so it names no weekday, date or safe-to-spend amount: those move with the demo clock
+// and the person's switches, and a recording can't. "Five days ago" stays true because the call always happens on the demo's
+// "today", five days after the due date (see ESCALATION).
+export const CALL_AUDIO = "/api/call/audio";
+export const CALL_VOICE_ID = "zHGX9VSXpW8cGSDRCqy0"; // ElevenLabs "Emily: Trustworthy, Warm, Conversational"
 export const CALL_SCRIPT =
-  "Hi Aino, it's Solvo, your money coach from S-Pankki. Don't worry, this isn't a collection call. Your dentist bill from Hymy Hammasklinikka, €148, was due last Friday and it's still open. If it's paid by Monday, you won't get a reminder fee. And good news: it comes out of the money you've set aside for irregular costs, so your €338 safe to spend this week stays exactly the same. Want me to get the payment ready? You'll approve it in the app, as always. Talk soon!";
+  "Hi Aino, it's Solvo, your money coach from S-Pankki. Don't worry, this isn't a collection call. Your dentist bill from Hymy Hammasklinikka, 148 euros, was due five days ago and it's still open. If you pay it in the next few days, you won't get a reminder fee. And good news: it comes out of the money you've set aside for irregular costs, so your safe to spend this week stays exactly the same. After this message you can pay it, ask me to remind you on Monday, or tell me if now isn't a good time. You'll approve everything yourself in the app, as always. Talk soon!";
