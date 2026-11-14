@@ -36,15 +36,15 @@ type Kind = { id: KindId; category: ForecastCategory; label: string; words: RegE
 // Whole words only (Finnish endings are listed), so "public holiday" is not a pub and "stay" or "showroom" match nothing.
 const W = (s: string) => new RegExp(`(^|[^\\p{L}])(${s})(?![\\p{L}])`, "iu");
 export const KINDS: Kind[] = [
-  { id: "trip", category: "travel", label: "Trip", fallback: 0, words: W("trips?|flights?|hotel|hotels|hotelli|holiday|vacation|city break|weekend away|road trip|cruise|risteily|airbnb|matka|matkalle|matkalla|matkan|matkaan|reissu|reissulle|reissulla|lento|lennot|lennolle|lennon|loma|lomalle|lomalla|loman|lomamatka|mökkireissu|mökille|viikonloppumatka|ulkomaille") },
-  { id: "concert", category: "entertainment", label: "Concert or show", fallback: 70, words: W("concerts?|gig|festival|festivals|festivaali|theatre|theater|musical|teatteri|teatteriin|konsertti|konserttiin|keikka|keikalle|oopperaan|ooppera|tickets?|liput") },
-  { id: "cinema", category: "entertainment", label: "Cinema", fallback: 15, words: W("cinema|movie|movies|elokuva|elokuviin|leffa|leffaan") },
-  { id: "wedding", category: "gift", label: "Wedding", fallback: 100, words: W("wedding|häät|hääjuhla|häihin|kihlajaiset") },
-  { id: "birthday", category: "gift", label: "Birthday", fallback: 50, words: W("birthday|bday|b-day|synttärit|synttäri|synttäreille|synttäreillä|syntymäpäivä|syntymäpäivät|nimipäivä|valmistujaiset|graduation") },
-  { id: "party", category: "gift", label: "Party", fallback: 30, words: W("party|bachelor|bachelorette|housewarming|juhlat|juhlaan|polttarit|läksiäiset|kotijuhlat") },
-  { id: "dinner", category: "dining", label: "Dinner out", fallback: 60, words: W("dinner|dinners|illallinen|illallisella|illalliselle|illallista|date night|supper") },
-  { id: "lunch", category: "dining", label: "Lunch out", fallback: 25, words: W("lunch|lounas|lounaalle|lounaalla|lounasta|brunch") },
-  { id: "drinks", category: "dining", label: "Drinks", fallback: 30, words: W("drinks|drinkit|drinkeille|beer|beers|oluet|oluella|olut|after work|afterwork|pub|baari|cocktail|cocktails") },
+  { id: "trip", category: "travel", label: "Trip", fallback: 0, words: W("trips?|flights?|hotel|hotels|hotelli|holiday|vacation|city break|weekend away|road trip|cruise|risteily|airbnb|matka|matkalle|matkalla|matkan|matkaan|matkalta|matkasta|matkoja|reissu|reissulle|reissulla|reissussa|reissulta|lento|lennot|lennolle|lennon|lennolla|lennolta|lentoon|loma|lomalle|lomalla|loman|lomalta|lomasta|lomalle|lomamatka|mökkireissu|mökille|viikonloppumatka|ulkomaille") },
+  { id: "concert", category: "entertainment", label: "Concert or show", fallback: 70, words: W("concerts?|gig|festival|festivals|festivaali|theatre|theater|musical|teatteri|teatteriin|konsertti|konserttiin|konsertissa|konsertista|keikka|keikalle|keikalla|keikalta|oopperaan|ooppera|tickets?|liput") },
+  { id: "cinema", category: "entertainment", label: "Cinema", fallback: 15, words: W("cinema|movie|movies|elokuva|elokuviin|elokuvissa|elokuvasta|leffa|leffaan") },
+  { id: "wedding", category: "gift", label: "Wedding", fallback: 100, words: W("wedding|häät|hääjuhla|häihin|häissä|häistä|hääjuhlaan|kihlajaiset") },
+  { id: "birthday", category: "gift", label: "Birthday", fallback: 50, words: W("birthday|bday|b-day|synttärit|synttäri|synttäreille|synttäreillä|synttäreiltä|synttäreistä|syntymäpäivä|syntymäpäivät|nimipäivä|valmistujaiset|graduation") },
+  { id: "party", category: "gift", label: "Party", fallback: 30, words: W("party|bachelor|bachelorette|housewarming|juhlat|juhlaan|juhliin|juhlissa|juhlista|juhla|polttarit|läksiäiset|kotijuhlat") },
+  { id: "dinner", category: "dining", label: "Dinner out", fallback: 60, words: W("dinner|dinners|illallinen|illallisella|illalliselle|illallista|illallisille|illallisilla|illallisen|illalliselta|illalliselle|date night|supper") },
+  { id: "lunch", category: "dining", label: "Lunch out", fallback: 25, words: W("lunch|lounas|lounaalle|lounaalla|lounasta|lounaaksi|lounaan|brunch") },
+  { id: "drinks", category: "dining", label: "Drinks", fallback: 30, words: W("drinks|drinkit|drinkeille|drinkeillä|drinkkejä|beer|beers|oluet|oluella|olut|after work|afterwork|pub|baari|cocktail|cocktails") },
 ];
 
 // Costs somebody else pays or that are not personal spending.
