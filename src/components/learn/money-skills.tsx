@@ -3,11 +3,14 @@
 // Profile's "Money skills" row: the learning packs, which ones are finished, and a light streak.
 import Link from "next/link";
 import { Check, ChevronRight, GraduationCap } from "lucide-react";
+import { LevelTwoSoon } from "@/components/learn/learn-pack";
+import { plainFormat } from "@/lib/demo-clock";
 import { Group, IconTile } from "@/components/solvo/ui";
 import { learnStreak, useLearnProgress } from "@/lib/learn-store";
-import { PACK_IDS, PACK_META as packs } from "@/lib/learn";
+import { LEVEL, PACK_IDS, PACK_META as packs } from "@/lib/learn";
 
-const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+// Finish dates are real dates, so they skip the demo clock's shift.
+const dateFmt = plainFormat({ day: "numeric", month: "short" });
 
 export function MoneySkills() {
   const p = useLearnProgress();
@@ -15,7 +18,7 @@ export function MoneySkills() {
   const streak = learnStreak(p);
   return (
     <Group
-      title="Money skills"
+      title={LEVEL.label}
       aside={`${count} of ${packs.length} done${streak > 1 ? ` · ${streak}-day streak` : ""}`}
     >
       <div className="flex gap-1 px-4 pt-3.5" aria-hidden>
@@ -38,7 +41,7 @@ export function MoneySkills() {
               <span className="block text-[15px] leading-snug font-medium">{k.title}</span>
               <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
                 {done
-                  ? `Finished ${dateFmt.format(new Date(done.at))}${done.quizRight ? ", quiz right first time" : ""}`
+                  ? `Finished ${dateFmt(done.at.slice(0, 10))}${done.quizRight ? ", quiz right first time" : ""}`
                   : `${k.minutes} min, quiz and your own numbers`}
               </span>
             </span>
@@ -46,6 +49,7 @@ export function MoneySkills() {
           </Link>
         );
       })}
+      {count === packs.length && <LevelTwoSoon className="m-3 mt-0" />}
     </Group>
   );
 }

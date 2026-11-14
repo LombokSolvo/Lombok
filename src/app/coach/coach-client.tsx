@@ -6,7 +6,7 @@ import { LearnPack } from "@/components/learn/learn-pack";
 import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
 import { LAST_PAGE_KEY, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
 import type { DemoMode } from "@/lib/demo-mode";
-import { PACK_IDS, PACK_META, getPack, packFromText, type LearnContext, type PackId } from "@/lib/learn";
+import { LEVEL, PACK_IDS, PACK_META, getPack, packFromText, type LearnContext, type PackId } from "@/lib/learn";
 import { useLearnProgress } from "@/lib/learn-store";
 import type { SpendingResult } from "@/lib/spending";
 import type { WhatIfResult } from "@/lib/what-if";
@@ -151,7 +151,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
               </p>
             </div>
             <Group
-              title="Learn with your own numbers"
+              title={LEVEL.label}
               aside={`${PACK_IDS.filter((id) => progress.done[id]).length} of ${PACK_IDS.length} done`}
               className="mt-0"
             >

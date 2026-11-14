@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, ChevronLeft, GraduationCap, MessageCircle, Sparkles, X } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, GraduationCap, Lock, MessageCircle, Sparkles, X } from "lucide-react";
 import { NumberField, Stepper } from "@/components/solvo/fields";
 import { eur } from "@/components/solvo/ui";
 import { cn } from "@/lib/utils";
 import {
   ILLUSTRATIVE_RETURN_PCT,
+  LEVEL,
   PACK_IDS,
   breakEvenSpot,
   elecYear,
@@ -42,6 +43,7 @@ export function LearnPack({
   const finishedCount = PACK_IDS.filter((p) => progress.done[p]).length;
   const nextPack = PACK_IDS.find((p) => p !== id && !progress.done[p]);
   const streak = learnStreak(progress);
+  const levelDone = finishedCount === PACK_IDS.length;
 
   const next = () => {
     if (step === steps - 1) finishPack(id, picked === pack.quiz.correct);
@@ -58,7 +60,7 @@ export function LearnPack({
           <GraduationCap className="size-[18px]" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold tracking-[0.06em] text-primary uppercase">Money skills</p>
+          <p className="text-[11px] font-semibold tracking-[0.06em] text-primary uppercase">{LEVEL.label}</p>
           <p className="truncate text-[15px] leading-tight font-semibold">{pack.title}</p>
         </div>
         <span className="num shrink-0 text-[12px] text-muted-foreground">
@@ -156,11 +158,15 @@ export function LearnPack({
             <span className="flex size-14 animate-pop items-center justify-center rounded-full bg-primary text-white shadow-[0_10px_30px_-10px_rgba(19,98,63,0.8)]">
               <Check className="size-7" strokeWidth={2.75} aria-hidden />
             </span>
-            <h3 className="mt-3 font-display text-[21px] font-semibold tracking-[-0.015em]">Pack done</h3>
+            <h3 className="mt-3 font-display text-[21px] font-semibold tracking-[-0.015em]">
+              {levelDone ? `Level ${LEVEL.number} complete!` : "Pack done"}
+            </h3>
             <p className="mt-1 text-[14px] text-muted-foreground">
-              {finishedCount} of {PACK_IDS.length} Money skills finished
-              {streak > 1 ? `, ${streak} days in a row` : ""}. You&apos;ll find them in Profile.
+              {levelDone
+                ? `You're a ${LEVEL.name}: all ${PACK_IDS.length} packs done${streak > 1 ? `, ${streak} days in a row` : ""}.`
+                : `${finishedCount} of ${PACK_IDS.length} packs in ${LEVEL.label}${streak > 1 ? `, ${streak} days in a row` : ""}. You'll find them in Profile.`}
             </p>
+            {levelDone && <LevelTwoSoon className="mt-4 w-full" />}
             <div className="mt-4 flex w-full flex-col gap-2">
               {pack.followUps.map((q) => (
                 <button
@@ -399,6 +405,21 @@ function BufferTry({ ctx }: { ctx: LearnContext }) {
           : "Put in a monthly amount to see how long it takes."}{" "}
         Solvo&apos;s plan can move it to a savings account on payday, before you can spend it.
       </p>
+    </div>
+  );
+}
+
+/** Shown once every level 1 pack is done. */
+export function LevelTwoSoon({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-accent/40 px-4 py-3 text-left", className)}>
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+        <Lock className="size-[18px]" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] leading-snug font-semibold">Level 2</span>
+        <span className="block text-[13px] leading-snug text-muted-foreground">Coming soon. New packs are on their way.</span>
+      </span>
     </div>
   );
 }
