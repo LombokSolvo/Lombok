@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 import { clearBanksCookie } from "@/lib/banks";
-import { writeCalendarCookie } from "@/lib/calendar-demo";
 import { resetCalendar } from "@/lib/calendar-store";
 import { clearCalendarFile } from "@/lib/calendar-file-store";
 import { resetForecast } from "@/lib/forecast-store";
@@ -151,7 +150,6 @@ export function resetDemo() {
   resetCalendar();
   resetForecast();
   clearCalendarFile();
-  writeCalendarCookie(false);
   clearBanksCookie();
 }
 

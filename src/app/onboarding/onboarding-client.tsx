@@ -4,9 +4,12 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, Check, ExternalLink, Home, Pencil, PiggyBank, Plane, Plus, Sprout, Trash2, Wallet } from "lucide-react";
 import { ApproveSheet, StickyAction } from "@/app/bills/switch-ui";
+import { CalendarConnect } from "@/components/calendar-connect";
 import { useForecast } from "@/components/forecast-ui";
 import { OtherBanks } from "@/components/other-banks";
 import type { BankId, View } from "@/lib/banks";
+import type { GoogleStatus } from "@/lib/google-calendar";
+import type { LinkStatus } from "@/lib/ics-link";
 import { NumberField, Stepper } from "@/components/solvo/fields";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
 import { Sheet } from "@/components/solvo/sheet";
@@ -130,7 +133,7 @@ const billSub = (i: Item) => {
   return i.detail && !/^Bank data/.test(i.detail) ? `${i.detail} · ${when}` : when;
 };
 
-export function OnboardingClient({ profile, base, schedule, local, banks, view }: { profile: Profile; base: Base; schedule: Schedule; local: boolean; banks: BankId[]; view: View }) {
+export function OnboardingClient({ profile, base, schedule, local, banks, view, calendar }: { profile: Profile; base: Base; schedule: Schedule; local: boolean; banks: BankId[]; view: View; calendar: { google: GoogleStatus; link: LinkStatus; notice: string | null } }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [sheet, setSheet] = useState<SheetName>(null);
@@ -269,6 +272,9 @@ export function OnboardingClient({ profile, base, schedule, local, banks, view }
           </Group>
 
           <OtherBanks banks={banks} view={view} compact />
+
+          {/* Optional: the calendar lets Solvo budget for trips and dinners it sees coming. The person approves in the sheet that opens. */}
+          <CalendarConnect {...calendar} from="onboarding" />
 
           <details className="mt-5 rounded-2xl bg-card px-4 py-3 text-[14px] shadow-[0_1px_3px_rgba(15,42,31,0.06)]">
             <summary className="flex min-h-11 cursor-pointer items-center font-medium">Why we think so</summary>

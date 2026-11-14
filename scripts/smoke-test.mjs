@@ -103,16 +103,15 @@ try {
     if (statuses.some((s) => s !== 404) || callback.status !== 404) throw new Error(`expected only 404, got ${statuses.join(", ")} and ${callback.status}`);
     const profile = await (await fetch(BASE + "/profile")).text();
     if (/Connect Google Calendar|GOOGLE_CLIENT/.test(profile)) throw new Error("Profile offers Google Calendar");
-    if (!profile.includes("Connect calendar")) throw new Error("Profile has no demo calendar row");
+    if (!profile.includes("Connect calendar")) throw new Error("Profile has no calendar row");
   });
-  // The demo calendar is opt-in (a cookie): nothing about it on Home until it is connected, then the reason the number moved.
-  await check("demo calendar is opt-in and feeds Home", async () => {
-    const without = await (await fetch(BASE + "/")).text();
-    if (without.includes("set aside for your calendar")) throw new Error("Home mentions the calendar before it was connected");
-    const withIt = await (await fetch(BASE + "/", { headers: { Cookie: "solvo_calendar=demo" } })).text();
-    if (!withIt.includes("set aside for your calendar")) throw new Error("Home does not explain the calendar's effect");
-    const cal = await (await fetch(BASE + "/calendar", { headers: { Cookie: "solvo_calendar=demo" } })).text();
-    if (!cal.includes("Demo: example events")) throw new Error("Calendar page does not say it is a demo");
+  // Nothing is shown from a calendar until a real one is connected: no simulated calendar, no cookie that fakes one.
+  await check("no calendar is shown until a real one is connected", async () => {
+    const home = await (await fetch(BASE + "/", { headers: { Cookie: "solvo_calendar=demo" } })).text();
+    if (home.includes("set aside for your calendar")) throw new Error("Home shows a calendar that was never connected");
+    if (!home.includes("Budget for what is coming")) throw new Error("Home has no way in to connect a calendar");
+    const onboarding = await (await fetch(BASE + "/onboarding")).text();
+    if (!onboarding.includes("Connect calendar")) throw new Error("First-run setup does not offer the calendar");
   });
   await check("POST /api/coach (offline answer)", async () => {
     const data = await postJson("/api/coach", { messages: [{ role: "user", text: "How much did I spend on restaurants?" }] });

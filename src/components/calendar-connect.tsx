@@ -8,7 +8,6 @@ import { useForecast } from "@/components/forecast-ui";
 import { MoneyBadge, SignedAmount } from "@/components/solvo/money-badge";
 import { Sheet } from "@/components/solvo/sheet";
 import { Chip, Group, IconTile, Row, primaryButton, secondaryButton } from "@/components/solvo/ui";
-import { sampleIcs, writeCalendarCookie } from "@/lib/calendar-demo";
 import { clearCalendarFile, saveCalendarFile, useCalendarFile } from "@/lib/calendar-file-store";
 import { postJson, request } from "@/lib/client-request";
 import { plainFormat } from "@/lib/demo-clock";
@@ -18,12 +17,11 @@ import type { GoogleStatus } from "@/lib/google-calendar";
 import { parseIcs } from "@/lib/ics";
 import type { LinkStatus } from "@/lib/ics-link";
 
-// Profile > Calendar: the calendar Solvo reads to foresee trips and dinners and budget for them. Opt-in, never assumed. Four ways in:
+// Profile > Calendar: the calendar Solvo reads to foresee trips and dinners and budget for them. Opt-in, never assumed. Three ways in:
 //  - Calendar file (.ics), everywhere: read in the browser and never uploaded. The public app offers it too, because nothing leaves the phone.
 //  - Calendar link (Google, iCloud, Outlook), LOCAL ONLY: the server fetches it (src/lib/ics-link.ts).
 //  - Google Calendar sign-in, LOCAL ONLY (SOLVO_GOOGLE=1, src/lib/google-calendar.ts).
-//  - Demo calendar, everywhere: six fictional events.
-// A real calendar and the demo are never mixed: while a real one is connected the demo is not offered.
+// There is no simulated calendar: nothing is shown until the person connects a real one.
 // The type imports above are erased at build time, so no server code reaches the browser.
 
 const day = plainFormat({ day: "numeric", month: "short" });
@@ -40,7 +38,7 @@ const NOTICES: Record<string, string> = {
 
 const action = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left font-medium text-primary disabled:opacity-50 [&+&]:border-t";
 
-type Sheets = null | "pick" | "file" | "link" | "demo" | "google";
+type Sheets = null | "pick" | "file" | "link" | "google";
 type Preview = { label: string; date: string; amount: number; title?: string };
 
 /** One way in, as a big tappable card in the picker. */
@@ -60,7 +58,8 @@ function Choice({ icon, title, sub, chip, onClick }: { icon: ReactNode; title: s
   );
 }
 
-export function CalendarConnect({ google, link, notice }: { google: GoogleStatus; link: LinkStatus; notice: string | null }) {
+/** `from` says which page Google should send the person back to: Profile (default) or the first-run setup. */
+export function CalendarConnect({ google, link, notice, from }: { google: GoogleStatus; link: LinkStatus; notice: string | null; from?: "onboarding" }) {
   const router = useRouter();
   const { mode, items, today, baselines } = useForecast();
   const file = useCalendarFile();
@@ -71,25 +70,13 @@ export function CalendarConnect({ google, link, notice }: { google: GoogleStatus
 
   const counted = items.filter((i) => i.counted).length;
   const googleHere = google.enabled && google.connected;
-  const realConnected = (googleHere && !google.reconnect) || mode === "link" || mode === "file";
   const spin = <Loader2 className="animate-spin" />;
 
-  const useDemo = () => {
-    writeCalendarCookie(true);
-    setSheet(null);
-    setFlash("Demo calendar connected. Example events now show up as estimates.");
-    router.refresh();
-  };
-  const dropDemo = () => {
-    writeCalendarCookie(false);
-    resetForecast();
-    router.refresh();
-  };
   const connectGoogle = async () => {
     setSheet(null);
     setBusy("connect");
     setError(null);
-    const r = await request("/api/google/start", { method: "POST" });
+    const r = await postJson("/api/google/start", { from });
     if (r.ok && typeof r.data.url === "string") {
       window.location.assign(r.data.url); // Google's own page: the person approves there with their own login
       return;
@@ -122,9 +109,7 @@ export function CalendarConnect({ google, link, notice }: { google: GoogleStatus
       ? "Local only: the link and the events kept from it stay on this computer. Event titles never go to the coach or any model."
       : googleHere && mode === "google"
         ? "Local only: Solvo reads event titles and times on this computer, read-only. Titles never go to the coach or any model, and are not shown. Only an estimate per trip or dinner reaches your budget."
-        : mode === "demo"
-          ? "Demo: a simulated calendar with fictional events. Nothing real is read."
-          : undefined;
+        : undefined;
 
   return (
     <div id="calendar" className="scroll-mt-4">
@@ -224,26 +209,6 @@ export function CalendarConnect({ google, link, notice }: { google: GoogleStatus
           </>
         )}
 
-        {/* Connected: the demo */}
-        {mode === "demo" && !realConnected && (
-          <>
-            <Row
-              icon={<IconTile><CalendarClock /></IconTile>}
-              title="Demo calendar"
-              subtitle={`Example events, simulated. ${counted} ${counted === 1 ? "thing" : "things"} counted as spending.`}
-              value={<Chip>Demo</Chip>}
-            />
-            <button type="button" className={action} onClick={() => setSheet("pick")}>
-              <IconTile><RefreshCw /></IconTile>
-              Use my own calendar instead
-            </button>
-            <button type="button" className={action} onClick={dropDemo}>
-              <IconTile tone="grey"><Trash2 /></IconTile>
-              Remove the demo calendar
-            </button>
-          </>
-        )}
-
         {error && (
           <p role="alert" className="border-t px-4 py-3 text-[13px] leading-snug text-warn">
             {error}
@@ -258,7 +223,6 @@ export function CalendarConnect({ google, link, notice }: { google: GoogleStatus
             {link.available && <Choice icon={<Link2 />} title="Calendar link" chip="This computer only" sub="Paste your calendar's private link from Google, iCloud or Outlook. No sign-in, no keys." onClick={() => setSheet("link")} />}
             {google.enabled && google.configured && <Choice icon={<CalendarDays />} title="Google Calendar" chip="This computer only" sub="Sign in with Google and approve read-only access." onClick={() => setSheet("google")} />}
             {google.enabled && !google.configured && <Row icon={<IconTile tone="warn"><CalendarDays /></IconTile>} title="Google sign-in needs setup" subtitle="Put GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local. Steps are at the top of src/lib/google-calendar.ts." className="rounded-2xl bg-muted/40" />}
-            {!realConnected && <Choice icon={<CalendarClock />} title="Demo calendar" chip="Demo" sub="Six fictional events, nothing real is read. Good for trying it out." onClick={() => setSheet("demo")} />}
           </div>
           <p className="mt-4 mb-1 text-[13px] leading-snug text-muted-foreground">Solvo only forecasts your own spending. It never changes your calendar and never sends event titles to a model.</p>
         </Sheet>
@@ -283,19 +247,6 @@ export function CalendarConnect({ google, link, notice }: { google: GoogleStatus
             setFlash(n ? `Connected. ${n} ${n === 1 ? "thing" : "things"} from your calendar now show up as estimates.` : "Connected. Nothing in the next 45 days looks like spending yet.");
             router.refresh();
           }}
-        />
-      )}
-      {sheet === "demo" && (
-        <ApproveSheet
-          title="Connect the demo calendar"
-          points={[
-            "Demo: a simulated calendar with six example events. Nothing real is read.",
-            "Solvo looks for trips, dinners, concerts and birthdays, and sets aside an estimate for each.",
-            "Estimates come from your own spending where there is enough, otherwise from typical amounts. You can change or switch off every one.",
-          ]}
-          confirmLabel="Use the demo calendar"
-          onConfirm={useDemo}
-          onCancel={() => setSheet("pick")}
         />
       )}
       {sheet === "google" && (
@@ -460,16 +411,6 @@ function FileSheet({ today, baselines, onClose, onAdded }: { today: string; base
         </ul>
       </details>
 
-      <button
-        type="button"
-        className="mt-2 flex min-h-11 items-center text-[14px] font-medium text-primary underline underline-offset-4"
-        onClick={() => {
-          setState({ step: "reading" });
-          read(sampleIcs(today), "sample-calendar.ics");
-        }}
-      >
-        No file handy? Try a sample file
-      </button>
     </Sheet>
   );
 }

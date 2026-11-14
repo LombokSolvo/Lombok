@@ -6,11 +6,26 @@
 //   GOOGLE_AUTH_URL=http://127.0.0.1:4455/auth GOOGLE_TOKEN_URL=http://127.0.0.1:4455/token \
 //   GOOGLE_REVOKE_URL=http://127.0.0.1:4455/revoke GOOGLE_API_URL=http://127.0.0.1:4455 npx next dev -H 127.0.0.1 -p 3000
 import http from "node:http";
-import { sampleIcs } from "../src/lib/calendar-demo.ts";
 
 const DAY = 86_400_000;
 const iso = (offsetDays) => new Date(Date.now() + offsetDays * DAY).toISOString().slice(0, 10);
 const at = (offsetDays, time) => `${iso(offsetDays)}T${time}:00+02:00`;
+
+/** A fictional .ics file with dates relative to today: four things that look like spending, a repeating one and a meeting. */
+export function fixtureIcs(today) {
+  const d = (n) => new Date(Date.parse(`${today}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10).replace(/-/g, "");
+  const ev = (uid, title, lines) => ["BEGIN:VEVENT", `UID:fixture-${uid}`, `SUMMARY:${title}`, ...lines, "END:VEVENT"];
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Solvo test fixture//EN",
+    ...ev("lunch", "Lunch with Eero", [`DTSTART;TZID=Europe/Helsinki:${d(3)}T120000`, `DTEND;TZID=Europe/Helsinki:${d(3)}T133000`]),
+    ...ev("gym", "Gym", [`DTSTART;TZID=Europe/Helsinki:${d(1)}T180000`, "RRULE:FREQ=WEEKLY;BYDAY=MO"]),
+    ...ev("dinner", "Illallinen Lauran kanssa", [`DTSTART;TZID=Europe/Helsinki:${d(8)}T190000`, `DTEND;TZID=Europe/Helsinki:${d(8)}T223000`]),
+    ...ev("party", "Housewarming party", [`DTSTART;TZID=Europe/Helsinki:${d(13)}T180000`, `DTEND;TZID=Europe/Helsinki:${d(13)}T230000`]),
+    ...ev("trip", "Flight to Lisbon", [`DTSTART;VALUE=DATE:${d(24)}`, `DTEND;VALUE=DATE:${d(29)}`]),
+    ...ev("review", "Quarterly review", [`DTSTART;TZID=Europe/Helsinki:${d(5)}T100000`, `DTEND;TZID=Europe/Helsinki:${d(5)}T110000`]),
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
 
 /** Events relative to now. The location and attendee names are there to prove they never get through. */
 export function mockEvents() {
@@ -39,7 +54,7 @@ export function startMock({ port = 0, pageSize = 4 } = {}) {
     if (url.pathname === "/cal.ics") {
       // A published calendar link (Google "secret address", iCloud, Outlook), with fictional events relative to today.
       res.writeHead(200, { "Content-Type": "text/calendar" });
-      return res.end(sampleIcs(new Date().toISOString().slice(0, 10)));
+      return res.end(fixtureIcs(new Date().toISOString().slice(0, 10)));
     }
     if (url.pathname === "/auth") {
       // The consent page, collapsed to an instant "Allow": straight back to the app with a code and the state we were given.

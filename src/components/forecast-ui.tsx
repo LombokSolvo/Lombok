@@ -43,7 +43,6 @@ export const useForecast = () => useContext(Ctx);
 export const useWeeklyReserve = () => useContext(Ctx).reserve;
 
 export const SOURCE_NOTE: Record<CalendarMode, string> = {
-  demo: "Demo: example calendar",
   google: "Your Google Calendar",
   link: "Your calendar link",
   file: "Your calendar file, kept on this phone",
@@ -75,7 +74,7 @@ export function ForecastNote({ className }: { className?: string }) {
   return (
     <Link href="/calendar" className={`${className ?? ""} flex min-h-11 items-center justify-between gap-2 text-[13px] text-white/70 active:text-white`}>
       <span>
-        Includes {eur.format(Math.round(reserve))} a week set aside for your calendar{mode === "demo" ? " (demo)" : ""}
+        Includes {eur.format(Math.round(reserve))} a week set aside for your calendar
       </span>
       <ChevronRight className="size-4 shrink-0 text-white/50" aria-hidden />
     </Link>

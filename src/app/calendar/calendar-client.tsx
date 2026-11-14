@@ -66,7 +66,7 @@ export function CalendarClient({ items: detected, today: asOf, offset }: { items
         <p className="-mt-2 mb-4 rounded-xl bg-accent px-3 py-2.5 text-[13px] leading-snug text-accent-foreground">
           <span className="flex items-center gap-2 font-medium">
             <CalendarClock className="size-4 shrink-0" aria-hidden />
-            {mode === "demo" ? "Demo: example events from a simulated calendar" : `From ${mode === "google" ? "your Google Calendar" : mode === "link" ? "your calendar link" : "your calendar file"}`}
+            {`From ${mode === "google" ? "your Google Calendar" : mode === "link" ? "your calendar link" : "your calendar file"}`}
           </span>
           <span className="mt-1 block">
             {countedForecast.length

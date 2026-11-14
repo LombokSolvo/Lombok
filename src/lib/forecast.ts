@@ -23,8 +23,8 @@ export type CalendarEvent = {
   recurring?: boolean;
 };
 
-/** Where the events came from: the demo calendar, the person's Google Calendar, a calendar link they pasted, or a file they chose. */
-export type ForecastSource = "demo" | "google" | "link" | "file";
+/** Where the events came from: the person's Google Calendar, a calendar link they pasted, or a file they chose. */
+export type ForecastSource = "google" | "link" | "file";
 export type CalendarMode = ForecastSource;
 export type ForecastCategory = "travel" | "dining" | "entertainment" | "gift";
 export type KindId = "trip" | "dinner" | "lunch" | "drinks" | "concert" | "cinema" | "birthday" | "wedding" | "party";

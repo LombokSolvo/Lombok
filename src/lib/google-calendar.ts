@@ -60,6 +60,8 @@ const tokenFile = () => path.join(dir(), "token.json");
 const eventsFile = () => path.join(dir(), "events.json");
 
 export const GOOGLE_STATE_COOKIE = "solvo_google_state";
+/** Where to send the person after Google: the first-run setup or Profile (the default). Only these two are ever used. */
+export const GOOGLE_FROM_COOKIE = "solvo_google_from";
 const DEFAULT_REDIRECT = "https://localhost:3000/callback/google";
 const FRESH_MS = 30 * 60_000; // events younger than this are served from the saved copy
 

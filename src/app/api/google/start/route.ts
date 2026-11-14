@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { GOOGLE_STATE_COOKIE, beginGoogle, explainGoogle, googleGuard, googleRedirectUrl } from "@/lib/google-calendar";
+import { GOOGLE_FROM_COOKIE, GOOGLE_STATE_COOKIE, beginGoogle, explainGoogle, googleGuard, googleRedirectUrl } from "@/lib/google-calendar";
 import { originOf } from "@/lib/loopback";
 
 // LOCAL ONLY (SOLVO_GOOGLE=1). Returns Google's approval page URL; the app then sends the person there. A random state token goes
@@ -19,7 +19,13 @@ export async function POST(req: Request) {
   const state = randomBytes(24).toString("base64url");
   try {
     const url = beginGoogle(state);
-    (await cookies()).set(GOOGLE_STATE_COOKIE, state, { httpOnly: true, sameSite: "lax", secure: registered.protocol === "https:", path: "/", maxAge: 600 });
+    const jar = await cookies();
+    const opts = { httpOnly: true, sameSite: "lax" as const, secure: registered.protocol === "https:", path: "/", maxAge: 600 };
+    jar.set(GOOGLE_STATE_COOKIE, state, opts);
+    // Started from the first-run setup: come back there, so the person carries on where they were.
+    const from = ((await req.json().catch(() => ({}))) as { from?: unknown }).from;
+    if (from === "onboarding") jar.set(GOOGLE_FROM_COOKIE, "onboarding", opts);
+    else jar.delete(GOOGLE_FROM_COOKIE);
     return Response.json({ url });
   } catch (e) {
     return Response.json({ error: explainGoogle(e) }, { status: 502 });

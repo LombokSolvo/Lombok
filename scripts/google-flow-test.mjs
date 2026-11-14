@@ -123,12 +123,6 @@ try {
     assert.ok(html.includes("Google Calendar connected") && html.includes("4 upcoming events"));
     assert.ok(!html.includes("Dinner at the new place"));
   });
-  await check("the real calendar is never mixed with the demo one", async () => {
-    jar.set("solvo_calendar", "demo");
-    const html = await (await go("/calendar")).text();
-    jar.delete("solvo_calendar");
-    assert.ok(html.includes("From your Google Calendar") && !html.includes("Demo: example events"));
-  });
   await check("sync reads again; the mock saw only Bearer calls and a fields filter", async () => {
     const before = mock.log.eventRequests.length;
     // throttled within 30 s of the last read: still answers
