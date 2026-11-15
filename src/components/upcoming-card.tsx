@@ -45,7 +45,7 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
                   <span className="block text-[15px] leading-snug font-medium">{f.detail ?? e.label}</span>
                   <span className="flex items-center gap-1 text-[13px] text-muted-foreground">
                     <CalendarClock className="size-3.5 shrink-0" aria-hidden />
-                    {when}{f.detail ? ` · ${e.label}` : ""} · estimate
+                    {when} · estimate
                   </span>
                 </span>
                 <SignedAmount kind="out" value={e.amount} estimate />
