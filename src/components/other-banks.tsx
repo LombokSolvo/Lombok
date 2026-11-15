@@ -7,7 +7,7 @@ import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
 import { LiveBankRows } from "@/components/live-banks";
 import { Group, IconTile } from "@/components/solvo/ui";
-import { BANK_INFO, FALLBACK_BANKS, readBankNameCookie, simulatedIdFor, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
+import { BANK_INFO, FALLBACK_BANKS, INVESTING_NAMES, readBankNameCookie, simulatedIdFor, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
 import { LIVE_BANKS, LIVE_BANK_IDS, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
 import type { LiveStatus } from "@/lib/live-banks";
@@ -33,7 +33,7 @@ const GROUPS: { id: Group3; label: string }[] = [
 ];
 const groupOf = (kind: string): Group3 => (kind === "Bank" ? "bank" : kind === "Trading platform" ? "invest" : "app");
 // Where a name from the plain list belongs when no registry entry says.
-const plainGroup = (name: string): Group3 => (name === "Trade Republic" ? "invest" : ["Revolut", "bunq", "N26", "Wise", "Klarna", "PayPal"].includes(name) ? "app" : "bank");
+const plainGroup = (name: string): Group3 => (INVESTING_NAMES.includes(name) ? "invest" : ["Revolut", "bunq", "N26", "Wise", "Klarna", "PayPal"].includes(name) ? "app" : "bank");
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
 const COUNTRIES = ["FI", "SE", "NO", "DK", "EE", "DE", "NL", "FR"];
@@ -152,7 +152,7 @@ export function OtherBanks({
   }));
   const listed = lists[country];
   const testBanks: Entry[] = sandbox.enabled && Array.isArray(listed) ? listed.map((b) => ({ key: `${b.country}-${b.name}`, name: b.name, sub: null, group: "bank", live: null, country: b.country })) : [];
-  const plainBanks: Entry[] = FALLBACK_BANKS.filter((n) => !registryNames.has(n)).map((n) => ({ key: n, name: n, sub: null, group: plainGroup(n), live: null, country: "FI" }));
+  const plainBanks: Entry[] = FALLBACK_BANKS.filter((n) => !registryNames.has(n)).map((n) => ({ key: n, name: n, sub: plainGroup(n) === "invest" ? "Trading platform" : null, group: plainGroup(n), live: null, country: "FI" }));
   // The list only offers what is not connected yet: S-Pankki is the main bank, and an app added before is already in the list above.
   const connectedNames = new Set<string>(["S-Pankki", ...banks.map((b) => (b === "nordea" ? bankName : BANK_INFO[b].name))]);
   const entries: Entry[] = (sandbox.enabled ? [...(liveActive ? liveEntries : []), ...testBanks] : [...liveEntries, ...plainBanks]).filter((e) => !connectedNames.has(e.name));
