@@ -157,9 +157,9 @@ export function MarketAgentCard<D extends AgentDb>(props: {
       await stream; // the last step keeps spinning until the run is over
       show(STEPS.length, true);
       const r = result as Extract<AgentEvent, { type: "result" }> | null;
-      if (failure || !r) setNote(`Couldn't reach the agent (${String(failure ?? "no result").slice(0, 80)}). Showing the saved run.`);
+      if (failure || !r) setNote("Showing the saved run.");
       else if (r.live) props.onResult(r.db as D);
-      else setNote(`Showing the saved run from ${timeFmt.format(new Date(r.db.ranAt))}.${r.error ? ` (${r.error.slice(0, 120)})` : ""}`);
+      else setNote(`Showing the saved run from ${timeFmt.format(new Date(r.db.ranAt))}.`);
     } finally {
       setRunning(false);
       ranThisVisit.add(db.agent);
