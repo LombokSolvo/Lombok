@@ -5,7 +5,8 @@ import { ArrowRight, Check, ChevronLeft, GraduationCap, Lock, MessageCircle, Spa
 import { NumberField, Stepper } from "@/components/solvo/fields";
 import { eur } from "@/components/solvo/ui";
 import { cn } from "@/lib/utils";
-import { COURSES, LESSON_COUNT } from "@/lib/learn-game";
+import { COURSES, LESSON_COUNT, streakDays, weekDots, withPractice } from "@/lib/learn-game";
+import { StreakBump } from "@/components/learn/learn-game";
 import {
   ILLUSTRATIVE_RETURN_PCT,
   LEVEL,
@@ -19,7 +20,7 @@ import {
   type LearnContext,
   type PackId,
 } from "@/lib/learn";
-import { finishPack, learnStreak, useLearnProgress } from "@/lib/learn-store";
+import { finishPack, useLearnDone, useLearnProgress } from "@/lib/learn-store";
 
 const nf = (n: number, d = 0) => n.toLocaleString("fi-FI", { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -42,12 +43,19 @@ export function LearnPack({
   const steps = pack.cards.length + 2; // cards, quiz, try it
   const done = step >= steps;
   const nextPack = PACK_IDS.find((p) => p !== id && !progress.done[p]);
-  const streak = learnStreak(progress);
-  const lessonsDone = COURSES.flatMap((c) => c.lessons).filter((l) => progress.done[l.id]).length;
+  // The same record Home's learning game reads (Aino's earlier days included), so the streak matches.
+  const all = useLearnDone(ctx.mode);
+  const [bump, setBump] = useState<{ from: number; to: number; dots: ReturnType<typeof weekDots> } | null>(null);
+  const lessonsDone = COURSES.flatMap((c) => c.lessons).filter((l) => all[l.id]).length;
   const levelDone = lessonsDone === LESSON_COUNT;
 
   const next = () => {
-    if (step === steps - 1) finishPack(id, picked === pack.quiz.correct);
+    if (step === steps - 1) {
+      const right = picked === pack.quiz.correct;
+      const after = withPractice(all, id, right);
+      setBump({ from: streakDays(all), to: streakDays(after), dots: weekDots(after) });
+      finishPack(id, right);
+    }
     setStep((s) => s + 1);
   };
 
@@ -164,9 +172,10 @@ export function LearnPack({
             </h3>
             <p className="mt-1 text-[14px] text-muted-foreground">
               {levelDone
-                ? `You're a ${LEVEL.name}: all ${LESSON_COUNT} lessons done${streak > 1 ? `, ${streak} days in a row` : ""}.`
-                : `${lessonsDone} of ${LESSON_COUNT} lessons in ${LEVEL.label}${streak > 1 ? `, ${streak} days in a row` : ""}.`}
+                ? `You're a ${LEVEL.name}: all ${LESSON_COUNT} lessons done.`
+                : `${lessonsDone} of ${LESSON_COUNT} lessons in ${LEVEL.label}.`}
             </p>
+            {bump && <StreakBump from={bump.from} to={bump.to} dots={bump.dots} />}
             {levelDone && <LevelTwoSoon className="mt-4 w-full" />}
             <div className="mt-4 flex w-full flex-col gap-2">
               {pack.followUps.map((q) => (

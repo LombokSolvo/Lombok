@@ -261,7 +261,7 @@ function Quiz({ course, lesson, done, onNext, onBack }: { course: Course; lesson
 }
 
 /** The streak after a lesson: today's dot fills in, the flame pops, and the number rolls up (2 to 3) when the streak grew. */
-function StreakBump({ from, to, dots }: { from: number; to: number; dots: ReturnType<typeof weekDots> }) {
+export function StreakBump({ from, to, dots }: { from: number; to: number; dots: ReturnType<typeof weekDots> }) {
   const [shown, setShown] = useState(from);
   useEffect(() => {
     const t = setTimeout(() => setShown(to), 750);
