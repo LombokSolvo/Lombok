@@ -3,6 +3,7 @@
 // saving plan into the same two funds (AINO_PLAN, starting on the next 2nd). Fund names are real S-Pankki funds; the
 // values, monthly returns and the plan are synthetic, not the funds' real performance.
 
+import type { SavingsGoal } from "@/lib/goals-store";
 import type { SavingsPlan } from "@/lib/switches";
 
 export type Holding = { fundId: string; invested: number; since: string; monthlyReturnsPct: number[] };
@@ -21,21 +22,33 @@ export const HOLDINGS: (Holding & { startValue: number })[] = [
   { fundId: "varainhoito-50", invested: 1800, since: "2022", startValue: 1880, monthlyReturnsPct: BALANCED },
 ];
 
-/** Aino's saving plan, already set up: her EUR 200 monthly savings goal split between her two funds. DEMO DATA. */
+/** Aino's saving plan, already set up: her EUR 200 monthly savings goal split between her two funds and her savings
+ * account, which holds her goals (AINO_GOALS). DEMO DATA. */
 export const AINO_PLAN: SavingsPlan = {
   monthly: 200,
   fromGoal: 200,
   fromBills: 0,
   fromBudget: 0,
   funds: [
-    { fundId: "passiivinen-usa-esg", monthly: 120 },
-    { fundId: "varainhoito-50", monthly: 80 },
+    { fundId: "passiivinen-usa-esg", monthly: 100 },
+    { fundId: "varainhoito-50", monthly: 40 },
+    { fundId: "savings-account", monthly: 60 },
   ],
   fundId: "passiivinen-usa-esg",
-  fundName: "2 funds",
+  fundName: "2 funds and savings account",
   dayOfMonth: 2,
   approvedAt: "2026-09-01T09:00:00.000Z",
 };
+
+/** Aino's savings goals, kept in her savings account; their monthly amounts add up to the plan's 60 € into it. DEMO DATA:
+ * the dataset has no savings account. */
+export const AINO_GOALS: SavingsGoal[] = [
+  { id: "aino-buffer", kind: "buffer", label: "Emergency buffer", target: 3000, saved: 2100, monthly: 40 },
+  { id: "aino-japan", kind: "trip", label: "Trip to Japan", target: 2000, saved: 1100, monthly: 20 },
+];
+
+/** What is in Aino's savings account: the money her goals have saved so far. DEMO DATA. */
+export const AINO_SAVINGS_BALANCE = AINO_GOALS.reduce((s, g) => s + g.saved, 0);
 
 /** Value of each holding at the end of every month in PORTFOLIO_MONTHS. */
 export function holdingSeries(h: (typeof HOLDINGS)[number]) {

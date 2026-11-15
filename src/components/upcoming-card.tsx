@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { CalendarClock, ChevronRight } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { CategoryIcon, ForecastEditSheet, useForecast } from "@/components/forecast-ui";
 import type { CountedItem } from "@/lib/forecast";
 import { Group, Row } from "@/components/solvo/ui";
@@ -32,12 +31,6 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
     <Group
       title="Coming up"
       className="mt-4"
-      aside={
-        <Link href="/calendar" className="flex min-h-11 items-center gap-0.5 font-medium text-primary">
-          Calendar
-          <ChevronRight className="size-4" aria-hidden />
-        </Link>
-      }
     >
       {events.length ? (
         events.map((e, idx) => {
@@ -62,7 +55,7 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
           return <Row key={e.id + e.date} className={idx ? "border-t" : ""} icon={<MoneyBadge kind={e.kind} />} title={e.label} subtitle={when} value={<SignedAmount kind={e.kind} value={e.amount} />} />;
         })
       ) : (
-        <p className="px-4 py-4 text-[14px] text-muted-foreground">Nothing expected in the next three weeks. Open the calendar to add a date.</p>
+        <p className="px-4 py-4 text-[14px] text-muted-foreground">Nothing coming up. Add a date in the calendar.</p>
       )}
       {open && <ForecastEditSheet item={open} onClose={() => setOpen(null)} />}
     </Group>

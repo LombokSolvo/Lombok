@@ -1,0 +1,15 @@
+{
+  "source": "S-Pankki Junction 2026 challenge dataset (synthetic): mortgage applications and their final outcome",
+  "applications": 200,
+  "approved": 150,
+  "rejected": 50,
+  "medianPriceEur": 256000,
+  "approvedEquityShare": 0.147,
+  "rejectedEquityShare": 0.125,
+  "rejectionReasons": {
+    "insufficient_collateral": 34,
+    "insufficient_income": 8,
+    "insufficient_equity": 6,
+    "existing_debt": 2
+  }
+}

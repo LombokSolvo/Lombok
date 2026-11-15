@@ -19,7 +19,7 @@ import {
   eur2,
   primaryButton,
 } from "@/components/solvo/ui";
-import { ApproveSheet, DoneView, EditField, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
+import { ApproveSheet, DoneView, EditField, InfoRow, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 import { LearnChip } from "@/components/learn/learn-chip";
 import type { Reading } from "@/lib/einvoice";
 import { compare, type ContractTerms, type ElectricityPreference } from "@/lib/offers";
@@ -36,8 +36,9 @@ import {
   type BillKey,
   type SwitchRecord,
 } from "@/lib/switches";
-import { MarketAgentCard, agentHasRun } from "./market-agent-card";
+import { MarketAgentCard, agentHasRun, resetAgentRuns } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
+import { OfferFacts } from "./offer-facts";
 import { PhotoUpload } from "./photo-upload";
 import { TelecomDetail } from "./telecom-detail";
 
@@ -128,9 +129,15 @@ export function BillsClient(props: {
 
   // The coach chat can open a contract directly: /bills?open=electricity. The page stays mounted between visits, so the
   // parameter is removed once handled and the effect runs again each time the page is shown.
+  // Leaving Bills and coming back shows the list in its first state again (no open contract, no finished switch,
+  // no agent results), so each visit starts the same way.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("open");
-    if (!id) return;
+    if (!id) {
+      resetAgentRuns();
+      setTimeout(() => setOpenState(null), 0);
+      return;
+    }
     window.history.replaceState(null, "", "/bills");
     if (props.invoices.some((inv) => inv.id === id)) setTimeout(() => setOpenState(id), 0);
   }, [props.invoices]);
@@ -170,8 +177,8 @@ export function BillsClient(props: {
             <>
               <PageTitle title="Your bills">
                 {props.invoices.length
-                  ? "Solvo read the e-invoices that reached your bank this month. Nothing to photograph or upload."
-                  : "No e-invoices from your suppliers have reached your bank yet. When one arrives, Solvo reads it here and compares the contract."}
+                  ? "Read from the e-invoices in your bank."
+                  : "No e-invoices yet. New ones show up here."}
               </PageTitle>
 
               {actionable.length > 0 && (
@@ -198,7 +205,7 @@ export function BillsClient(props: {
                 </Group>
               )}
 
-              <Subscriptions subs={props.subscriptions} />
+              <Subscriptions subs={props.subscriptions} remaining={props.remaining} />
 
               <PhotoUpload
                 onRead={(d) => {
@@ -234,15 +241,14 @@ function isActionable(l: Loaded | undefined, switches: ReturnType<typeof useSwit
   );
 }
 
+// Only a photographed bill says where it was read from; e-invoices are read in the background and get no label.
 function SourceBadge({ l }: { l: Loaded }) {
-  return l.source === "gemini" ? (
+  return l.fromPhoto ? (
     <Chip tone="green">
       <Sparkles className="size-3" aria-hidden />
-      {l.fromPhoto ? "Read from your photo" : "Read by Gemini"}
+      Read from your photo
     </Chip>
-  ) : (
-    <Chip>Saved reading, AI offline</Chip>
-  );
+  ) : null;
 }
 
 /** The bill Solvo can do something about: shown first, with the saving up front. */
@@ -362,6 +368,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   const cmp = useMemo(() => compare(terms, db, preference), [terms, db, preference]);
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
+  const best = [...cmp.offers].sort((a, b) => b.saving - a.saving).find((o) => o.saving > 0);
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
   const perWeek = chosen.saving / 52;
   const boost = weeklyBoost(useSwitches(), useSavingsPlan()); // all approved switches, including this one once approved
@@ -405,7 +412,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         ]}
         reminder={
           chosen.termMonths && startDate
-            ? "Solvo will remind you a month before this contract ends, so it never rolls over to a worse price again."
+            ? "We'll remind you a month before this contract ends."
             : undefined
         }
       />
@@ -415,20 +422,49 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   return (
     <div className="flex flex-col pb-24">
       <PageTitle title="Your electricity">
-        {r.supplier}, {r.product}. Contract ends {fmtDate(r.contractEndDate)}.
+        Your current contract, as read from your latest e-invoice.
       </PageTitle>
 
       {ran && (
         <SavingSlab
-          label="Switching saves you"
-          saving={chosen.saving}
+          label={chosen.saving < 0 ? "This choice costs you more" : "Switching saves you"}
+          saving={Math.abs(chosen.saving)}
           before={{ label: `Do nothing, rolls over ${fmtDate(startDate)}`, yearly: cmp.doNothing }}
           after={{ label: `${chosen.supplier} ${chosen.product}`, yearly: chosen.yearly }}
-          footnote={<>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>}
+          footnote={
+            chosen.saving < 0 ? (
+              <>
+                More than staying put.
+                {best && (
+                  <>
+                    {" "}Switching to {best.supplier} {best.product} instead saves you{" "}
+                    <span className="font-semibold text-white">{eur.format(best.saving)} a year</span>.
+                  </>
+                )}
+              </>
+            ) : (
+              <>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>
+            )
+          }
         />
       )}
 
       <ReadFields badge={<SourceBadge l={props.loaded} />}>
+        <InfoRow label="Supplier">{r.supplier}</InfoRow>
+        <InfoRow label="Contract">{r.product}</InfoRow>
+        <InfoRow label="Type">
+          {r.contractType === "fixed_term"
+            ? "Fixed price, fixed term"
+            : r.contractType === "spot"
+              ? "Spot price"
+              : r.contractType === "open_ended"
+                ? "Valid until further notice"
+                : "Not stated"}
+        </InfoRow>
+        {r.contractEndDate && <InfoRow label="Contract ends">{fmtDate(r.contractEndDate)}</InfoRow>}
+        <InfoRow label="Latest invoice">
+          {eur2.format(r.total)}, due {fmtDate(r.dueDate)}
+        </InfoRow>
         <EditField label="Yearly use" value={terms.annualKwh} unit="kWh" step="100" onChange={set("annualKwh")} />
         <EditField label="Price now" value={terms.centsPerKwh} unit="c/kWh" onChange={set("centsPerKwh")} />
         <EditField label="Base fee now" value={terms.monthlyFee} unit="€/mo" onChange={set("monthlyFee")} />
@@ -484,7 +520,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
         <Group
           title="Your options for a year"
           aside={`${terms.annualKwh.toLocaleString("fi-FI")} kWh`}
-          footer={`Real public prices found by Solvo's market agent, energy only. At your price today, before the contract rolls over, a year would cost ${eur.format(cmp.current)}.`}
+          footer={`A year at your price today would cost ${eur.format(cmp.current)}.`}
         >
           <div role="radiogroup" aria-label="Electricity offers">
             {cmp.offers.map((o) => (
@@ -495,23 +531,29 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
                 title={`${o.supplier} ${o.product}`}
                 yearly={o.yearly}
                 detail={
-                  <>
-                    {o.pricing === "spot"
-                      ? `Spot, about ${dec2(o.centsPerKwh)} c/kWh (margin ${dec2(o.marginCents ?? 0)})`
-                      : `${dec2(o.centsPerKwh)} c/kWh`}
-                    {` + ${dec2(o.monthlyFee)} €/mo`}
-                    {o.termMonths ? `, fixed ${o.termMonths} months` : ""}
-                    {o.note ? `. ${o.note}` : ""}
-                    {o.renewable && (
-                      <span className="mt-0.5 flex items-center gap-1 font-medium text-primary">
-                        <Leaf className="size-3.5" aria-hidden />
-                        Renewable electricity
-                      </span>
-                    )}
-                    <span className="mt-0.5 block">
-                      Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
-                    </span>
-                  </>
+                  <OfferFacts
+                    rows={[
+                      ["Type", o.pricing === "spot" ? "Spot price, no fixed term" : `Fixed price, ${o.termMonths ? `${o.termMonths} months` : "no fixed term"}`],
+                      [
+                        "Energy",
+                        o.pricing === "spot"
+                          ? `about ${dec2(o.centsPerKwh)} c/kWh (spot + ${dec2(o.marginCents ?? 0)} margin)`
+                          : `${dec2(o.centsPerKwh)} c/kWh`,
+                      ],
+                      ["Monthly fee", `${dec2(o.monthlyFee)} €`],
+                      ...(o.renewable
+                        ? [[
+                            "Origin",
+                            <span key="o" className="inline-flex items-center gap-1 font-medium text-primary">
+                              <Leaf className="size-3.5" aria-hidden />
+                              Renewable
+                            </span>,
+                          ] as [string, React.ReactNode]]
+                        : []),
+                      ...(o.note ? [["Good to know", o.note] as [string, React.ReactNode]] : []),
+                      ["Source", `${domainOf(o.sourceUrl)}, ${fmtDate(o.checkedAt)}`],
+                    ]}
+                  />
                 }
                 pick={o.id === cmp.recommended.id ? cmp.pickReason : undefined}
               />

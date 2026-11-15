@@ -117,7 +117,7 @@ try {
     assert.ok(cal.includes("Coming up") && cal.includes("Events, estimates"), "calendar page lists the events as estimates");
     assert.ok(cal.includes("Dinner at the new place") || home.includes("Dinner at the new place"), "the event's own title is shown on this computer's screen");
     for (const html of [home, cal])
-      for (const secret of ["Fictional Street", "Pat Example", "Standup", "Dentist"]) assert.ok(!html.includes(secret), `leaked: ${secret}`);
+      for (const secret of ["Fictional Street", "Pat Example", "Standup", "Physio appointment"]) assert.ok(!html.includes(secret), `leaked: ${secret}`);
   });
   await check("Profile shows it connected, with a count", async () => {
     const html = await (await go("/profile?calendar=connected")).text();

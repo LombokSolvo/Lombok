@@ -2,22 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Landmark, Loader2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { Check, Landmark, Loader2, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { ApproveSheet } from "@/app/bills/switch-ui";
-import { Group, IconTile, Row } from "@/components/solvo/ui";
+import { IconTile, Row } from "@/components/solvo/ui";
 import { postJson } from "@/lib/client-request";
 import { plainFormat } from "@/lib/demo-clock";
 import { LIVE_BANKS, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
 import type { LiveStatus } from "@/lib/live-banks";
 
-// LOCAL ONLY. The owner's own banks (Nordea, Trade Republic, Revolut), once connected (npm run dev:live): status, Sync now, Connect
-// again and Disconnect for each. CONNECTING the first time happens in the "Add a bank" picker (src/components/other-banks.tsx), so
-// the demo shows one flow for every bank. Server side: src/lib/live-banks.ts. The type import above is erased at build time, so no
+// LOCAL ONLY. The owner's own banks, neobanks and apps, once connected (npm run dev:live): one row each in the Connected banks list
+// (src/components/other-banks.tsx), with Connect again and Disconnect, and one Sync now. CONNECTING the first time happens in the
+// "Add a bank" picker in the same file, so the demo shows one flow for every bank. Server side: src/lib/live-banks.ts. The type import above is erased at build time, so no
 // server code reaches the browser.
 
 const day = plainFormat({ day: "numeric", month: "short" });
 
-export function LiveBanks({ status }: { status: LiveStatus }) {
+export function LiveBankRows({ status }: { status: LiveStatus }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function LiveBanks({ status }: { status: LiveStatus }) {
 
   const connected = status.banks.filter((b) => b.connected);
 
-  // Off, or ready to connect (the picker offers it): nothing to show here. Not set up: say what is missing. Connected: manage them.
+  // Off, or nothing connected yet (the picker offers it): no rows. Not set up: say what is missing. Connected: one row each.
   if (!status.enabled || (status.configured && connected.length === 0)) return null;
 
   const call = async (path: string, key: string, body?: unknown) => {
@@ -37,7 +37,7 @@ export function LiveBanks({ status }: { status: LiveStatus }) {
     setBusy(null);
   };
   const disconnect = (id: LiveBankId) => {
-    if (!window.confirm(`Disconnect ${LIVE_BANKS[id].name}? This ends the consent and deletes its downloaded data from this computer.`)) return;
+    if (!window.confirm(`Disconnect ${LIVE_BANKS[id].name}?`)) return;
     void call("/api/live/disconnect", `disconnect-${id}`, { bank: id });
   };
   // Run the bank's approval again. The new approval replaces the earlier one when it succeeds; nothing is deleted before that.
@@ -59,55 +59,50 @@ export function LiveBanks({ status }: { status: LiveStatus }) {
 
   return (
     <>
-      <Group
-        title={connected.length > 1 ? "Your real banks" : "Your real bank"}
-        footer={
-          connected.length
-            ? "Merged with your other banks. Updates itself once a day while the app is running. Local only: this data stays on this computer and never goes to the cloud or the coach. Read-only."
-            : "Local only. You approve at the bank; Solvo never sees your codes and can't move money."
-        }
-      >
-        {!status.configured ? (
-          <Row
-            icon={<IconTile tone="warn"><Landmark /></IconTile>}
-            title="Needs setup"
-            subtitle="Put ENABLE_APP_ID and ENABLE_KEY_PATH in .env.local, then restart npm run dev:live."
-          />
-        ) : (
-          <>
-            {connected.map((b) => (
-              <div key={b.id} className="flex min-h-14 items-center gap-1 py-2 pr-2 pl-4 [&+&]:border-t">
-                <IconTile><Landmark /></IconTile>
-                <div className="ml-2 min-w-0 flex-1">
-                  <div className="text-[15px] leading-snug font-medium">{b.name} connected</div>
-                  <div className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-                    {`${b.accounts} account${b.accounts === 1 ? "" : "s"}, ${b.transactions.toLocaleString("en-GB")} transactions${b.syncedAt ? `, synced ${day(b.syncedAt.slice(0, 10))}` : ""}`}
-                  </div>
+      {!status.configured ? (
+        <Row
+          icon={<IconTile tone="warn"><Landmark /></IconTile>}
+          title="Real banks need setup"
+          subtitle="Put ENABLE_APP_ID and ENABLE_KEY_PATH in .env.local, then restart npm run dev:live."
+        />
+      ) : (
+        <>
+          {connected.map((b) => (
+            <div key={b.id} className="flex min-h-14 items-center gap-1 py-2 pr-2 pl-4 [&+&]:border-t">
+              <IconTile><Landmark /></IconTile>
+              <div className="ml-2 min-w-0 flex-1">
+                <div className="text-[15px] leading-snug font-medium">{b.name}</div>
+                <div className="mt-0.5 flex items-start gap-1 text-[13px] leading-snug text-muted-foreground">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+                  <span>
+                    {LIVE_BANKS[b.id].kind}, {b.accounts} account{b.accounts === 1 ? "" : "s"}
+                    {b.syncedAt ? `, synced ${day(b.syncedAt.slice(0, 10))}` : ""}
+                  </span>
                 </div>
-                <button type="button" aria-label={`Connect ${b.name} again`} className={small} disabled={busy !== null} onClick={() => setAsking(b.id)}>
-                  {busy === `start-${b.id}` ? <Loader2 className="size-[18px] animate-spin" aria-hidden /> : <ShieldCheck className="size-[18px]" aria-hidden />}
-                </button>
-                <button type="button" aria-label={`Disconnect ${b.name} and delete its data`} className={small} disabled={busy !== null} onClick={() => disconnect(b.id)}>
-                  {busy === `disconnect-${b.id}` ? <Loader2 className="size-[18px] animate-spin" aria-hidden /> : <Trash2 className="size-[18px]" aria-hidden />}
-                </button>
               </div>
-            ))}
-            <button type="button" className={action} onClick={() => call("/api/live/sync", "sync", {})} disabled={busy !== null}>
-              <IconTile>{busy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}</IconTile>
-              {busy === "sync" ? "Downloading…" : "Sync now"}
-            </button>
-          </>
-        )}
-        {error && (
-          <p role="alert" className="border-t px-4 py-3 text-[13px] leading-snug text-warn">
-            {error}
-          </p>
-        )}
-      </Group>
+              <button type="button" aria-label={`Connect ${b.name} again`} className={small} disabled={busy !== null} onClick={() => setAsking(b.id)}>
+                {busy === `start-${b.id}` ? <Loader2 className="size-[18px] animate-spin" aria-hidden /> : <ShieldCheck className="size-[18px]" aria-hidden />}
+              </button>
+              <button type="button" aria-label={`Disconnect ${b.name} and delete its data`} className={small} disabled={busy !== null} onClick={() => disconnect(b.id)}>
+                {busy === `disconnect-${b.id}` ? <Loader2 className="size-[18px] animate-spin" aria-hidden /> : <Trash2 className="size-[18px]" aria-hidden />}
+              </button>
+            </div>
+          ))}
+          <button type="button" className={action} onClick={() => call("/api/live/sync", "sync", {})} disabled={busy !== null}>
+            <IconTile>{busy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}</IconTile>
+            {busy === "sync" ? "Downloading…" : "Sync now"}
+          </button>
+        </>
+      )}
+      {error && (
+        <p role="alert" className="border-t px-4 py-3 text-[13px] leading-snug text-warn">
+          {error}
+        </p>
+      )}
       {asking && (
         <ApproveSheet
           title={`Connect ${LIVE_BANKS[asking].name} again`}
-          points={["The new approval replaces the earlier one, and the transactions are downloaded again.", ...liveConsentPoints(asking).slice(1)]}
+          points={["Connecting again replaces the old connection.", ...liveConsentPoints(asking).slice(1)]}
           confirmLabel={`Continue to ${LIVE_BANKS[asking].name}`}
           onConfirm={() => again(asking)}
           onCancel={() => setAsking(null)}

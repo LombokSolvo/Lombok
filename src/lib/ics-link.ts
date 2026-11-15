@@ -134,16 +134,21 @@ export function syncLink(): Promise<LinkSummary> {
   return inFlight;
 }
 
-/** Events for the forecast, or null when no link is connected here. Served from the saved copy, refreshed when older than 30 minutes. */
+let lastAttempt = 0;
+const RETRY_MS = 5 * 60_000;
+
+/**
+ * Events for the forecast, or null when no link is connected here. Always the saved copy, straight away. When it is older than 15
+ * minutes it is refreshed in the background, at most once every five minutes whether the last try worked or not: a calendar link can
+ * be slow (seconds) or fail, and a page must never wait for it (a failed refresh leaves the saved copy old, so waiting made every page
+ * retry the slow fetch).
+ */
 export async function loadLinkEvents(): Promise<CalendarEvent[] | null> {
   if (process.env.VERCEL || !existsSync(file())) return null;
   if (!(await linkAvailable())) return null; // opened from a phone or another host: never shown there
-  if (Date.now() - statSync(file()).mtimeMs > FRESH_MS) {
-    try {
-      await syncLink();
-    } catch {
-      // Keep what was saved.
-    }
+  if (Date.now() - statSync(file()).mtimeMs > FRESH_MS && Date.now() - lastAttempt > RETRY_MS) {
+    lastAttempt = Date.now();
+    void syncLink().catch(() => {}); // keep what was saved
   }
   return readSaved()?.events ?? null;
 }

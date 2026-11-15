@@ -88,9 +88,6 @@ export function CallClient() {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-between bg-slab px-6 pt-[calc(4rem+env(safe-area-inset-top))] pb-[calc(3rem+env(safe-area-inset-bottom))] text-white">
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="mb-4 rounded-full bg-mint px-3 py-1 text-[12px] font-semibold text-slab">
-            Demo call. In real use your phone would ring.
-          </p>
           <div className={`flex size-24 items-center justify-center rounded-full bg-white ${stage === "ringing" ? "animate-pulse" : ""}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/solvo-logo.png" alt="" className="w-16" />
@@ -98,9 +95,6 @@ export function CallClient() {
           <p className="text-3xl font-semibold">Solvo</p>
           <p className="text-sm text-white/70">
             {stage === "ringing" ? "Your money coach · S-Pankki" : mmss}
-          </p>
-          <p className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
-            About your dentist bill. Not a collection call.
           </p>
         </div>
 
@@ -150,10 +144,7 @@ export function CallClient() {
         {UNPAID.supplier}, {UNPAID.what.toLowerCase()} on {dayMonth.format(new Date(`${UNPAID.visitDate}T00:00:00Z`))}.
       </PageTitle>
 
-      <Group
-        footer="Health costs are in your irregular basket, so paying this doesn't lower your safe-to-spend this week."
-        className="mt-0"
-      >
+      <Group className="mt-0">
         <Row title="Amount" value={eur2.format(UNPAID.amount)} />
         <Row title="Was due" value={fmtDate(UNPAID.dueDate)} />
         <Row title="Reference" value={UNPAID.reference} />
@@ -199,7 +190,7 @@ export function CallClient() {
             I can&apos;t pay it right now
           </Link>
           <p className="mt-2 px-1 text-[13px] leading-snug text-muted-foreground">
-            Solvo is your coach, not a collector. Calls are opt-in, and you can turn them off any time.
+            You can turn these calls off any time.
           </p>
         </div>
       )}

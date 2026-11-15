@@ -16,10 +16,13 @@ export type CalendarFile = {
 
 const KEY = "solvo.calfile.v1";
 const listeners = new Set<() => void>();
+// "Remove the file" stores this marker instead of nothing, so Aino's demo calendar stays off until Reset demo clears the key.
+type Stored = { file: CalendarFile | null; removed: boolean };
+const NONE: Stored = { file: null, removed: false };
 let cacheRaw: string | null = null;
-let cache: CalendarFile | null = null;
+let cache: Stored = NONE;
 
-function snapshot(): CalendarFile | null {
+function snapshot(): Stored {
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(KEY);
@@ -27,15 +30,16 @@ function snapshot(): CalendarFile | null {
   if (raw !== cacheRaw) {
     cacheRaw = raw;
     try {
-      cache = raw ? (JSON.parse(raw) as CalendarFile) : null;
+      const v = raw ? JSON.parse(raw) : null;
+      cache = !v ? NONE : v.removed ? { file: null, removed: true } : { file: v as CalendarFile, removed: false };
     } catch {
-      cache = null;
+      cache = NONE;
     }
   }
   return cache;
 }
 
-function write(next: CalendarFile | null) {
+function write(next: CalendarFile | { removed: true } | null) {
   try {
     if (next) window.localStorage.setItem(KEY, JSON.stringify(next));
     else window.localStorage.removeItem(KEY);
@@ -55,6 +59,14 @@ function subscribe(listener: () => void) {
   };
 }
 
-export const useCalendarFile = () => useSyncExternalStore(subscribe, snapshot, () => null);
+export const useCalendarFile = () => useSyncExternalStore(subscribe, snapshot, () => NONE).file;
+/** The chosen file, else the demo calendar unless the person removed it. */
+export const useCalendarFileOr = (demo: CalendarFile | null) => {
+  const s = useSyncExternalStore(subscribe, snapshot, () => NONE);
+  return s.file ?? (s.removed ? null : demo);
+};
 export const saveCalendarFile = (f: CalendarFile) => write(f);
+/** "Remove the file": also keeps the demo calendar off. */
+export const removeCalendarFile = () => write({ removed: true });
+/** Reset demo: back to the start, demo calendar included. */
 export const clearCalendarFile = () => write(null);

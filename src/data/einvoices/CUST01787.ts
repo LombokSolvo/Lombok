@@ -101,12 +101,12 @@ const telecom = `<?xml version="1.0" encoding="UTF-8"?>
     <PaymentTermsDetails><InvoiceDueDate Format="CCYYMMDD">20260928</InvoiceDueDate></PaymentTermsDetails>
   </InvoiceDetails>
   <InvoiceRow>
-    <ArticleName>Kaista 5G Rajaton 1000M (040 *** **12)</ArticleName>
+    <ArticleName>Kaista 5G Rajaton 200M (040 *** **12)</ArticleName>
     <DeliveredQuantity QuantityUnitCode="kk">1</DeliveredQuantity>
     <RowAmount AmountCurrencyIdentifier="EUR">34,96</RowAmount>
   </InvoiceRow>
   <InvoiceRow>
-    <ArticleName>Kaista 5G Rajaton 1000M (050 *** **48)</ArticleName>
+    <ArticleName>Kaista 5G Rajaton 200M (050 *** **48)</ArticleName>
     <DeliveredQuantity QuantityUnitCode="kk">1</DeliveredQuantity>
     <RowAmount AmountCurrencyIdentifier="EUR">34,96</RowAmount>
   </InvoiceRow>

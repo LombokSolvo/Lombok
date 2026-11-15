@@ -17,7 +17,7 @@ import { BackButton, Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, 
 import { CATALOG, HORIZON_LABEL, RISK_WORDS, SAFETY_LABEL, matchFunds, type CatalogFund, type Horizon, type Prefs, type Safety } from "@/lib/fund-match";
 import { totalWithin } from "@/lib/forecast";
 import { saveOnboarding, skipOnboarding } from "@/lib/onboarding-store";
-import { SPANKKI_FUNDS_FETCHED } from "@/lib/spankki-funds";
+import {} from "@/lib/spankki-funds";
 import { buildPlan, type Goal, type GoalKind, type PlanBase } from "@/lib/plan";
 import { STATUS_LABEL, type Profile, type Status } from "@/lib/profile";
 import { ordinal, type Item, type Schedule } from "@/lib/schedule";
@@ -250,14 +250,13 @@ export function OnboardingClient({
         <TopBar back={skip} />
         <div key="s0" className={enter}>
           <PageTitle title="Connect your account">
-            Solvo builds your plan from the payments and e-invoices that already reach your bank. You don&apos;t type anything in.
+            We build your plan from your payments and e-invoices.
           </PageTitle>
-          <Group title="Solvo will read" footer="Read only. Solvo never moves money or switches a contract without your tap, and you can disconnect any time.">
+          <Group title="Solvo will read" footer="Read only. You can disconnect any time.">
             <Row icon={<IconTile><Landmark /></IconTile>} title="Your account and payments" subtitle="The last 24 months" />
             <Row icon={<IconTile><ReceiptText /></IconTile>} title="E-invoices from your suppliers" subtitle="Electricity, phone, internet and others" />
             <Row icon={<IconTile><ShieldCheck /></IconTile>} title="Nothing else" subtitle="No passwords, no other banks" />
           </Group>
-          <p className="mt-4 px-1 text-[13px] leading-snug text-muted-foreground">Demo: no real connection is made. The data is a synthetic customer from S-Pankki&apos;s Junction dataset.</p>
         </div>
         <StickyAction onClick={start}>
           {connect === "connecting" ? (
@@ -282,7 +281,7 @@ export function OnboardingClient({
         {progress}
         {localBanner}
         <div key="s1" className={enter}>
-          <PageTitle title={unsure ? "We're not sure about you yet" : "Here's you"}>We built this from your last 12 months. Fix anything that is off with the pencil.</PageTitle>
+          <PageTitle title={unsure ? "We're not sure about you yet" : "Here's you"}>Built from your last 12 months. Tap the pencil to fix anything.</PageTitle>
 
           <Slab>
             <div className="flex items-start justify-between gap-3">
@@ -312,7 +311,7 @@ export function OnboardingClient({
           <Group
             title="Fixed bills"
             aside={<EditButton label="Edit fixed bills" onClick={() => setSheet("bills")} />}
-            footer={`${eur.format(fixed)} a month. On payday Solvo sets this aside so the bills are covered.`}
+            footer={`${eur.format(fixed)} a month, set aside on payday.`}
           >
             {outItems.length ? (
               outItems.map((i) => <Row key={i.id} icon={<MoneyBadge kind="out" />} title={i.label} subtitle={billSub(i)} value={<SignedAmount kind="out" value={i.amount} />} />)
@@ -413,7 +412,7 @@ export function OnboardingClient({
         {top}
         {progress}
         <div key="s2" className={enter}>
-          <PageTitle title="Saving for something?">Add what you are saving for. Solvo works out how much to move each month.</PageTitle>
+          <PageTitle title="Saving for something?">Add what you&apos;re saving for. We work out the monthly amount.</PageTitle>
           <Group>
             <div className="flex flex-wrap gap-2 p-4">
               {(["property", "trip", "other"] as GoalKind[]).map((k) => (
@@ -486,7 +485,7 @@ export function OnboardingClient({
           })}
 
           {plan.buffer.need > 0 && (
-            <Group footer={`A starter buffer is one month of must-pay costs, ${eur.format(plan.buffer.target)}. It comes before goals and investing.`}>
+            <Group footer={`Starter buffer: one month of must-pay costs, ${eur.format(plan.buffer.target)}.`}>
               <Row icon={<IconTile><PiggyBank /></IconTile>} title="Starter buffer" subtitle={`You have about ${eur.format(plan.buffer.have)} on the account`} value={`${eur.format(plan.buffer.monthly)}/mo`} />
             </Group>
           )}
@@ -504,7 +503,7 @@ export function OnboardingClient({
         {top}
         {progress}
         <div key="s3" className={enter}>
-          <PageTitle title="Investing">Solvo works out how much is sensible to set aside. You choose where it goes.</PageTitle>
+          <PageTitle title="Investing">We work out how much you can set aside. You choose where it goes.</PageTitle>
 
           <Slab>
             <p className="text-[15px] text-white/70">Room for investing, from your earnings</p>
@@ -513,7 +512,7 @@ export function OnboardingClient({
               {before > 0
                 ? goals.length
                   ? `After your savings goals: ${plan.investCeiling > 0 ? `${eur.format(plan.investCeiling)}/mo` : "nothing left yet"}.`
-                  : "After your bills and a buffer. Half of what is left; the rest stays as slack."
+                  : "Half of what is left after bills and a buffer."
                 : (plan.notes[0] ?? "Nothing is spare after your bills yet.")}
             </p>
           </Slab>
@@ -529,7 +528,7 @@ export function OnboardingClient({
             <Row title="Sensible to invest" subtitle="Half of what is left" value={`${eur.format(plan.investCeiling)}/mo`} className="font-semibold" />
             {plan.thisMonth && (
               <>
-                <Row title="Planned from your calendar" subtitle="Trips and dinners in the next 30 days. Estimates." value={<SignedAmount kind="out" value={plan.thisMonth.oneOff} />} />
+                <Row title="Planned from your calendar" subtitle="Upcoming expenses in the next 30 days" value={<SignedAmount kind="out" value={plan.thisMonth.oneOff} />} />
                 <Row title="Sensible to invest this month" subtitle="After those" value={`${eur.format(plan.thisMonth.investCeiling)}/mo`} className="font-semibold" />
               </>
             )}
@@ -570,7 +569,7 @@ export function OnboardingClient({
                 </button>
               </Group>
 
-              <Group title="Funds that fit" aside={`${matches.length} found`} footer={`S-Pankki funds, fetched ${SPANKKI_FUNDS_FETCHED}. Real estate and forest funds are left out: they trade only on set dates. Information, not advice. Funds can lose value.`}>
+              <Group title="Funds that fit" aside={`${matches.length} found`} footer="Information, not advice. Funds can lose value.">
                 {matches.length ? (
                   matches.map(({ fund, minYears }) => {
                     const on = savedFunds.includes(fund.id);
@@ -603,7 +602,7 @@ export function OnboardingClient({
                     );
                   })
                 ) : (
-                  <p className="px-4 py-4 text-[14px] leading-snug text-muted-foreground">Nothing fits all of that at once. Try a longer horizon, a little more risk, or turn the green filter off.</p>
+                  <p className="px-4 py-4 text-[14px] leading-snug text-muted-foreground">No match. Try a longer horizon or fewer filters.</p>
                 )}
                 {why.length > 0 && (
                   <div className="border-t px-4 py-3 text-[13px] leading-snug text-muted-foreground">
@@ -614,7 +613,7 @@ export function OnboardingClient({
                 )}
               </Group>
 
-              <Group title="Learn the basics first" footer="Neutral sources. They open in a new tab.">
+              <Group title="Learn the basics first">
                 {LEARN.map((l) => (
                   <ExternalCard key={l.href} {...l} />
                 ))}
@@ -640,11 +639,11 @@ export function OnboardingClient({
           <p className="text-[15px] text-white/70">On your spending account, each week</p>
           <p className="num mt-1 font-display text-[56px] leading-none font-semibold tracking-[-0.035em]">{squeezedPlan ? "—" : eur.format(plan.spendWeekly)}</p>
           <p className="mt-4 border-t border-white/10 pt-3 text-[13px] leading-snug text-white/65">
-            {squeezedPlan ? "After bills and saving, nothing is left for everyday spending. Loosen a goal or its date." : `${eur.format(plan.spendMonthly)} a month for everyday spending. This is the number on your home screen.`}
+            {squeezedPlan ? "Nothing is left for everyday spending. Loosen a goal or its date." : `${eur.format(plan.spendMonthly)} a month for everyday spending.`}
           </p>
         </Slab>
 
-        <Group title={`On payday, the ${ordinal(paydayDay)}`} footer="Solvo splits your salary the day it arrives, with your approval. In this demo nothing really moves.">
+        <Group title={`On payday, the ${ordinal(paydayDay)}`} footer="Solvo splits your salary the day it arrives, with your approval.">
           <Row icon={<MoneyBadge kind="in" />} title="Salary arrives" value={<SignedAmount kind="in" value={income} />} />
           <Row icon={<IconTile><Check /></IconTile>} title="Kept safe for bills" subtitle={`${outItems.length} bills, paid on their own dates`} value={eur.format(fixed)} />
           <Row icon={<IconTile><Check /></IconTile>} title="Irregular costs pot" subtitle="Health, travel, home and tech" value={eur.format(base.irregularMonthly)} />
@@ -672,7 +671,7 @@ export function OnboardingClient({
         )}
 
         {savedDetail.length > 0 && (
-          <Group title="Funds you saved" footer="You decide. Starting opens S-Pankki's own service, where you confirm. Solvo buys nothing.">
+          <Group title="Funds you saved" footer="Starting opens S-Pankki's own service, where you confirm.">
             {savedDetail.map((f) => (
               <div key={f.id} className="flex items-center gap-3 px-4 py-3 [&+&]:border-t">
                 <div className="min-w-0 flex-1">
@@ -723,9 +722,9 @@ export function OnboardingClient({
         <ApproveSheet
           title="You approve this plan"
           points={[
-            `${eur.format(Math.max(0, plan.spendWeekly))} a week for spending, which updates the number on your home screen.`,
+            `${eur.format(Math.max(0, plan.spendWeekly))} a week for spending.`,
             `On payday, the ${ordinal(paydayDay)}: ${eur.format(fixed)} kept safe for bills, ${eur.format(plan.savingsMonthly)} to savings, ${eur.format(plan.investMonthly)} set aside for investing.`,
-            "Nothing is really transferred in this demo. You can change or stop this any time.",
+            "You can change or stop this any time.",
           ]}
           confirmLabel="Approve"
           onConfirm={() => {
@@ -737,7 +736,7 @@ export function OnboardingClient({
               bufferMonthly: plan.buffer.monthly,
               investMonthly: plan.investMonthly,
               investCeiling: plan.investCeiling,
-              goals: plan.goals.map((g) => ({ label: g.goal.label, monthly: g.monthly })),
+              goals: plan.goals.map((g) => ({ label: g.goal.label, monthly: g.monthly, kind: g.goal.kind })),
               paydayDay,
               billsSafeMonthly: fixed,
               // What the person's corrections add to the monthly picture the home page was built on.

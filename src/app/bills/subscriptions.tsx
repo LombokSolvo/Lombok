@@ -1,15 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { Repeat } from "lucide-react";
+import { ApproveSheet, FreedMoney } from "./switch-ui";
+import { useWeeklyDelta } from "@/components/live-budget";
 import { Group, IconTile, Row, eur2 } from "@/components/solvo/ui";
 import { subscriptionsMonthly, type Subscription } from "@/data/subscriptions";
-import { restoreSubscription, useCancelledSubs } from "@/lib/switches";
+import { cancelSubscription, restoreSubscription, useCancelledSubs } from "@/lib/switches";
 
 const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
 
-/** Bills: card payments that repeat every month (streaming, music, cloud storage). Ones stopped from the chat show as cancelled. */
-export function Subscriptions({ subs }: { subs: Subscription[] }) {
+/** Bills: card payments that repeat every month (streaming, music, cloud storage). Each can be cancelled here (or from the chat), with your approval. */
+export function Subscriptions({ subs, remaining }: { subs: Subscription[]; remaining: number }) {
   const cancelled = useCancelledSubs();
+  const [asking, setAsking] = useState<Subscription | null>(null);
+  const [freed, setFreed] = useState<{ sub: Subscription; before: number } | null>(null);
+  const delta = useWeeklyDelta();
   if (!subs.length) return null;
   const monthly = subscriptionsMonthly(subs.filter((s) => !cancelled[s.id]));
   return (
@@ -46,12 +52,33 @@ export function Subscriptions({ subs }: { subs: Subscription[] }) {
               </IconTile>
             }
             title={s.name}
-            subtitle={`On the ${ordinal(s.day)}`}
-            value={eur2.format(s.monthly)}
-            valueSub="a month"
+            subtitle={`On the ${ordinal(s.day)} · ${eur2.format(s.monthly)} a month`}
+            value={
+              <button type="button" onClick={() => setAsking(s)} className="-my-2 inline-flex h-9 items-center rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground active:scale-95">
+                Cancel
+              </button>
+            }
           />
         ),
       )}
+      {asking && (
+        <ApproveSheet
+          title={`Cancel ${asking.name}?`}
+          points={[
+            `No more ${eur2.format(asking.monthly)} a month, ${eur2.format(asking.monthly * 12)} a year.`,
+            "It ends after the period you have already paid for.",
+            "You can undo it here.",
+          ]}
+          confirmLabel={`Cancel ${asking.name}`}
+          onConfirm={() => {
+            setFreed({ sub: asking, before: remaining + delta });
+            cancelSubscription(asking.id);
+            setAsking(null);
+          }}
+          onCancel={() => setAsking(null)}
+        />
+      )}
+      {freed && <FreedMoney title={`${freed.sub.name} cancelled`} monthly={freed.sub.monthly} remainingBefore={freed.before} onClose={() => setFreed(null)} />}
     </Group>
   );
 }

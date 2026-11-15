@@ -5,9 +5,12 @@ import { connection } from "next/server";
 import { Bricolage_Grotesque, Geist_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { ClockConfig } from "@/components/clock-config";
+import { IntroSplash } from "@/components/intro-splash";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { PwaRegister } from "@/components/pwa-register";
 import { TabBar } from "@/components/tab-bar";
 import { DATASET_END, configureDemoClock } from "@/lib/demo-clock";
+import { INTRO_SCRIPT } from "@/lib/intro";
 
 // Display: Bricolage Grotesque for the big money figures and page titles. Body: Instrument Sans.
 const display = Bricolage_Grotesque({
@@ -63,9 +66,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      // The intro script sets data-intro on <html> before React hydrates.
+      suppressHydrationWarning
       className={`${display.variable} ${body.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-dvh">
+        {/* First-open intro: decide before the first paint whether it shows, so it never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
+        <IntroSplash />
         {/* Phone-width column. On a laptop it sits centred so judges still see the phone layout. */}
         <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-background md:shadow-2xl md:shadow-black/10">
           <Suspense fallback={null}>
@@ -73,6 +81,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </Suspense>
           <TabBar />
           <PullToRefresh />
+          <PwaRegister />
         </div>
       </body>
     </html>

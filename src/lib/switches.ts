@@ -2,11 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import { clearBanksCookie } from "@/lib/banks";
+import { resetBudgetEdits } from "@/lib/budget-edits-store";
 import { clearCalendarFile } from "@/lib/calendar-file-store";
 import { resetCalendar } from "@/lib/calendar-store";
 import { resetForecast } from "@/lib/forecast-store";
+import { resetGoals } from "@/lib/goals-store";
 import { resetLearn } from "@/lib/learn-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
+import { resetTrimmed } from "@/lib/trimmed-store";
 import { DEMO_COOKIE, type DemoMode } from "@/lib/demo-mode";
 
 // What the user has approved in this browser: contract switches and a monthly fund savings plan.
@@ -28,7 +31,7 @@ export type SwitchRecord = {
 export type Switches = Partial<Record<BillKey, SwitchRecord>>;
 
 export type SavingsPlan = {
-  monthly: number; // EUR moved to the fund each month, in total
+  monthly: number; // EUR moved to the funds and the savings account each month, in total
   fromGoal?: number; // part of it that is the savings goal, already outside the weekly budget
   fromBills?: number; // part of it that cheaper bills free up (older plans: all of monthly)
   fromBudget?: number; // part of it beyond the goal and the bill savings, taken from the weekly budget
@@ -119,7 +122,7 @@ export function readSavingsPlan(): SavingsPlan | null {
 }
 
 // E-invoice readings by invoice id, so Gemini reads each invoice once per device, not on every visit to Bills.
-const readingStore = createStore<Record<string, unknown>>("solvo.readings.v1", {});
+const readingStore = createStore<Record<string, unknown>>("solvo.readings.v2", {});
 export const readCachedReadings = readingStore.snapshot;
 export const useCachedReadings = readingStore.use;
 export function cacheReading(id: string, value: unknown) {
@@ -191,8 +194,11 @@ export function resetDemo() {
   planStore.set(null);
   billStore.set(null);
   cancelledStore.set(null);
+  resetGoals();
+  resetBudgetEdits();
   resetOnboarding();
   resetCalendar();
+  resetTrimmed();
   resetForecast();
   clearCalendarFile();
   clearBanksCookie();

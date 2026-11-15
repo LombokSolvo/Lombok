@@ -18,7 +18,7 @@ export type OnboardingState = {
   bufferMonthly?: number;
   investMonthly?: number;
   investCeiling?: number;
-  goals?: { label: string; monthly: number }[];
+  goals?: { label: string; monthly: number; kind?: string }[]; // kind: "property", "trip" or "other"
   paydayDay?: number; // day of month the person confirmed
   billsSafeMonthly?: number; // kept aside for fixed bills at payday
   monthlyAdjust?: number; // EUR a month the person's income and bill corrections add to the home page's base numbers

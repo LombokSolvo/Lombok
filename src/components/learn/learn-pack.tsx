@@ -5,6 +5,7 @@ import { ArrowRight, Check, ChevronLeft, GraduationCap, Lock, MessageCircle, Spa
 import { NumberField, Stepper } from "@/components/solvo/fields";
 import { eur } from "@/components/solvo/ui";
 import { cn } from "@/lib/utils";
+import { COURSES, LESSON_COUNT } from "@/lib/learn-game";
 import {
   ILLUSTRATIVE_RETURN_PCT,
   LEVEL,
@@ -40,10 +41,10 @@ export function LearnPack({
   const [picked, setPicked] = useState<number | null>(null);
   const steps = pack.cards.length + 2; // cards, quiz, try it
   const done = step >= steps;
-  const finishedCount = PACK_IDS.filter((p) => progress.done[p]).length;
   const nextPack = PACK_IDS.find((p) => p !== id && !progress.done[p]);
   const streak = learnStreak(progress);
-  const levelDone = finishedCount === PACK_IDS.length;
+  const lessonsDone = COURSES.flatMap((c) => c.lessons).filter((l) => progress.done[l.id]).length;
+  const levelDone = lessonsDone === LESSON_COUNT;
 
   const next = () => {
     if (step === steps - 1) finishPack(id, picked === pack.quiz.correct);
@@ -163,8 +164,8 @@ export function LearnPack({
             </h3>
             <p className="mt-1 text-[14px] text-muted-foreground">
               {levelDone
-                ? `You're a ${LEVEL.name}: all ${PACK_IDS.length} packs done${streak > 1 ? `, ${streak} days in a row` : ""}.`
-                : `${finishedCount} of ${PACK_IDS.length} packs in ${LEVEL.label}${streak > 1 ? `, ${streak} days in a row` : ""}. You'll find them in Profile.`}
+                ? `You're a ${LEVEL.name}: all ${LESSON_COUNT} lessons done${streak > 1 ? `, ${streak} days in a row` : ""}.`
+                : `${lessonsDone} of ${LESSON_COUNT} lessons in ${LEVEL.label}${streak > 1 ? `, ${streak} days in a row` : ""}.`}
             </p>
             {levelDone && <LevelTwoSoon className="mt-4 w-full" />}
             <div className="mt-4 flex w-full flex-col gap-2">
@@ -288,7 +289,7 @@ function ElectricityTry({ ctx }: { ctx: LearnContext }) {
       <p className="mt-1 text-[14px] leading-snug text-muted-foreground">
         {e.hasInvoice
           ? "Your use is from your e-invoice. Move the spot price to see when each one wins."
-          : "Solvo hasn't read your electricity e-invoice yet, so this starts from a small flat. Change it to your own use."}
+          : "Starts from a small flat. Change it to your own use."}
       </p>
       <div className="mt-3 flex">
         <NumberField label="Your yearly use" value={kwh} onChange={(n) => setKwh(Math.max(1, n))} suffix="kWh" max={40000} />
@@ -409,7 +410,7 @@ function BufferTry({ ctx }: { ctx: LearnContext }) {
   );
 }
 
-/** Shown once every level 1 pack is done. */
+/** Shown once every level 1 lesson is done. */
 export function LevelTwoSoon({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-accent/40 px-4 py-3 text-left", className)}>
@@ -418,7 +419,7 @@ export function LevelTwoSoon({ className }: { className?: string }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] leading-snug font-semibold">Level 2</span>
-        <span className="block text-[13px] leading-snug text-muted-foreground">Coming soon. New packs are on their way.</span>
+        <span className="block text-[13px] leading-snug text-muted-foreground">Coming soon. New lessons are on their way.</span>
       </span>
     </div>
   );

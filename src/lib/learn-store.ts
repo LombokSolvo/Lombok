@@ -1,10 +1,12 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { demoHistory, streakDays, withPractice, type Done } from "@/lib/learn-game";
+import type { DemoMode } from "@/lib/demo-mode";
 import type { PackId } from "@/lib/learn";
 
-// Which learning packs this person has finished, in this browser. Cleared by Reset demo.
-export type LearnProgress = { done: Partial<Record<PackId, { at: string; quizRight: boolean }>> };
+// Which lessons and packs this person has finished, in this browser (a pack's id is its lesson id). Cleared by Reset demo.
+export type LearnProgress = { done: Done };
 
 const KEY = "solvo.learn.v1";
 const EMPTY: LearnProgress = { done: {} };
@@ -49,26 +51,22 @@ function subscribe(l: () => void) {
 
 export const useLearnProgress = () => useSyncExternalStore(subscribe, snapshot, () => EMPTY);
 
-export function finishPack(id: PackId, quizRight: boolean) {
-  const cur = snapshot();
-  if (cur.done[id]) return; // keep the first finish date
-  write({ done: { ...cur.done, [id]: { at: new Date().toISOString(), quizRight } } });
+/** Marks a lesson (or a chat pack) as finished and today as a learning day, so playing again keeps the streak going. */
+export function finishLesson(id: string, quizRight: boolean) {
+  write({ done: withPractice(snapshot().done, id, quizRight) });
 }
+export const finishPack = (id: PackId, quizRight: boolean) => finishLesson(id, quizRight);
 
 export function resetLearn() {
   write(null);
 }
 
-const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-
-/** Days in a row, ending today, on which the person finished at least one pack. */
-export function learnStreak(p: LearnProgress, now = new Date()) {
-  const days = new Set(Object.values(p.done).map((d) => dayKey(new Date(d!.at))));
-  let streak = 0;
-  const d = new Date(now);
-  while (days.has(dayKey(d))) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
+/** What Home's learning game shows: the demo customer's earlier days (Aino only), under what the person has finished themselves. */
+export function useLearnDone(mode: DemoMode): Done {
+  const stored = useLearnProgress().done;
+  // The demo days keep their dates even when the person plays those lessons again (today then counts as a day of its own).
+  return mode === "aino" ? { ...stored, ...demoHistory() } : stored;
 }
+
+/** Days in a row with a finished lesson; alive until a whole day passes without one. */
+export const learnStreak = (p: LearnProgress, now = new Date()) => streakDays(p.done, now);
