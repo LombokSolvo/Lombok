@@ -3,12 +3,16 @@
 import { useState } from "react";
 import { ArrowRight, Check, ChevronLeft, GraduationCap, MessageCircle, Sparkles, X } from "lucide-react";
 import { NumberField, Stepper } from "@/components/solvo/fields";
-import { eur } from "@/components/solvo/ui";
+import { eur, eur2 } from "@/components/solvo/ui";
 import { cn } from "@/lib/utils";
 import {
+  BAD_YEAR_PCT,
   ILLUSTRATIVE_RETURN_PCT,
-  PACK_IDS,
   breakEvenSpot,
+  compareFrom,
+  fmtDay,
+  oneCompanyLoss,
+  rolloverExtra,
   elecYear,
   essentials,
   feeCost,
@@ -17,6 +21,7 @@ import {
   type LearnContext,
   type PackId,
 } from "@/lib/learn";
+import { courseOf, courseState, nextLesson } from "@/lib/learn-game";
 import { finishPack, learnStreak, useLearnProgress } from "@/lib/learn-store";
 
 const nf = (n: number, d = 0) => n.toLocaleString("fi-FI", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -39,8 +44,10 @@ export function LearnPack({
   const [picked, setPicked] = useState<number | null>(null);
   const steps = pack.cards.length + 2; // cards, quiz, try it
   const done = step >= steps;
-  const finishedCount = PACK_IDS.filter((p) => progress.done[p]).length;
-  const nextPack = PACK_IDS.find((p) => p !== id && !progress.done[p]);
+  const course = courseOf(id);
+  const courseNow = course ? courseState(course, progress.done) : null;
+  const next1 = nextLesson(id, progress.done);
+  const nextPack = next1?.kind === "pack" ? next1.pack : undefined;
   const streak = learnStreak(progress);
 
   const next = () => {
@@ -148,6 +155,13 @@ export function LearnPack({
             {id === "electricity" && <ElectricityTry ctx={ctx} />}
             {id === "fees" && <FeesTry ctx={ctx} />}
             {id === "buffer" && <BufferTry ctx={ctx} />}
+            {id === "fund" && <FundTry ctx={ctx} />}
+            {id === "risk" && <RiskTry ctx={ctx} />}
+            {id === "spread" && <SpreadTry ctx={ctx} />}
+            {id === "needs" && <NeedsTry ctx={ctx} />}
+            {id === "first" && <FirstTry ctx={ctx} />}
+            {id === "ends" && <EndsTry ctx={ctx} />}
+            {id === "subs" && <SubsTry ctx={ctx} />}
           </div>
         )}
 
@@ -158,8 +172,12 @@ export function LearnPack({
             </span>
             <h3 className="mt-3 font-display text-[21px] font-semibold tracking-[-0.015em]">Pack done</h3>
             <p className="mt-1 text-[14px] text-muted-foreground">
-              {finishedCount} of {PACK_IDS.length} Money skills finished
-              {streak > 1 ? `, ${streak} days in a row` : ""}. You&apos;ll find them in Profile.
+              {course && courseNow
+                ? courseNow.complete
+                  ? `You finished ${course.title} and earned the title ${course.badge}`
+                  : `${courseNow.done} of ${courseNow.total} lessons in ${course.title} done`
+                : "Lesson done"}
+              {streak > 1 ? `, ${streak} days in a row` : ""}.
             </p>
             <div className="mt-4 flex w-full flex-col gap-2">
               {pack.followUps.map((q) => (
@@ -399,6 +417,302 @@ function BufferTry({ ctx }: { ctx: LearnContext }) {
           : "Put in a monthly amount to see how long it takes."}{" "}
         Solvo&apos;s plan can move it to a savings account on payday, before you can spend it.
       </p>
+    </div>
+  );
+}
+
+/** A short sum line in the muted box every try-it step ends with. */
+function Note({ children }: { children: React.ReactNode }) {
+  return <p className="mt-4 rounded-2xl bg-muted/70 px-3 py-2.5 text-[14px] leading-snug">{children}</p>;
+}
+
+/** Rows of label and amount, like the buffer step's table. The last row can be the total. */
+function Table({ rows, total }: { rows: [string, string][]; total?: [string, string] }) {
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl bg-muted/60 text-[14px]">
+      {rows.map(([l, v], i) => (
+        <div key={l} className={cn("flex justify-between gap-3 px-3.5 py-2.5", i > 0 && "border-t border-background")}>
+          <span>{l}</span>
+          <span className="num">{v}</span>
+        </div>
+      ))}
+      {total && (
+        <div className="flex justify-between gap-3 border-t border-background px-3.5 py-2.5 font-semibold">
+          <span>{total[0]}</span>
+          <span className="num">{total[1]}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const COMPANY_STEPS = [1, 10, 30, 100, 500, 1500];
+
+function FundTry({ ctx }: { ctx: LearnContext }) {
+  const [monthly, setMonthly] = useState(ctx.funds.monthly);
+  const [i, setI] = useState(5);
+  const companies = COMPANY_STEPS[i];
+  const each = monthly / companies;
+  return (
+    <div>
+      <p className="mt-1 text-[14px] leading-snug text-muted-foreground">Put in a monthly amount and see how a fund spreads it.</p>
+      <div className="mt-3 flex">
+        <NumberField label="Each month" value={monthly} onChange={setMonthly} suffix="€" max={10_000} />
+      </div>
+      <Slider
+        label="Companies the fund owns"
+        value={i}
+        min={0}
+        max={COMPANY_STEPS.length - 1}
+        step={1}
+        onChange={setI}
+        display={companies === 1 ? "1, a single share" : nf(companies)}
+      />
+      <div className="mt-4 rounded-2xl bg-slab px-4 py-3.5 text-white">
+        <p className="text-[13px] text-white/70">Each company gets</p>
+        <p className="num font-display text-[34px] leading-tight font-semibold tracking-[-0.02em]">
+          {each >= 1 ? eur2.format(each) : `${nf(each * 100, 1)} c`}
+        </p>
+        <p className="mt-1 text-[13px] leading-snug text-white/70">a month, out of your {eur.format(monthly)}.</p>
+      </div>
+      <Note>
+        In a year you&apos;d put in {eur.format(monthly * 12)}
+        {companies > 1 ? `, spread over ${nf(companies)} companies` : ", all in one company"}. A broad index fund owns over a
+        thousand. Information, not advice. Funds can lose value.
+      </Note>
+    </div>
+  );
+}
+
+function RiskTry({ ctx }: { ctx: LearnContext }) {
+  const [amount, setAmount] = useState(ctx.funds.value || 1000);
+  const [years, setYears] = useState(ctx.funds.hasFunds ? 10 : 1);
+  const loss = (amount * BAD_YEAR_PCT) / 100;
+  return (
+    <div>
+      <p className="mt-1 text-[14px] leading-snug text-muted-foreground">
+        {ctx.funds.hasFunds ? "Starts from what you have in funds today." : "Put in an amount you might invest."}
+      </p>
+      <div className="mt-3 flex">
+        <NumberField label="Amount in a fund" value={amount} onChange={setAmount} suffix="€" max={1_000_000} />
+      </div>
+      <Bars
+        rows={[
+          { label: "Today", value: amount, tone: "grey" },
+          { label: `After a bad year, −${BAD_YEAR_PCT} %`, value: amount - loss, tone: "warn", strong: true },
+        ]}
+      />
+      <div className="mt-4">
+        <Stepper label="You need the money in" value={years} min={1} max={20} onChange={setYears} format={(n) => `${n} ${n === 1 ? "year" : "years"}`} />
+      </div>
+      <Note>
+        A fall like this has happened, in 2008 and in early 2020, and would take about <span className="num font-semibold">{eur.format(loss)}</span> for
+        a while.{" "}
+        {years <= 2
+          ? "Needed this soon, there may be no time to wait for a recovery, so a savings account is the steadier place."
+          : years < 7
+            ? "There's some time to recover, but a dip could still be there when you need the money."
+            : "That's time to wait out a dip, though nothing is guaranteed."}{" "}
+        Information, not advice. Funds can lose value.
+      </Note>
+    </div>
+  );
+}
+
+function SpreadTry({ ctx }: { ctx: LearnContext }) {
+  const [amount, setAmount] = useState(ctx.funds.value || 1000);
+  const [i, setI] = useState(4);
+  const companies = COMPANY_STEPS[i];
+  const loss = oneCompanyLoss(amount, companies);
+  return (
+    <div>
+      <p className="mt-1 text-[14px] leading-snug text-muted-foreground">One company in your money falls by half. What does it cost you?</p>
+      <div className="mt-3 flex">
+        <NumberField label="Amount invested" value={amount} onChange={setAmount} suffix="€" max={1_000_000} />
+      </div>
+      <Slider
+        label="Companies your money is spread over"
+        value={i}
+        min={0}
+        max={COMPANY_STEPS.length - 1}
+        step={1}
+        onChange={setI}
+        display={nf(companies)}
+      />
+      <Bars
+        rows={[
+          { label: "All in that one company", value: oneCompanyLoss(amount, 1), tone: "warn" },
+          { label: `Spread over ${nf(companies)}`, value: loss, tone: "green", strong: true },
+        ]}
+      />
+      <Note>
+        Spread over {nf(companies)} {companies === 1 ? "company" : "companies"}, you&apos;d lose about{" "}
+        <span className="num font-semibold">{loss >= 1 ? eur.format(loss) : `${nf(loss * 100, 0)} cents`}</span>. If the whole
+        market falls, spreading doesn&apos;t help, which is why time matters too.
+      </Note>
+    </div>
+  );
+}
+
+function NeedsTry({ ctx }: { ctx: LearnContext }) {
+  const b = ctx.buffer;
+  const [income, setIncome] = useState(Math.round(b.income));
+  const need = essentials(b);
+  const left = income - need;
+  return (
+    <div>
+      <p className="mt-1 text-[14px] leading-snug text-muted-foreground">Your needs are from your last 12 months of payments.</p>
+      <div className="mt-3 flex">
+        <NumberField label="Your income a month, after tax" value={income} onChange={setIncome} suffix="€" max={50_000} />
+      </div>
+      <Table
+        rows={[
+          ["Rent and bills", `${eur.format(b.rentAndBills)} / mo`],
+          ["Groceries", `${eur.format(b.groceries)} / mo`],
+        ]}
+        total={["Needs", `${eur.format(need)} / mo`]}
+      />
+      <div className="mt-4 rounded-2xl bg-slab px-4 py-3.5 text-white">
+        <p className="text-[13px] text-white/70">Yours to choose</p>
+        <p className="num font-display text-[34px] leading-tight font-semibold tracking-[-0.02em]">{eur.format(Math.max(0, left))}</p>
+        <p className="mt-1 text-[13px] leading-snug text-white/70">
+          {left > 0 ? `a month, about ${eur.format((left * 12) / 52)} a week.` : "Your needs take all of this income."}
+        </p>
+      </div>
+      <Note>
+        Saving, eating out, hobbies and everything else come out of this. Solvo&apos;s safe-to-spend also keeps irregular bills and
+        your savings out of it.
+      </Note>
+    </div>
+  );
+}
+
+function FirstTry({ ctx }: { ctx: LearnContext }) {
+  const b = ctx.buffer;
+  const [monthly, setMonthly] = useState(b.savingsGoal);
+  const share = b.income > 0 ? (monthly / b.income) * 100 : 0;
+  return (
+    <div>
+      <p className="mt-1 text-[14px] leading-snug text-muted-foreground">Starts from what Solvo&apos;s plan saves for you now. Change it.</p>
+      <div className="mt-3 flex">
+        <NumberField label="Moved to savings on payday" value={monthly} onChange={setMonthly} suffix="€" max={10_000} />
+      </div>
+      <Bars
+        rows={[
+          { label: "After 1 year", value: monthly * 12, tone: "grey" },
+          { label: "After 3 years", value: monthly * 36, tone: "grey" },
+          { label: "After 5 years", value: monthly * 60, tone: "green", strong: true },
+        ]}
+      />
+      <Note>
+        That&apos;s about <span className="num font-semibold">{nf(share, 0)} %</span> of your income, before any interest. Solvo&apos;s
+        plan can move it to a savings account on payday, so you spend what&apos;s left.
+      </Note>
+    </div>
+  );
+}
+
+function EndsTry({ ctx }: { ctx: LearnContext }) {
+  const e = ctx.electricity;
+  const c = e.current;
+  const [kwh, setKwh] = useState(e.kwh);
+  const [rise, setRise] = useState(30);
+  if (c) {
+    const extra = rolloverExtra({ ...e, kwh });
+    return (
+      <div>
+        <p className="mt-1 text-[14px] leading-snug text-muted-foreground">From your electricity e-invoice.</p>
+        <Table
+          rows={[
+            ["Contract ends", fmtDay(c.endDate)],
+            ["Compare from", fmtDay(compareFrom(c.endDate))],
+            ["Price now", `${nf(c.cents, 2)} c/kWh`],
+            ["Price after, if you do nothing", `${nf(c.afterCents, 2)} c/kWh`],
+          ]}
+        />
+        <div className="mt-4 flex">
+          <NumberField label="Your yearly use" value={kwh} onChange={(n) => setKwh(Math.max(1, n))} suffix="kWh" max={40000} />
+        </div>
+        <Bars
+          rows={[
+            { label: "A year at today's price", value: elecYear(kwh, c.cents, c.fee), tone: "green" },
+            { label: "A year if you do nothing", value: elecYear(kwh, c.afterCents, c.afterFee), tone: "warn", strong: true },
+          ]}
+        />
+        <Note>
+          Doing nothing costs about <span className="num font-semibold">{eur.format(Math.max(0, extra))}</span> a year. Solvo reminds
+          you before the end date and shows offers you can switch to.
+        </Note>
+      </div>
+    );
+  }
+  const yearly = elecYear(kwh, e.fixed.cents, e.fixed.fee);
+  return (
+    <div>
+      <p className="mt-1 text-[14px] leading-snug text-muted-foreground">Starts from a small flat. Change it to your own use.</p>
+      <div className="mt-3 flex">
+        <NumberField label="Your yearly use" value={kwh} onChange={(n) => setKwh(Math.max(1, n))} suffix="kWh" max={40000} />
+      </div>
+      <Slider label="Price rise after the end date" value={rise} min={0} max={60} step={5} onChange={setRise} display={`${rise} %`} />
+      <Bars
+        rows={[
+          { label: "A year on the offer", value: yearly, tone: "green" },
+          { label: "A year if you do nothing", value: yearly * (1 + rise / 100), tone: "warn", strong: true },
+        ]}
+      />
+      <Note>
+        Doing nothing costs about <span className="num font-semibold">{eur.format((yearly * rise) / 100)}</span> a year. Note your end
+        date where you&apos;ll see it.
+      </Note>
+    </div>
+  );
+}
+
+const TYPICAL_SUBS = [
+  { name: "Streaming", monthly: 13.99 },
+  { name: "Music", monthly: 11.99 },
+  { name: "Gym", monthly: 39.9 },
+];
+
+function SubsTry({ ctx }: { ctx: LearnContext }) {
+  const subs = ctx.subs.length ? ctx.subs : TYPICAL_SUBS;
+  const [cut, setCut] = useState<Record<string, boolean>>({});
+  const saved = subs.filter((s) => cut[s.name]).reduce((n, s) => n + s.monthly, 0);
+  const total = subs.reduce((n, s) => n + s.monthly, 0);
+  return (
+    <div>
+      <p className="mt-1 text-[14px] leading-snug text-muted-foreground">
+        {ctx.subs.length ? "Tap the ones you'd cancel." : "Start from three common ones. Tap the ones you'd cancel."}
+      </p>
+      <div className="mt-3 overflow-hidden rounded-2xl bg-muted/60 text-[14px]">
+        {subs.map((s, i) => (
+          <button
+            key={s.name}
+            type="button"
+            aria-pressed={!!cut[s.name]}
+            onClick={() => setCut((c) => ({ ...c, [s.name]: !c[s.name] }))}
+            className={cn("flex min-h-12 w-full items-center gap-3 px-3.5 py-2.5 text-left active:bg-muted", i > 0 && "border-t border-background")}
+          >
+            <span
+              className={cn(
+                "flex size-6 shrink-0 items-center justify-center rounded-full border-2",
+                cut[s.name] ? "border-warn bg-warn text-white" : "border-input",
+              )}
+              aria-hidden
+            >
+              {cut[s.name] && <X className="size-3.5" strokeWidth={3} />}
+            </span>
+            <span className={cn("flex-1", cut[s.name] && "text-muted-foreground line-through")}>{s.name}</span>
+            <span className="num">{eur2.format(s.monthly)} / mo</span>
+          </button>
+        ))}
+      </div>
+      <div className="mt-4 rounded-2xl bg-slab px-4 py-3.5 text-white">
+        <p className="text-[13px] text-white/70">{saved > 0 ? "Cancelling these saves" : "These cost you"}</p>
+        <p className="num font-display text-[34px] leading-tight font-semibold tracking-[-0.02em]">{eur.format((saved > 0 ? saved : total) * 12)}</p>
+        <p className="mt-1 text-[13px] leading-snug text-white/70">a year, {eur2.format(saved > 0 ? saved : total)} a month.</p>
+      </div>
+      <Note>Nothing is cancelled here. Ask Solvo in the chat when you want to cancel one.</Note>
     </div>
   );
 }

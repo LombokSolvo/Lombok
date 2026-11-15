@@ -2,6 +2,8 @@
 // returns it as one of these, and the chat shows it as a card with a button. Nothing happens until the person taps.
 // Pure and shared by the server (src/app/api/coach/route.ts) and the browser (src/app/coach/action-card.tsx).
 
+import type { PackId } from "./learn";
+
 export type ChatView = "home" | "bills" | "save" | "calendar" | "costs";
 
 export type ChatAction =
@@ -10,7 +12,7 @@ export type ChatAction =
   | { kind: "add_goal"; label: string; target: number; saved: number; months: number; monthly: number } // EUR a month to the savings account
   | { kind: "switch_bill"; bill: "electricity" | "telecom"; supplier?: string; yearlySaving?: number }
   | { kind: "open"; view: ChatView }
-  | { kind: "learn"; pack: "electricity" | "fees" | "buffer" }; // a Money skills lesson, played in the chat
+  | { kind: "learn"; pack: PackId }; // a Money skills lesson, played in the chat
 
 /** What the person has done in this browser, sent with each question so the coach doesn't offer it again. */
 export type ChatState = {
