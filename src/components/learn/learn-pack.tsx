@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Check, ChevronLeft, GraduationCap, MessageCircle, Sparkles, X } from "lucide-react";
 import { NumberField, Stepper } from "@/components/solvo/fields";
 import { eur } from "@/components/solvo/ui";
@@ -34,6 +35,7 @@ export function LearnPack({
   onOpen: (id: PackId) => void;
 }) {
   const pack = getPack(id, ctx);
+  const router = useRouter();
   const progress = useLearnProgress();
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -61,9 +63,7 @@ export function LearnPack({
           <p className="text-[11px] font-semibold tracking-[0.06em] text-primary uppercase">Money skills</p>
           <p className="truncate text-[15px] leading-tight font-semibold">{pack.title}</p>
         </div>
-        <span className="num shrink-0 text-[12px] text-muted-foreground">
-          {done ? "Done" : `${step + 1} / ${steps}`}
-        </span>
+        {!done && <span className="num shrink-0 text-[12px] text-muted-foreground">{`${step + 1} / ${steps}`}</span>}
       </header>
       <div className="mt-3 flex gap-1 px-4" aria-hidden>
         {Array.from({ length: steps }, (_, i) => (
@@ -183,6 +183,17 @@ export function LearnPack({
                   <ArrowRight className="size-4" aria-hidden />
                 </button>
               )}
+              {/* Ends the session: Home shows the streak growing. */}
+              <button
+                type="button"
+                onClick={() => router.push("/?learned=1")}
+                className={cn(
+                  "flex h-11 w-full items-center justify-center gap-2 rounded-2xl px-4 text-[15px] font-semibold active:scale-[0.98]",
+                  nextPack ? "bg-muted text-foreground" : "bg-primary text-primary-foreground",
+                )}
+              >
+                End session
+              </button>
             </div>
           </div>
         )}
