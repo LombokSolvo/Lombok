@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { safeToSpend } from "@/lib/coach";
 import { Screen } from "@/components/solvo/screen";
 import { learnContext } from "@/lib/learn-context";
 import { pageMode } from "@/lib/source";
@@ -24,5 +25,6 @@ async function Coach() {
   const mode = await pageMode();
   const { customer } = await getEffective(mode);
   // Only the few numbers the learning packs show reach the browser, never transactions.
-  return <CoachClient learn={learnContext(customer, mode)} mode={mode} />;
+  // The base safe-to-spend, so a stopped subscription can show the weekly number going up (the browser adds its own choices).
+  return <CoachClient learn={learnContext(customer, mode)} mode={mode} remaining={safeToSpend(customer).remaining} />;
 }

@@ -205,7 +205,7 @@ export function BillsClient(props: {
                 </Group>
               )}
 
-              <Subscriptions subs={props.subscriptions} />
+              <Subscriptions subs={props.subscriptions} remaining={props.remaining} />
 
               <PhotoUpload
                 onRead={(d) => {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Bell, Check, PencilLine, ShieldCheck, Sparkles } from "lucide-react";
-import { Chip, Group, IconTile, Slab, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
+import { Chip, Group, IconTile, Slab, eur, eur2, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { AINO_PLAN } from "@/data/portfolio";
 import { fundById, isSavingsAccount } from "@/lib/funds";
 import { approveSavingsPlan, planFunds, readSavingsPlan } from "@/lib/switches";
@@ -329,13 +329,21 @@ export function DoneView(props: {
 type FundRiseRows = { extra: number; rows: { name: string; from: number; to: number }[] };
 
 /** Moves the money a cheaper bill frees up into the saving plan: the first fund gets it every month. Returns what to animate. */
-function saveInFund(extra: number): FundRiseRows {
+// `from`: a cheaper bill frees money the plan already counts as bill savings; a stopped subscription frees weekly budget,
+// so moving it to the fund takes it back out of the weekly budget.
+function saveInFund(extra: number, from: "bills" | "budget" = "bills"): FundRiseRows {
   const base = readSavingsPlan() ?? AINO_PLAN;
   const funds = planFunds(base);
   const target = funds.findIndex((f) => !isSavingsAccount(f.fundId));
   const at = target < 0 ? 0 : target;
   const next = funds.map((f, i) => (i === at ? { ...f, monthly: f.monthly + extra } : f));
-  approveSavingsPlan({ ...base, funds: next, monthly: base.monthly + extra, fromBills: (base.fromBills ?? 0) + extra, approvedAt: new Date().toISOString() });
+  approveSavingsPlan({
+    ...base,
+    funds: next,
+    monthly: base.monthly + extra,
+    ...(from === "bills" ? { fromBills: (base.fromBills ?? 0) + extra } : { fromBudget: (base.fromBudget ?? 0) + extra }),
+    approvedAt: new Date().toISOString(),
+  });
   return { extra, rows: funds.map((f, i) => ({ name: fundById(f.fundId).name, from: f.monthly, to: next[i].monthly })) };
 }
 
@@ -353,7 +361,7 @@ function FundRise({ rows, extra }: { rows: FundRiseRows["rows"]; extra: number }
       <p className="num mt-1 font-display text-[44px] leading-none font-semibold tracking-[-0.03em]">
         +<CountUp from={0} to={extra} /> a month
       </p>
-      <p className="mt-3 max-w-[30ch] text-[14px] leading-snug text-white/70">The money your cheaper bill frees up now grows in your saving plan, from the next payday.</p>
+      <p className="mt-3 max-w-[30ch] text-[14px] leading-snug text-white/70">The money you freed up now grows in your saving plan, from the next payday.</p>
       <ul className="mt-8 flex flex-col gap-5">
         {rows.map((r) => (
           <li key={r.name}>
@@ -374,6 +382,48 @@ function FundRise({ rows, extra }: { rows: FundRiseRows["rows"]; extra: number }
         ))}
       </ul>
       <p className="mt-10 text-[13px] text-white/55">Back to Home…</p>
+    </div>
+  );
+}
+
+/**
+ * After something stops costing money (a cancelled subscription): the freed money lands in the weekly budget, shown as the
+ * safe-to-spend number counting up, with the choice to put it into the funds instead (then the funds grow and the app goes Home).
+ */
+export function FreedMoney(props: { title: string; monthly: number; remainingBefore: number; onClose: () => void }) {
+  const router = useRouter();
+  const [rise, setRise] = useState<FundRiseRows | null>(null);
+  const perWeek = (props.monthly * 12) / 52;
+  useEffect(() => {
+    if (!rise) return;
+    const t = setTimeout(() => router.push("/"), 3600);
+    return () => clearTimeout(t);
+  }, [rise, router]);
+  if (rise) return <FundRise rows={rise.rows} extra={rise.extra} />;
+  return (
+    <div className="fixed inset-0 z-50 mx-auto flex w-full max-w-[430px] animate-in flex-col justify-center bg-background px-5 fade-in duration-300" role="status" aria-live="polite">
+      <div className="flex flex-col items-center text-center">
+        <span className="flex size-16 animate-pop items-center justify-center rounded-full bg-primary text-white shadow-[0_10px_30px_-10px_rgba(19,98,63,0.8)]">
+          <Check className="size-8" strokeWidth={2.75} aria-hidden />
+        </span>
+        <h1 className="mt-5 font-display text-[26px] leading-tight font-semibold tracking-[-0.02em]">{props.title}</h1>
+      </div>
+      <Slab className="mt-7">
+        <p className="text-[15px] text-white/70">Safe to spend this week</p>
+        <p className="num mt-1 font-display text-[56px] leading-none font-semibold tracking-[-0.035em]">
+          <CountUp from={props.remainingBefore} to={props.remainingBefore + perWeek} />
+        </p>
+        <p className="mt-3 inline-flex h-7 items-center rounded-full bg-mint/15 px-2.5 text-[13px] font-semibold text-mint">+{eur2.format(perWeek)} every week</p>
+        <p className="mt-4 border-t border-white/10 pt-3 text-[13px] leading-snug text-white/65">
+          {eur2.format(props.monthly)} a month stays with you, {eur.format(props.monthly * 12)} a year.
+        </p>
+      </Slab>
+      <button type="button" className={`${primaryButton} mt-6`} onClick={() => setRise(saveInFund(Math.round(props.monthly), "budget"))}>
+        Save it in a fund instead
+      </button>
+      <button type="button" className={`${secondaryButton} mt-2`} onClick={props.onClose}>
+        Keep it in my weekly budget
+      </button>
     </div>
   );
 }

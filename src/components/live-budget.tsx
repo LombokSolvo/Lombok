@@ -20,7 +20,7 @@ export function useCancelledWeekly() {
 const eur = new Intl.NumberFormat("fi-FI", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 /** What the person's choices in this browser add to (or take off) the weekly numbers, EUR a week. */
-function useWeeklyDelta() {
+export function useWeeklyDelta() {
   // Approved switches add money; the onboarding plan replaces the default savings goal the base numbers assume; what the person's
   // calendar expects (a trip, a dinner) is set aside, so it comes off (see ForecastNote for why); the person's own corrections
   // on "Your money each month" (irregular set-aside, bills Solvo missed) move it too.
