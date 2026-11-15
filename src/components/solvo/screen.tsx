@@ -19,6 +19,20 @@ export function Screen({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Goes INSIDE a page's <Suspense>, around the part that waits for data. These pages render per request, so a navigation first
+ * shows the page's empty fallback: the old page fades out and the new one would fade in empty, then the content would pop in with
+ * no motion. This fades and lifts the content in when it arrives. When the content is ready at once (it was cached), the page's
+ * <Screen> animates it as one unit and this stays still, so nothing animates twice.
+ */
+export function Reveal({ children }: { children: ReactNode }) {
+  return (
+    <ViewTransition default="none" enter="screen-in" exit="none">
+      {children}
+    </ViewTransition>
+  );
+}
+
 /** Swaps between views inside one page (bill list and a contract) with the same motion as a route change. */
 export function SubScreen({ id, children }: { id: string; children: ReactNode }) {
   return (

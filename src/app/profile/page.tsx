@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Screen } from "@/components/solvo/screen";
+import { Reveal, Screen } from "@/components/solvo/screen";
 import { ForecastProvider } from "@/components/forecast-ui";
 import { PAGE } from "@/components/solvo/ui";
 import { getCalendarState } from "@/lib/calendar-source";
@@ -18,7 +18,9 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
   return (
     <Screen>
       <Suspense fallback={<main className={PAGE} />}>
-        <Profile searchParams={searchParams} />
+        <Reveal>
+          <Profile searchParams={searchParams} />
+        </Reveal>
       </Suspense>
     </Screen>
   );

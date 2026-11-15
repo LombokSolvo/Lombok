@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { safeToSpend } from "@/lib/coach";
-import { Screen } from "@/components/solvo/screen";
+import { Reveal, Screen } from "@/components/solvo/screen";
 import { learnContext } from "@/lib/learn-context";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
@@ -13,7 +13,9 @@ export default function CoachPage() {
   return (
     <Screen>
       <Suspense fallback={<main className="flex min-h-dvh flex-1 flex-col" />}>
-        <Coach />
+        <Reveal>
+          <Coach />
+        </Reveal>
       </Suspense>
     </Screen>
   );
