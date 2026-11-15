@@ -104,7 +104,8 @@ try {
     if (statuses.some((s) => s !== 404) || callback.status !== 404) throw new Error(`expected only 404, got ${statuses.join(", ")} and ${callback.status}`);
     const profile = await (await fetch(BASE + "/profile")).text();
     if (/Connect Google Calendar|GOOGLE_CLIENT/.test(profile)) throw new Error("Profile offers Google Calendar");
-    if (!profile.includes("Connect calendar")) throw new Error("Profile has no calendar row");
+    // Aino has the built-in demo calendar (src/data/demo-calendar.ts), so her row says "Calendar file"; with none it says "Connect calendar".
+    if (!profile.includes("Connect calendar") && !profile.includes("Calendar file")) throw new Error("Profile has no calendar row");
   });
   // Solvo's call names no fixed weekday (the demo clock moves the dates) and works without an ElevenLabs key.
   await check("Solvo's call has no fixed weekday", async () => {
@@ -112,13 +113,13 @@ try {
     if (!page.includes("Answer")) throw new Error("call screen has no Answer button");
     if (/last Friday|Bill due Friday/.test(page)) throw new Error("call screen still has a fixed weekday");
   });
-  // Nothing is shown from a calendar until a real one is connected: no simulated calendar, no cookie that fakes one.
-  await check("no calendar is shown until a real one is connected", async () => {
-    const home = await (await fetch(BASE + "/", { headers: { Cookie: "solvo_calendar=demo" } })).text();
-    if (home.includes("set aside for your calendar")) throw new Error("Home shows a calendar that was never connected");
-    if (!home.includes("Budget for what is coming")) throw new Error("Home has no way in to connect a calendar");
+  // Aino's demo calendar is built in and on by default (src/data/demo-calendar.ts): Home's Coming up lists its expenses as
+  // estimates. Any other calendar needs a real connection. First-run setup still offers to connect one.
+  await check("Aino's demo calendar shows on Home, setup offers a calendar", async () => {
+    const home = (await (await fetch(BASE + "/")).text()).replace(/<[^>]*>/g, " ");
+    if (!/·\s*estimate/.test(home) && !home.includes("Budget for what is coming")) throw new Error("Home shows no calendar estimates and no way in");
     const onboarding = await (await fetch(BASE + "/onboarding")).text();
-    if (!onboarding.includes("Connect calendar")) throw new Error("First-run setup does not offer the calendar");
+    if (!onboarding.includes("Connect calendar") && !onboarding.includes("Calendar file")) throw new Error("First-run setup does not offer the calendar");
   });
   await check("POST /api/coach (offline answer)", async () => {
     const data = await postJson("/api/coach", { messages: [{ role: "user", text: "How much did I spend on restaurants?" }] });
