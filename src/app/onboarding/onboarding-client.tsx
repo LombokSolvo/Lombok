@@ -7,6 +7,7 @@ import { ApproveSheet, StickyAction } from "@/app/bills/switch-ui";
 import { CalendarConnect } from "@/components/calendar-connect";
 import { useForecast } from "@/components/forecast-ui";
 import { OtherBanks } from "@/components/other-banks";
+import { useBackStep } from "@/lib/use-back-step";
 import type { BankId, View } from "@/lib/banks";
 import type { GoogleStatus } from "@/lib/google-calendar";
 import type { LinkStatus } from "@/lib/ics-link";
@@ -182,6 +183,8 @@ export function OnboardingClient({
 
   const next = () => setStep((s) => Math.min(STEPS, s + 1));
   const back = () => setStep((s) => Math.max(1, s - 1));
+  // Swipe back goes to the previous step, not out of onboarding.
+  useBackStep(step - 1, (d) => setStep(Math.min(STEPS, d + 1)));
   const leave = () => {
     skipOnboarding();
     router.push("/");
