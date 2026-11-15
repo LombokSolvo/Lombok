@@ -15,9 +15,9 @@ import { portfolio } from "@/data/portfolio";
 /** funds: show the S-Pankki fund holdings row (Aino's demo holdings; a new customer has none). */
 export function AllBanksCard({ base, banks, view, bankName = "Nordea", real = [], funds: hasFunds = false }: { base: DemoCustomer; banks: BankId[]; view: View; bankName?: string; real?: RealBank[]; funds?: boolean }) {
   if (!banks.length) return null;
-  const f = bankFacts(base, banks, real);
+  const f = bankFacts(base, banks, real, bankName);
   const funds = hasFunds ? Math.round(portfolio().value) : 0;
-  const cash = f.spankki.cash + (f.nordea ? f.nordea.everyday + f.nordea.savings : 0);
+  const cash = f.spankki.cash + f.perBank.reduce((s, b) => s + b.cash, 0);
   const subs = f.nordea?.bills.find((b) => b.label === "Subscriptions");
   const insurance = f.nordea?.bills.find((b) => b.label === "Insurance");
 
@@ -31,7 +31,7 @@ export function AllBanksCard({ base, banks, view, bankName = "Nordea", real = []
           <Row
             icon={<IconTile><Landmark /></IconTile>}
             title="Cash and savings"
-            subtitle={`S-Pankki ${eur.format(f.spankki.cash)}${f.nordea ? f.nordea.perBank.map((b) => ` · ${b.name || bankName} ${eur.format(b.cash)}`).join("") : ""}`}
+            subtitle={`S-Pankki ${eur.format(f.spankki.cash)}${f.perBank.map((b) => ` · ${b.name} ${eur.format(b.cash)}`).join("")}`}
             value={eur.format(cash)}
           />
           {funds > 0 && (
@@ -44,6 +44,12 @@ export function AllBanksCard({ base, banks, view, bankName = "Nordea", real = []
           )}
           {f.nordea && f.nordea.sideIncomeMonthly > 0 && (
             <Row icon={<MoneyBadge kind="in" />} title={real.length ? "Income at your other banks" : `Income at ${bankName}`} subtitle="S-Pankki can't see this" value={<SignedAmount kind="in" value={f.nordea.sideIncomeMonthly} />} valueSub="a month" />
+          )}
+          {f.traderepublic && (
+            <Row icon={<IconTile><TrendingUp /></IconTile>} title="Waiting to be invested" subtitle={`Trade Republic cash · ETF plan ${eur.format(f.traderepublic.planMonthly)} a month`} value={eur.format(f.traderepublic.cash)} />
+          )}
+          {f.klarna && f.klarna.monthly > 0 && (
+            <Row icon={<MoneyBadge kind="out" />} title="Pay later" subtitle={`Klarna instalments: ${f.klarna.names}`} value={<SignedAmount kind="out" value={f.klarna.monthly} />} valueSub="a month" />
           )}
           {subs && (
             <Row icon={<IconTile><Repeat /></IconTile>} title="Subscriptions" subtitle={subs.names} value={<SignedAmount kind="out" value={subs.monthly} />} valueSub="a month" />

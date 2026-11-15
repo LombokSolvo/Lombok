@@ -18,6 +18,12 @@ const STEPS: { step: AgentStep; label: string }[] = [
   { step: "segment", label: "Pick the best for you" },
 ];
 
+// A live run usually takes about 6 seconds from tap to result. The server's own events arrive in bursts (the
+// search is most of it, checking and ranking take milliseconds), so the steps light up on an even clock instead:
+// each gets a quarter of the usual run. The last one keeps spinning if the run takes longer.
+const RUN_MS = 6000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 type StepState = { status: "waiting" | "running" | "done" | "failed"; detail?: string };
 
 const timeFmt = new Intl.DateTimeFormat("en-GB", {
@@ -67,6 +73,8 @@ function foundRows(db: AgentDb): FoundRow[] {
 // agent and the options appear. Kept in memory only, so a page reload starts the demo over.
 const ranThisVisit = new Set<AgentDb["agent"]>();
 export const agentHasRun = (agent: AgentDb["agent"]) => ranThisVisit.has(agent);
+/** Bills starts over each time it is opened: no offers on screen until the agent runs again. */
+export const resetAgentRuns = () => ranThisVisit.clear();
 
 // A real date (when a price was checked), so it must not go through the demo clock: "checked 1 Nov", not "16 Dec".
 const dayFmt = plainFormat({ day: "numeric", month: "short" });
@@ -105,8 +113,28 @@ export function MarketAgentCard<D extends AgentDb>(props: {
   async function run() {
     setRunning(true);
     setNote(null);
-    setSteps(Object.fromEntries(STEPS.map((s) => [s.step, { status: "waiting" }])) as Record<AgentStep, StepState>);
-    try {
+    // What the server has reported per step. The screen shows the steps on an even clock and fills in these details.
+    const got: Partial<Record<AgentStep, StepState>> = {};
+    let result: Extract<AgentEvent, { type: "result" }> | null = null;
+    let failure: string | null = null;
+    const failed = () => STEPS.some((s) => got[s.step]?.status === "failed");
+    const show = (current: number, final = false) =>
+      setSteps(
+        Object.fromEntries(
+          STEPS.map(({ step }, i) => {
+            const g = got[step];
+            const detail = g?.detail;
+            if (g?.status === "failed") return [step, { status: "failed", detail }];
+            if (final) return [step, g?.status === "done" || !failed() ? { status: "done", detail } : { status: "waiting" }];
+            if (i < current) return [step, { status: "done", detail: g?.status === "done" ? detail : undefined }];
+            if (i === current) return [step, { status: "running", detail }];
+            return [step, { status: "waiting" }];
+          }),
+        ) as Record<AgentStep, StepState>,
+      );
+    show(0);
+
+    const stream = (async () => {
       const res = await fetch("/api/market-agent", { method: "POST", body: JSON.stringify({ agent: db.agent }) });
       if (!res.ok || !res.body) throw new Error("no stream");
       const reader = res.body.getReader();
@@ -121,15 +149,25 @@ export function MarketAgentCard<D extends AgentDb>(props: {
         for (const line of lines) {
           if (!line.trim()) continue;
           const e = JSON.parse(line) as AgentEvent;
-          if (e.type === "step") setSteps((prev) => (prev ? { ...prev, [e.step]: { status: e.status, detail: e.detail } } : prev));
-          else {
-            if (e.live) props.onResult(e.db as D);
-            else savedRun();
-          }
+          if (e.type === "step") {
+            if (e.status !== "running" || !got[e.step]) got[e.step] = { status: e.status, detail: e.detail };
+          } else result = e;
         }
       }
-    } catch {
-      savedRun();
+    })().catch((err) => {
+      failure = String(err);
+    });
+
+    try {
+      for (let i = 0; i < STEPS.length && !failed(); i++) {
+        show(i);
+        await sleep(RUN_MS / STEPS.length);
+      }
+      await stream; // the last step keeps spinning until the run is over
+      show(STEPS.length, true);
+      const r = result as Extract<AgentEvent, { type: "result" }> | null;
+      if (r?.live && !failure) props.onResult(r.db as D);
+      else savedRun(); // no key, a limit or a network error: the saved prices, with no error text
     } finally {
       setRunning(false);
       ranThisVisit.add(db.agent);

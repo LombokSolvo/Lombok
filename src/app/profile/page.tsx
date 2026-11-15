@@ -32,7 +32,7 @@ async function Profile({ searchParams }: { searchParams: Promise<{ bank?: string
   const calendar = await getCalendarState();
   const linked = await currentLinked();
   return (
-    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
     <ProfileClient
       name="Aino Esimerkki"
       id={c.id}

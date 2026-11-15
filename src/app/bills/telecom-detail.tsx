@@ -53,6 +53,9 @@ export function TelecomDetail(props: {
     setChosenId(null); // the coach's new pick becomes the selection
   };
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
+  // The saving offer to name when the person picks one that costs more than today.
+  const savers = [...cmp.offers].sort((a, b) => b.saving - a.saving).filter((o) => o.saving > 0);
+  const best = savers.find((o) => o.lineSpeedMbps >= chosen.lineSpeedMbps) ?? savers[0]; // keeps the chosen speed if it can
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
   const weeklyDelta = useWeeklyDelta();
   const startDate = startDateFrom(props.asOf);
@@ -131,7 +134,16 @@ export function TelecomDetail(props: {
           after={{ label: `${chosen.operator}${chosen.kind === "switch" ? ` ${chosen.product}` : ", price match"}`, yearly: chosen.yearly }}
           footnote={
             chosen.saving < 0 ? (
-              <>More than you pay today.</>
+              <>
+                More than you pay today.
+                {best && (
+                  <>
+                    {" "}Switching to {best.operator}
+                    {best.kind === "switch" ? ` ${best.product}` : ", price match"} instead saves you{" "}
+                    <span className="font-semibold text-white">{eur.format(best.saving)} a year</span>.
+                  </>
+                )}
+              </>
             ) : (
               <>That&apos;s +{eur.format(perWeek)} to your safe-to-spend every week.</>
             )

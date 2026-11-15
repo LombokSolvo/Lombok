@@ -6,8 +6,8 @@ import { Check, Landmark, Loader2, Plus, RefreshCw, Search, Trash2, X } from "lu
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { Sheet } from "@/components/solvo/sheet";
 import { LiveBankRows } from "@/components/live-banks";
-import { Chip, Group, IconTile } from "@/components/solvo/ui";
-import { FALLBACK_BANKS, readBankNameCookie, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
+import { Group, IconTile } from "@/components/solvo/ui";
+import { BANK_INFO, FALLBACK_BANKS, readBankNameCookie, simulatedIdFor, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
 import { LIVE_BANKS, LIVE_BANK_IDS, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
 import type { LiveStatus } from "@/lib/live-banks";
@@ -28,10 +28,12 @@ type Group3 = "bank" | "app" | "invest";
 type Entry = { key: string; name: string; sub: string | null; group: Group3; live: LiveBankId | null; country: string };
 const GROUPS: { id: Group3; label: string }[] = [
   { id: "bank", label: "Banks" },
-  { id: "app", label: "Neobanks and apps" },
   { id: "invest", label: "Investing" },
+  { id: "app", label: "Other apps" },
 ];
 const groupOf = (kind: string): Group3 => (kind === "Bank" ? "bank" : kind === "Trading platform" ? "invest" : "app");
+// Where a name from the plain list belongs when no registry entry says.
+const plainGroup = (name: string): Group3 => (name === "Trade Republic" ? "invest" : ["Revolut", "bunq", "N26", "Wise", "Klarna", "PayPal"].includes(name) ? "app" : "bank");
 export type SandboxProps = { enabled: boolean; linked: { bank: string; validUntil: string } | null; notice: string | null };
 
 const COUNTRIES = ["FI", "SE", "NO", "DK", "EE", "DE", "NL", "FR"];
@@ -126,9 +128,12 @@ export function OtherBanks({
     if (!choice) return;
     if (choice.kind === "live") return void go("/api/live/start", { bank: choice.bank });
     if (sandbox.enabled) return void go("/api/banks/start", { bank: choice.name, country: choice.country });
-    writeBankNameCookie(choice.name);
-    window.dispatchEvent(new Event(cookieEvent));
-    simulate("nordea");
+    const id = simulatedIdFor(choice.name);
+    if (id === "nordea") {
+      writeBankNameCookie(choice.name);
+      window.dispatchEvent(new Event(cookieEvent));
+    }
+    simulate(id);
   };
 
   // Everything the picker can offer, each in one group. With real banks set up here, the ones in src/lib/live-bank-ids.ts connect for
@@ -147,8 +152,10 @@ export function OtherBanks({
   }));
   const listed = lists[country];
   const testBanks: Entry[] = sandbox.enabled && Array.isArray(listed) ? listed.map((b) => ({ key: `${b.country}-${b.name}`, name: b.name, sub: null, group: "bank", live: null, country: b.country })) : [];
-  const plainBanks: Entry[] = FALLBACK_BANKS.filter((n) => !registryNames.has(n)).map((n) => ({ key: n, name: n, sub: null, group: "bank", live: null, country: "FI" }));
-  const entries: Entry[] = sandbox.enabled ? [...(liveActive ? liveEntries : []), ...testBanks] : [...liveEntries, ...plainBanks];
+  const plainBanks: Entry[] = FALLBACK_BANKS.filter((n) => !registryNames.has(n)).map((n) => ({ key: n, name: n, sub: null, group: plainGroup(n), live: null, country: "FI" }));
+  // The list only offers what is not connected yet: S-Pankki is the main bank, and an app added before is already in the list above.
+  const connectedNames = new Set<string>(["S-Pankki", ...banks.map((b) => (b === "nordea" ? bankName : BANK_INFO[b].name))]);
+  const entries: Entry[] = (sandbox.enabled ? [...(liveActive ? liveEntries : []), ...testBanks] : [...liveEntries, ...plainBanks]).filter((e) => !connectedNames.has(e.name));
   const q = query.trim().toLowerCase();
   const inGroup = (g: Group3) => entries.filter((e) => e.group === g && e.name.toLowerCase().includes(q));
   const shown = inGroup(tab);
@@ -197,7 +204,7 @@ export function OtherBanks({
         )}
         {live && <LiveBankRows status={live} />}
         {banks.map((b) => {
-          const name = bankName;
+          const name = b === "nordea" ? bankName : BANK_INFO[b].name;
           return (
             <div key={b} className="flex min-h-14 items-center gap-3 py-2 pr-2 pl-4 [&+&]:border-t">
               <IconTile><Landmark /></IconTile>
@@ -234,7 +241,7 @@ export function OtherBanks({
         )}
         <button type="button" onClick={() => { setError(null); setQuery(""); setStep("pick"); }} disabled={busy !== null} className={action}>
           <IconTile>{busy === "start" ? <Loader2 className="animate-spin" /> : <Plus />}</IconTile>
-          {busy === "start" ? "Opening your bank…" : "Add another bank"}
+          {busy === "start" ? "Opening your bank…" : "Add an app"}
         </button>
         {(error || message) && (
           <p role={error ? "alert" : "status"} className={`border-t px-4 py-3 text-[13px] leading-snug ${error ? "text-warn" : "text-muted-foreground"}`}>
@@ -244,7 +251,7 @@ export function OtherBanks({
       </Group>
 
       {step === "pick" && (
-        <Sheet title="Add a bank" onClose={() => setStep("closed")} hideDone>
+        <Sheet title="Add an app" onClose={() => setStep("closed")} hideDone>
           <label className="relative mb-3 block">
             <span className="sr-only">Search</span>
             <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -302,9 +309,9 @@ export function OtherBanks({
                 <IconTile><Landmark /></IconTile>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-medium">{e.name}</span>
-                  {e.sub && <span className="block text-[13px] leading-snug text-muted-foreground">{e.sub}</span>}
+                  {e.sub && e.sub !== "Bank" && <span className="block text-[13px] leading-snug text-muted-foreground">{e.sub}</span>}
                 </span>
-                {liveActive && <Chip tone={e.live ? "green" : "grey"}>{e.live ? "Real" : "Demo"}</Chip>}
+                <span className="inline-flex h-8 shrink-0 items-center rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground">Add</span>
               </button>
             ))}
           </div>
@@ -322,6 +329,9 @@ export function OtherBanks({
             <Loader2 className="size-5 animate-spin" aria-hidden />
             Waiting for your approval…
           </div>
+          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">
+            Real bank data only works when Solvo runs locally on your own computer. Here the connection is simulated with example data.
+          </p>
         </Sheet>
       )}
     </>

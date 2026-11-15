@@ -192,10 +192,15 @@ export function compareTelecom(
   let speed = preference.speed;
   let recommended = pickFrom(speed);
   let fallback = "";
-  if (!recommended && speed === "faster") {
+  if (!recommended && speed !== "same") {
+    const wanted = speed;
     speed = "same";
     recommended = pickFrom(speed);
-    fallback = `nothing faster than your ${lineSpeed} Mbit/s is on sale, so this keeps your speed`;
+    if (recommended)
+      fallback =
+        wanted === "faster"
+          ? `nothing faster than your ${lineSpeed} Mbit/s is on sale, so this keeps your speed`
+          : `your ${lineSpeed} Mbit/s is already the basic speed, so this keeps it`;
   }
   if (!recommended && green) {
     // No sustainable plan at that speed: the one closest to it.

@@ -41,7 +41,7 @@ async function Onboarding({ searchParams }: { searchParams: Promise<{ calendar?:
     investsMonthlyToday: Math.round(profile.investsMonthly),
   };
   return (
-    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
       <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new"} banks={banks} view={view} calendar={{ google: googleStatus(), link: await linkStatus(), notice: calendarNotice ?? null }} />
     </ForecastProvider>
   );

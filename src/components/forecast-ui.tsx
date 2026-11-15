@@ -9,7 +9,7 @@ import { NumberField } from "@/components/solvo/fields";
 import { Sheet } from "@/components/solvo/sheet";
 import { eur, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
-import { readCalendarFile, useCalendarFile } from "@/lib/calendar-file-store";
+import { readCalendarFileOr, useCalendarFileOr, type CalendarFile } from "@/lib/calendar-file-store";
 import { applyChoices, forecast, weeklyReserve, type Baselines, type CalendarMode, type CountedItem, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
 import { readChoices, setChoice, useChoices } from "@/lib/forecast-store";
 
@@ -21,26 +21,26 @@ const dayFmt = plainFormat({ weekday: "short", day: "numeric", month: "short" })
 
 // readReserve: the weekly set-aside worked out at the moment it is called, from this browser's stores. The chat needs it because a
 // question from Home (/coach?q=) is sent right after the page loads, before the stores' values have reached a render.
-type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines; readReserve: () => number };
-const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null }, readReserve: () => 0 };
+type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines; file: CalendarFile | null; readReserve: () => number };
+const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null }, file: null, readReserve: () => 0 };
 const Ctx = createContext<State>(EMPTY);
 
 /**
  * `items` and `mode` come from the server (demo, Google, link). A calendar FILE lives only in this browser, so when there is one and
  * no real calendar on the server, the items are made here from the person's baselines (numbers the server sends for exactly this).
  */
-export function ForecastProvider({ mode, items, today, baselines, children }: { mode: Exclude<CalendarMode, "file"> | null; items: ForecastItem[]; today: string; baselines: Baselines; children: ReactNode }) {
+export function ForecastProvider({ mode, items, today, baselines, demoFile = null, children }: { mode: Exclude<CalendarMode, "file"> | null; items: ForecastItem[]; today: string; baselines: Baselines; demoFile?: CalendarFile | null; children: ReactNode }) {
   const choices = useChoices();
-  const file = useCalendarFile();
+  const file = useCalendarFileOr(demoFile);
   const value = useMemo<State>(() => {
-    const countedFrom = (f: typeof file, ch: typeof choices) => {
+    const countedFrom = (f: CalendarFile | null, ch: typeof choices) => {
       const useFile = !!f && mode !== "google" && mode !== "link";
       return { useFile, counted: applyChoices(useFile && f ? forecast(f.events, baselines, today, "file", { keepTitle: true }) : items, ch) };
     };
     const { useFile, counted } = countedFrom(file, choices);
-    const readReserve = () => weeklyReserve(countedFrom(readCalendarFile(), readChoices()).counted, today);
-    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines, readReserve };
-  }, [mode, items, today, baselines, choices, file]);
+    const readReserve = () => weeklyReserve(countedFrom(readCalendarFileOr(demoFile), readChoices()).counted, today);
+    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines, file: useFile ? file : null, readReserve };
+  }, [mode, items, today, baselines, choices, file, demoFile]);
   return (
     <Ctx.Provider value={value}>
       <CalendarAutoSync mode={mode} />

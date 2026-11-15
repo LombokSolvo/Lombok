@@ -63,7 +63,7 @@ async function Bills() {
   // The same calendar set-aside as Home, so the "Switch requested" screen counts up to the number Home then shows.
   const calendar = await getCalendarState();
   return (
-    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
       <BillsClient
         asOf={c.asOf}
         invoices={invoices.map(({ id, payment }) => ({ id, payment }))}

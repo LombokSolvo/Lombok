@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { demoHistory, streakDays, type Done } from "@/lib/learn-game";
+import { demoHistory, streakDays, withPractice, type Done } from "@/lib/learn-game";
 import type { DemoMode } from "@/lib/demo-mode";
 import type { PackId } from "@/lib/learn";
 
@@ -51,11 +51,9 @@ function subscribe(l: () => void) {
 
 export const useLearnProgress = () => useSyncExternalStore(subscribe, snapshot, () => EMPTY);
 
-/** Marks a lesson (or a chat pack) as finished. The first finish date stays: the streak counts days with a new lesson. */
+/** Marks a lesson (or a chat pack) as finished and today as a learning day, so playing again keeps the streak going. */
 export function finishLesson(id: string, quizRight: boolean) {
-  const cur = snapshot();
-  if (cur.done[id]) return;
-  write({ done: { ...cur.done, [id]: { at: new Date().toISOString(), quizRight } } });
+  write({ done: withPractice(snapshot().done, id, quizRight) });
 }
 export const finishPack = (id: PackId, quizRight: boolean) => finishLesson(id, quizRight);
 
@@ -66,7 +64,8 @@ export function resetLearn() {
 /** What Home's learning game shows: the demo customer's earlier days (Aino only), under what the person has finished themselves. */
 export function useLearnDone(mode: DemoMode): Done {
   const stored = useLearnProgress().done;
-  return mode === "aino" ? { ...demoHistory(), ...stored } : stored;
+  // The demo days keep their dates even when the person plays those lessons again (today then counts as a day of its own).
+  return mode === "aino" ? { ...stored, ...demoHistory() } : stored;
 }
 
 /** Days in a row with a finished lesson; alive until a whole day passes without one. */

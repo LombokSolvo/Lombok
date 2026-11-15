@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ForecastProvider } from "@/components/forecast-ui";
+import { safeToSpend } from "@/lib/coach";
 import { Screen } from "@/components/solvo/screen";
 import { getCalendarState } from "@/lib/calendar-source";
 import { learnContext } from "@/lib/learn-context";
@@ -29,9 +30,10 @@ async function Coach() {
   // the events.
   const calendar = await getCalendarState();
   // Only the few numbers the learning packs show reach the browser, never transactions.
+  // The base safe-to-spend, so a stopped subscription can show the weekly number going up (the browser adds its own choices).
   return (
-    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
-      <CoachClient learn={learnContext(customer, mode)} mode={mode} />
+    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
+      <CoachClient learn={learnContext(customer, mode)} mode={mode} remaining={safeToSpend(customer).remaining} />
     </ForecastProvider>
   );
 }

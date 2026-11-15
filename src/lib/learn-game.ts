@@ -153,3 +153,12 @@ export function demoHistory(now = new Date()): Done {
     needs: { at: at(1), quizRight: true },
   };
 }
+
+/**
+ * Marks a lesson finished and today as a learning day. A lesson keeps its first finish date (it counts once for the rank), but
+ * playing any lesson again, an earlier one included, still counts today for the streak: that day is its own "day:" entry.
+ */
+export function withPractice(done: Done, id: string, quizRight: boolean, now = new Date()): Done {
+  const at = now.toISOString();
+  return { ...done, ...(done[id] ? {} : { [id]: { at, quizRight } }), [`day:${dayKey(now)}`]: { at, quizRight } };
+}

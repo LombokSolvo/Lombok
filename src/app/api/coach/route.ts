@@ -1,7 +1,7 @@
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { AINO_PLAN, portfolio } from "@/data/portfolio";
 import { UNPAID } from "@/data/reminders";
-import { SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
+import { FIRST_TO_CUT, SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
 import { fundById } from "@/lib/funds";
 import { safeToSpend } from "@/lib/coach";
 import { banksNoteFor } from "@/lib/combine";
@@ -171,6 +171,7 @@ Rules:
 - For "can I afford €X tonight / today / this week" about something to buy right now (a dinner, a ticket), don't call what_if: compare it with "Safe to spend this week" below and show the sum (for example "50 € of the 338 € left this week, so 288 € stays"). If it is more than what is left, say by how much and what would fit.
 - For any "can I", "what if", "how long until" or "can I afford" question about the future, call the what_if tool and quote its numbers, showing the sum (for example "3 000 € over 7 months is 429 € a month; you can safely save 160 €"). Never compute these yourself. A card with the result appears under your answer, so keep the text to the conclusion and one next step. After every save_target what_if, also call propose_action add_savings_goal with a short goalLabel (like "Trip to Japan"), the target and the deadline, so the user can add it to their goals with one tap; if it doesn't fit, use months set to the months at the current pace instead. Adding a goal moves its monthly amount to the savings account in the saving plan.
 - For "help me save €X more a month", or "find me €X", call find_savings with the monthly target (100 if none is given) and nothing else. A plan card with each change, its euros and a button appears under your answer, and it ends with a button to move the money to savings. Reply in one or two short sentences: the total found, and the first change to make. Don't list the lines again.
+- Tinder Platinum is Aino's most expensive subscription and a want, not a need. When she asks where she could save or cut (or how to save more) and it is not in her cancelled subscriptions, mention it as one of the options, after the main point: one short sentence that cancelling Tinder Platinum would free about €35 a month, and add a propose_action cancel_subscription card for it after the other cards. Then go on as below.
 - For "how do I compare", "am I spending a lot", "do I spend more than others" or "how do I compare with people in Helsinki", call compare_with_peers (focus all; by area, income or all if they name a city, an income band or everyone, otherwise their age band). For "where could I save", "where could I cut" or "where do I spend more than others", call compare_with_peers with focus above. A card appears under your answer, so reply in two short sentences, never listing every line: the first says where they spend relatively a lot (the category, their euros a month against typical); when the result has a suggestion, the second says what trimming it could free a month and asks if they want to add that to their saving plan (a button is under your answer; never say it is done). With no suggestion, say they are in line with others. These are S-Pankki customers in the synthetic dataset, never say "Finns" or "people in general".
 - For "what kind of spender am I" call spending_style and say the type in one sentence; a card with the chart appears.
 - Concept questions (index fund, fund fee, spot or fixed electricity price, buffer, compound interest, interest rate, and the like): explain in 3 to 4 plain sentences, explaining any jargon, using the user's own numbers where there are any (fund fees from her saving plan, her electricity price, how many months of bills her buffer covers). If a Money skills lesson matches (electricity, fees, buffer), propose_action open_lesson for it. For this answer you may go to about 90 words.
@@ -814,6 +815,12 @@ function offlineAnswer(ctx: Ctx, question: string) {
           ? `Käytät suhteellisen paljon kategoriaan ${t.label.toLowerCase()}: ${eur(t.you)} kuussa, tavallisesti ${eur(t.typical)}. Jos karsisit noin ${eur(t.saving)} kuussa, sen voisi lisätä säästösuunnitelmaasi${sg.action ? ". Lisätäänkö?" : "."}`
           : `You seem to spend relatively a lot on ${t.label.toLowerCase()}: ${eur(t.you)} a month, typical ${eur(t.typical)}. Cutting about ${eur(t.saving)} a month could go into your saving plan${sg.action ? ". Want to add it?" : "."}`
         : fi ? "Kulutuksesi on linjassa muiden kanssa, eikä mikään nouse selvästi esiin." : "You're in line with others, and nothing stands out as something to trim.";
+      // Aino's Tinder Platinum is one of the options when she asks where to save (the biggest subscription, and a want).
+      const first = above ? toAction(ctx, { action: "cancel_subscription", subscription: FIRST_TO_CUT }) : null;
+      if (first && typeof first !== "string") {
+        const also = fi ? "Myös Tinder Platinumin peruminen vapauttaisi noin 35 € kuussa." : "Cancelling Tinder Platinum would also free about €35 a month.";
+        return { answer: `${answer} ${also}`, checks: [], actions: [...(sg?.action ? [sg.action] : []), first], whatIfs: [], compares: [r] };
+      }
       return { answer, checks: [], actions: sg?.action ? [sg.action] : [], whatIfs: [], compares: [r] };
     }
   }

@@ -1,7 +1,10 @@
 // Which other banks the person has connected, and which view they chose. Both live in cookies (not localStorage) because the
 // pages render on the server and need to know. DEMO: connecting is simulated and attaches example data (see second-bank.ts).
 
-export type BankId = "nordea";
+// What a simulated connection adds: "nordea" is any bank (income and bills), "klarna" pay-later instalments, "traderepublic"
+// cash waiting to be invested. Each carries its own example data (second-bank.ts).
+export type BankId = "nordea" | "klarna" | "traderepublic";
+export const BANK_IDS: BankId[] = ["nordea", "klarna", "traderepublic"];
 export type View = "all" | "spankki";
 
 export const BANKS_COOKIE = "solvo_banks";
@@ -9,7 +12,12 @@ export const VIEW_COOKIE = "solvo_view";
 
 export const BANK_INFO: Record<BankId, { name: string }> = {
   nordea: { name: "Nordea" },
+  klarna: { name: "Klarna" },
+  traderepublic: { name: "Trade Republic" },
 };
+
+/** Which example data a picked name attaches: Klarna and Trade Republic have their own, any other name is a bank. */
+export const simulatedIdFor = (name: string): BankId => (name === "Klarna" ? "klarna" : name === "Trade Republic" ? "traderepublic" : "nordea");
 
 // The bank shown for the simulated second bank (the demo data stays the same whichever the person picks). Sanitised: it ends up in text.
 export const BANKNAME_COOKIE = "solvo_bankname";
@@ -40,7 +48,7 @@ export const FALLBACK_BANKS = [
 export const parseBanks = (raw: string | undefined | null): BankId[] =>
   (raw ?? "")
     .split(",")
-    .filter((b): b is BankId => b === "nordea");
+    .filter((b): b is BankId => (BANK_IDS as string[]).includes(b));
 
 /** Browser only. Saves the connected banks (and the view) for a year. */
 export function writeBanksCookie(banks: BankId[], view: View = "all") {

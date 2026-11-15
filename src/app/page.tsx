@@ -8,7 +8,7 @@ import { AllBanksCard } from "@/components/all-banks-card";
 import { LinkedBankCard } from "@/components/linked-bank-card";
 import { OnboardingGate } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
-import { ConnectCalendarNudge, ForecastNote, ForecastProvider } from "@/components/forecast-ui";
+import { ConnectCalendarNudge, ForecastProvider } from "@/components/forecast-ui";
 import { UpcomingCard } from "@/components/upcoming-card";
 import { MoneyMonthCard } from "@/components/money-month-card";
 import { LearnCard } from "@/components/learn/learn-game";
@@ -20,7 +20,8 @@ import { scheduleFor } from "@/lib/schedule-server";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 
-const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+// Today's date sits under today in the week strip, not in the header.
+const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
 
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -48,7 +49,7 @@ async function HomeScreen() {
 
   return (
     <Screen>
-      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
+      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
       <main className={PAGE}>
         <OnboardingGate />
         {local && (
@@ -58,7 +59,6 @@ async function HomeScreen() {
         )}
         <header className="flex h-11 items-center justify-between">
           <Logo />
-          <span className="text-[13px] text-muted-foreground">{fmtDate(c.asOf)}</span>
         </header>
 
         {/* The one number */}
@@ -85,28 +85,25 @@ async function HomeScreen() {
 
           <div className="mt-5">
             <LiveWeekBar spent={s.spentThisWeek} budget={s.weeklyBudget} />
-            <div className="mt-2 grid grid-cols-7 text-center text-[11px] font-medium">
-              {DAYS.map((d, i) => (
-                <span
-                  key={i}
-                  className={
-                    i === today
-                      ? "mx-auto flex size-5 items-center justify-center rounded-full bg-white text-slab"
-                      : i < today
-                        ? "leading-5 text-white/55"
-                        : "leading-5 text-white/30"
-                  }
-                >
-                  {d}
-                </span>
-              ))}
+            <div className="mt-2 grid grid-cols-7 items-start text-center text-[11px] font-medium">
+              {DAYS.map((d, i) =>
+                i === today ? (
+                  <span key={i} className="flex flex-col items-center gap-1">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-white text-slab">{d}</span>
+                    <span className="text-[10px] leading-none whitespace-nowrap text-white/70">{fmtDate(c.asOf)}</span>
+                  </span>
+                ) : (
+                  <span key={i} className={i < today ? "leading-5 text-white/55" : "leading-5 text-white/30"}>
+                    {d}
+                  </span>
+                ),
+              )}
             </div>
           </div>
 
           <p className="mt-4 border-t border-white/10 pt-3 text-[13px] text-white/60">
             {eur.format(s.spentThisWeek)} spent so far this week
           </p>
-          <ForecastNote className="mt-2" />
         </Slab>
 
         {/* The dentist e-invoice and its call are part of Aino's demo story only. */}

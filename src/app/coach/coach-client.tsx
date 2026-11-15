@@ -60,7 +60,7 @@ const bubble = "rounded-[22px] rounded-bl-md bg-card px-4 py-3 text-[15px] leadi
 
 const isMonthly = (c: SpendingResult) => c.groups.length >= 3 && c.groups.every((g) => /^\d{4}-\d{2}$/.test(g.key));
 
-export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMode }) {
+export function CoachClient({ learn, mode, remaining }: { learn: LearnContext; mode: DemoMode; remaining: number }) {
   const [from, setFrom] = useState("/");
   const [messages, setMessages] = useState<Msg[]>([]);
   // After an answer the chips follow on from what it showed (src/lib/chat-actions.ts followUpsFor); otherwise they fit the page the person came from.
@@ -240,13 +240,13 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
                   {m.savings?.map((r, j) => <SavingsLines key={j} r={r} />)}
                   {!!m.actions?.length && (
                     <div className="mt-3 flex flex-col gap-2 border-t pt-3 [&>*]:rounded-none! [&>*]:bg-transparent! [&>*]:p-0! [&>*]:shadow-none!">
-                      {m.actions.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
+                      {m.actions.map((a, j) => <ActionCard key={j} action={a} mode={mode} remaining={remaining} onLearn={(id) => openPack(id)} />)}
                     </div>
                   )}
                 </div>
               ) : null}
               {m.whatIfs?.map((r, j) => <WhatIfCard key={j} r={r} />)}
-              {!(m.compares?.length || m.styles?.length || m.savings?.length) && m.actions?.map((a, j) => <ActionCard key={j} action={a} mode={mode} onLearn={(id) => openPack(id)} />)}
+              {!(m.compares?.length || m.styles?.length || m.savings?.length) && m.actions?.map((a, j) => <ActionCard key={j} action={a} mode={mode} remaining={remaining} onLearn={(id) => openPack(id)} />)}
             </div>
           ),
         )}
