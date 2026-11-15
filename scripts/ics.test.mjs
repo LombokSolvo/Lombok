@@ -64,3 +64,13 @@ test("calendar links: Google, iCloud (webcal) and Outlook pass; anything else is
     assert.equal(checkCalendarUrl(bad).ok, false, bad);
   }
 });
+
+test("the demo calendar file (public/demo/aino-calendar.ics) keeps its ten spending events", async () => {
+  const fs = await import("node:fs");
+  const events = parseIcs(fs.readFileSync(new URL("../public/demo/aino-calendar.ics", import.meta.url), "utf8"));
+  assert.equal(events.length, 14);
+  const kept = spendingEvents(events, "2026-11-15");
+  assert.equal(kept.length, 10, "dentist, gym (repeating), team meeting and haircut are not spending");
+  const kinds = forecast(kept, baselinesFrom([]), "2026-11-15", "file").map((i) => i.kind);
+  assert.deepEqual(kinds, ["dinner", "birthday", "lunch", "trip", "cinema", "party", "wedding", "concert", "drinks", "party"]);
+});
