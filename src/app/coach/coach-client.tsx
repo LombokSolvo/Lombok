@@ -68,8 +68,11 @@ export function CoachClient({ learn, mode, remaining }: { learn: LearnContext; m
   const [messages, setMessages] = useState<Msg[]>([]);
   // After an answer the chips follow on from what it showed (src/lib/chat-actions.ts followUpsFor); otherwise they fit the page the person came from.
   const lastAnswer = messages.at(-1);
-  const suggestions =
-    lastAnswer?.role === "coach" ? followUpsFor(lastAnswer, messages.filter((m) => m.role === "user").map((m) => m.text), lastAnswer.suggestions) : suggestionsFor(from, mode === "aino");
+  // While a lesson is open in the chat, the chips ask the coach about it.
+  const lessonTitle = lastAnswer?.pack ? getPack(lastAnswer.pack, learn).title : lastAnswer?.lesson ? COURSES.flatMap((c) => c.lessons).find((l) => l.id === lastAnswer.lesson)?.title : undefined;
+  const suggestions = lessonTitle
+    ? [`Explain ${lessonTitle.replace(/\?$/, "").toLowerCase()} more simply`, "How does this apply to my own money?", "Give me an example with my numbers"]
+    : lastAnswer?.role === "coach" ? followUpsFor(lastAnswer, messages.filter((m) => m.role === "user").map((m) => m.text), lastAnswer.suggestions) : suggestionsFor(from, mode === "aino");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
@@ -227,7 +230,7 @@ export function CoachClient({ learn, mode, remaining }: { learn: LearnContext; m
             >
               {/* A comparison puts its table first, then the analysis, the suggestion and its button together in one message. A savings plan is one message too: the text, one row per change, the approval. */}
               {!(m.compares?.length || m.styles?.length || m.savings?.length) && <div className={bubble}>{m.text}</div>}
-              {m.pack && <LearnPack id={m.pack} ctx={learn} onAsk={(q) => void ask(q)} onOpen={(id) => openPack(id)} />}
+              {m.pack && <LearnPack id={m.pack} ctx={learn} mode={mode} onAsk={(q) => void ask(q)} onOpen={(id) => openPack(id)} />}
               {m.lesson && <ChatLesson lessonId={m.lesson} mode={mode} onAsk={(q) => void ask(q)} />}
               {m.checks?.map((c, j) => (
                 <div
