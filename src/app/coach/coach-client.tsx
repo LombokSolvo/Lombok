@@ -3,6 +3,8 @@
 import { ArrowUp, ArrowUpRight, Check, GraduationCap, ReceiptText, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { LearnPack } from "@/components/learn/learn-pack";
+import { ChatLesson } from "@/components/learn/learn-game";
+import { COURSES } from "@/lib/learn-game";
 import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
 import { useBackStep } from "@/lib/use-back-step";
 import { LAST_PAGE_KEY, followUpsFor, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
@@ -33,6 +35,7 @@ type Msg = {
   source?: "gemini" | "offline";
   ms?: number;
   pack?: PackId; // a learning pack, played inside the chat
+  lesson?: string; // a Home course lesson (its questions), played inside the chat
 };
 
 const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
@@ -97,6 +100,13 @@ export function CoachClient({ learn, mode, remaining }: { learn: LearnContext; m
     ]);
   }
 
+  function openLesson(id: string) {
+    const l = COURSES.flatMap((c) => c.lessons).find((x) => x.id === id);
+    if (!l) return;
+    setInput("");
+    setMessages((m) => [...m, { role: "user", text: `Teach me: ${l.title}` }, { role: "coach", text: "Three quick questions. Ask me anything along the way.", lesson: id }]);
+  }
+
   async function ask(text: string) {
     const q = text.trim();
     if (!q || busy) return;
@@ -142,9 +152,11 @@ export function CoachClient({ learn, mode, remaining }: { learn: LearnContext; m
     const params = new URLSearchParams(window.location.search);
     const q = params.get("q");
     const l = params.get("learn") as PackId | null;
-    if (!q && !l) return;
+    const lesson = params.get("lesson");
+    if (!q && !l && !lesson) return;
     window.history.replaceState(null, "", "/coach");
-    if (l && PACK_IDS.includes(l)) setTimeout(() => openPack(l), 0);
+    if (lesson) setTimeout(() => openLesson(lesson), 0);
+    else if (l && PACK_IDS.includes(l)) setTimeout(() => openPack(l), 0);
     else if (q) setTimeout(() => void ask(q), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -211,11 +223,12 @@ export function CoachClient({ learn, mode, remaining }: { learn: LearnContext; m
           ) : (
             <div
               key={i}
-              className={`flex animate-in fade-in slide-in-from-bottom-2 flex-col gap-2 duration-200 ${m.pack ? "self-stretch [&>div:first-child]:mr-8 [&>div:first-child]:self-start" : "mr-8 self-start"}`}
+              className={`flex animate-in fade-in slide-in-from-bottom-2 flex-col gap-2 duration-200 ${m.pack || m.lesson ? "self-stretch [&>div:first-child]:mr-8 [&>div:first-child]:self-start" : "mr-8 self-start"}`}
             >
               {/* A comparison puts its table first, then the analysis, the suggestion and its button together in one message. A savings plan is one message too: the text, one row per change, the approval. */}
               {!(m.compares?.length || m.styles?.length || m.savings?.length) && <div className={bubble}>{m.text}</div>}
               {m.pack && <LearnPack id={m.pack} ctx={learn} onAsk={(q) => void ask(q)} onOpen={(id) => openPack(id)} />}
+              {m.lesson && <ChatLesson lessonId={m.lesson} mode={mode} onAsk={(q) => void ask(q)} />}
               {m.checks?.map((c, j) => (
                 <div
                   key={j}
