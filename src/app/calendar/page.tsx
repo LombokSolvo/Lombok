@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ForecastProvider } from "@/components/forecast-ui";
+import { Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { getCalendarState } from "@/lib/calendar-source";
 import { offsetDays, todayIso } from "@/lib/demo-clock";
@@ -26,8 +27,10 @@ async function Calendar() {
   const { customer: c } = await getEffective(await pageMode());
   const calendar = await getCalendarState();
   return (
-    <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
-      <CalendarClient items={scheduleFor(c).items} today={todayIso()} offset={offsetDays()} />
-    </ForecastProvider>
+    <Screen>
+      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
+        <CalendarClient items={scheduleFor(c).items} today={todayIso()} offset={offsetDays()} />
+      </ForecastProvider>
+    </Screen>
   );
 }

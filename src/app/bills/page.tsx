@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Screen } from "@/components/solvo/screen";
+import { Reveal, Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
@@ -18,7 +18,9 @@ export default function BillsPage() {
   return (
     <Screen>
       <Suspense fallback={<main className={PAGE} />}>
-        <Bills />
+        <Reveal>
+          <Bills />
+        </Reveal>
       </Suspense>
     </Screen>
   );

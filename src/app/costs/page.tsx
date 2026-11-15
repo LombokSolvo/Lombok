@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
 import { AddedCosts, IrregularRow, LiveFixedTotal, LiveIrregularTotal } from "@/components/budget-edit";
-import { Screen } from "@/components/solvo/screen";
+import { Reveal, Screen } from "@/components/solvo/screen";
 import { BackLink, Group, PAGE, PageTitle, Row, TopBar, eur, eur2 } from "@/components/solvo/ui";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { HOBBIES, SUBSCRIPTIONS, subscriptionsMonthly, type Subscription } from "@/data/subscriptions";
@@ -65,7 +65,9 @@ export default function CostsPage() {
   return (
     <Screen>
       <Suspense fallback={<main className={PAGE} />}>
-        <Costs />
+        <Reveal>
+          <Costs />
+        </Reveal>
       </Suspense>
     </Screen>
   );

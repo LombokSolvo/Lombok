@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { Screen } from "@/components/solvo/screen";
+import { Reveal, Screen } from "@/components/solvo/screen";
 import { PAGE } from "@/components/solvo/ui";
 import { DEFAULT_SAVINGS_GOAL_PER_MONTH, safeToSpend } from "@/lib/coach";
 import { pageMode } from "@/lib/source";
@@ -14,7 +14,9 @@ export default function SavePage() {
   return (
     <Screen>
       <Suspense fallback={<main className={PAGE} />}>
-        <Save />
+        <Reveal>
+          <Save />
+        </Reveal>
       </Suspense>
     </Screen>
   );
