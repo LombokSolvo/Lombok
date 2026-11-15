@@ -16,8 +16,9 @@ export const BANK_INFO: Record<BankId, { name: string }> = {
   traderepublic: { name: "Trade Republic" },
 };
 
-/** Which example data a picked name attaches: Klarna and Trade Republic have their own, any other name is a bank. */
-export const simulatedIdFor = (name: string): BankId => (name === "Klarna" ? "klarna" : name === "Trade Republic" ? "traderepublic" : "nordea");
+/** Which example data a picked name attaches: Klarna has its own, the investing platforms share one, any other name is a bank. */
+export const INVESTING_NAMES = ["Trade Republic", "Nordnet"];
+export const simulatedIdFor = (name: string): BankId => (name === "Klarna" ? "klarna" : INVESTING_NAMES.includes(name) ? "traderepublic" : "nordea");
 
 // The bank shown for the simulated second bank (the demo data stays the same whichever the person picks). Sanitised: it ends up in text.
 export const BANKNAME_COOKIE = "solvo_bankname";
@@ -34,10 +35,11 @@ export function readBankNameCookie(): string {
 }
 
 // Banks and neobanks as Enable Banking lists them for Finland (checked 14 Nov 2026), shown when the live list is not set up.
-// Connecting one is simulated.
+// Connecting one is simulated. Nordnet is not on that list (open banking does not reach it): it is offered as a simulated investing
+// platform only, and attaches the same example data as Trade Republic.
 export const FALLBACK_BANKS = [
   "OP", "Nordea", "S-Pankki", "Danske Bank", "Säästöpankki", "Aktia", "Ålandsbanken", "POP Pankki", "Oma Säästöpankki",
-  "Revolut", "Trade Republic", "bunq", "N26", "Wise", "Klarna", "PayPal",
+  "Revolut", "Trade Republic", "Nordnet", "bunq", "N26", "Wise", "Klarna", "PayPal",
 ];
 
 export const parseBanks = (raw: string | undefined | null): BankId[] =>
