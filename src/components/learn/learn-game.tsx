@@ -19,19 +19,35 @@ export function LearnCard({ mode }: { mode: DemoMode }) {
   const done = useLearnDone(mode);
   const [open, setOpen] = useState<{ course: Course; lesson: Lesson | null } | null>(null);
   const streak = streakDays(done);
+  // Coming back from a finished lesson in the chat (/?learned=1): bring this card into view and play the streak growing.
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("learned") !== "1") return;
+    window.history.replaceState(null, "", "/");
+    const t = setTimeout(() => {
+      setCelebrate(true);
+      document.getElementById("learn-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
   const finished = COURSES.flatMap((c) => c.lessons).filter((l) => done[l.id]).length;
   const badges = earnedBadges(done);
 
   return (
     <>
+      <span id="learn-card" className="block" aria-hidden />
       <Group
         title="Learn"
         className="mt-8"
         aside={
-          <span key={doneToday(done) ? "today" : "not"} className={`flex items-center gap-1 font-medium ${streak > 0 ? "text-warn" : ""} ${doneToday(done) ? "animate-pop" : ""}`}>
-            <Flame className="size-4" aria-hidden />
-            {streak > 0 ? `${streak}-day streak` : "Start a streak"}
-          </span>
+          celebrate && doneToday(done) ? (
+            <RollingStreak from={Math.max(0, streak - 1)} to={streak} />
+          ) : (
+            <span key={doneToday(done) ? "today" : "not"} className={`flex items-center gap-1 font-medium ${streak > 0 ? "text-warn" : ""} ${doneToday(done) ? "animate-pop" : ""}`}>
+              <Flame className="size-4" aria-hidden />
+              {streak > 0 ? `${streak}-day streak` : "Start a streak"}
+            </span>
+          )
         }
       >
         <div className="px-4 pt-4 pb-3">
@@ -45,7 +61,7 @@ export function LearnCard({ mode }: { mode: DemoMode }) {
             {weekDots(done).map((d, i) => (
               <span key={i} className="flex flex-col items-center gap-1">
                 <span
-                  className={`flex size-8 items-center justify-center rounded-full ${d.done ? "bg-primary text-primary-foreground" : d.today ? "border-2 border-dashed border-primary/50" : "bg-muted"} ${d.done && d.today ? "animate-pop" : ""}`}
+                  className={`flex size-8 items-center justify-center rounded-full ${d.done ? "bg-primary text-primary-foreground" : d.today ? "border-2 border-dashed border-primary/50" : "bg-muted"} ${d.done && d.today ? (celebrate ? "animate-pop [animation-delay:900ms]" : "animate-pop") : ""}`}
                 >
                   {d.done && <Check className="size-4" strokeWidth={3} aria-hidden />}
                 </span>
@@ -281,5 +297,21 @@ function StreakBump({ from, to, dots }: { from: number; to: number; dots: Return
         {shown}-day streak{grew && shown === to ? "!" : ""}
       </p>
     </div>
+  );
+}
+
+/** Home, after a lesson in the chat: the streak rolls up a day (2 to 3), the flame bounces and the text pops. */
+function RollingStreak({ from, to }: { from: number; to: number }) {
+  const [shown, setShown] = useState(from);
+  useEffect(() => {
+    const t = setTimeout(() => setShown(to), 1200);
+    return () => clearTimeout(t);
+  }, [to]);
+  const grown = shown === to && to > from;
+  return (
+    <span key={shown} className={`flex items-center gap-1 font-semibold text-warn ${grown ? "animate-pop" : ""}`}>
+      <Flame className={`size-4 ${grown ? "animate-bounce" : ""}`} aria-hidden />
+      {shown}-day streak{grown ? "!" : ""}
+    </span>
   );
 }
