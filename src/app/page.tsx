@@ -8,7 +8,7 @@ import { AllBanksCard } from "@/components/all-banks-card";
 import { LinkedBankCard } from "@/components/linked-bank-card";
 import { OnboardingGate } from "@/components/onboarding-home";
 import { OverdueBillCard } from "@/components/overdue-bill";
-import { ConnectCalendarNudge, ForecastNote, ForecastProvider } from "@/components/forecast-ui";
+import { ConnectCalendarNudge, ForecastProvider } from "@/components/forecast-ui";
 import { UpcomingCard } from "@/components/upcoming-card";
 import { MoneyMonthCard } from "@/components/money-month-card";
 import { LearnCard } from "@/components/learn/learn-game";
@@ -106,7 +106,6 @@ async function HomeScreen() {
           <p className="mt-4 border-t border-white/10 pt-3 text-[13px] text-white/60">
             {eur.format(s.spentThisWeek)} spent so far this week
           </p>
-          <ForecastNote className="mt-2" />
         </Slab>
 
         {/* The dentist e-invoice and its call are part of Aino's demo story only. */}

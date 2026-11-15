@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { CalendarClock, ChevronRight } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { CategoryIcon, ForecastEditSheet, useForecast } from "@/components/forecast-ui";
 import type { CountedItem } from "@/lib/forecast";
 import { Group, Row } from "@/components/solvo/ui";
@@ -32,12 +31,6 @@ export function UpcomingCard({ items, today }: { items: Item[]; today: string })
     <Group
       title="Coming up"
       className="mt-4"
-      aside={
-        <Link href="/calendar" className="flex min-h-11 items-center gap-0.5 font-medium text-primary">
-          Calendar
-          <ChevronRight className="size-4" aria-hidden />
-        </Link>
-      }
     >
       {events.length ? (
         events.map((e, idx) => {
