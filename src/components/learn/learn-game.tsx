@@ -9,6 +9,8 @@ import { Sheet } from "@/components/solvo/sheet";
 import type { DemoMode } from "@/lib/demo-mode";
 import { COURSES, LESSON_COUNT, courseState, doneToday, earnedBadges, rankTitle, streakDays, weekDots, withPractice, type Course, type Done, type Lesson } from "@/lib/learn-game";
 import { finishLesson, useLearnDone } from "@/lib/learn-store";
+import { LevelTwoSoon } from "@/components/learn/learn-pack";
+import { LEVEL } from "@/lib/learn";
 
 // Home's learning game: a streak, a rank, a badge for every course finished, and three short courses. A quiz lesson is played in
 // a sheet right here; a pack lesson opens in the chat with the person's own numbers. Logic: src/lib/learn-game.ts.
@@ -41,6 +43,7 @@ export function LearnCard({ mode }: { mode: DemoMode }) {
               {finished} of {LESSON_COUNT} lessons
             </p>
           </div>
+          <p className="mt-0.5 text-[12px] font-semibold tracking-[0.06em] text-primary uppercase">{LEVEL.label}</p>
           <div className="mt-3 flex justify-between" aria-label="The last seven days">
             {weekDots(done).map((d, i) => (
               <span key={i} className="flex flex-col items-center gap-1">
@@ -85,6 +88,7 @@ export function LearnCard({ mode }: { mode: DemoMode }) {
             </button>
           );
         })}
+        {finished === LESSON_COUNT && <LevelTwoSoon className="m-3" />}
       </Group>
       {open && <CourseSheet course={open.course} start={open.lesson} done={done} onClose={() => setOpen(null)} />}
     </>
@@ -257,7 +261,7 @@ function Quiz({ course, lesson, done, onNext, onBack }: { course: Course; lesson
 }
 
 /** The streak after a lesson: today's dot fills in, the flame pops, and the number rolls up (2 to 3) when the streak grew. */
-function StreakBump({ from, to, dots }: { from: number; to: number; dots: ReturnType<typeof weekDots> }) {
+export function StreakBump({ from, to, dots }: { from: number; to: number; dots: ReturnType<typeof weekDots> }) {
   const [shown, setShown] = useState(from);
   useEffect(() => {
     const t = setTimeout(() => setShown(to), 750);

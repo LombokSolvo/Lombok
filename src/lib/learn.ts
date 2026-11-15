@@ -53,6 +53,9 @@ export type Pack = {
 
 export const PACK_IDS: PackId[] = ["electricity", "fees", "buffer"];
 
+/** The learning game on Home (all its courses, these packs included) is level 1. Level 2 is announced once every lesson is done. */
+export const LEVEL = { number: 1, name: "Leak Hunter", label: "Level 1: Leak Hunter" };
+
 /** Titles for lists (Profile, the chat's start screen), without the person's numbers. */
 export const PACK_META: { id: PackId; title: string; minutes: number }[] = [
   { id: "electricity", title: "Fixed or spot electricity?", minutes: 2 },
