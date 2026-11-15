@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Check, Landmark, Minus, PiggyBank, Plus, Target, TrendingUp, Wallet, X } from "lucide-react";
+import { CalendarDays, Check, Landmark, Minus, PiggyBank, Plus, Repeat, Target, TrendingUp, Wallet, X } from "lucide-react";
 import { PortfolioChart, type ChartLabels } from "@/components/portfolio-chart";
 import { AINO_PLAN, portfolio, portfolioDaily, portfolioToday, type Point } from "@/data/portfolio";
 import { NumberField } from "@/components/solvo/fields";
 import { Sheet } from "@/components/solvo/sheet";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { LearnChip } from "@/components/learn/learn-chip";
-import { Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
+import { BackButton, Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
 import type { DemoMode } from "@/lib/demo-mode";
 import { FUND_TYPES, FUNDS, FUNDS_SOURCE, SAVINGS_ACCOUNT, SAVINGS_ACCOUNT_ID, fundById, isSavingsAccount, projectFund, type FundType } from "@/lib/funds";
@@ -125,6 +125,7 @@ type Props = {
   savingsGoal: number;
   hasFunds: boolean; // Aino's fund holdings and saving plan are demo data; the new customer has neither
   mode: DemoMode;
+  tradeRepublic?: { cash: number; planMonthly: number } | null; // a connected Trade Republic (demo data)
 };
 
 function FundsSlab() {
@@ -212,6 +213,33 @@ export function SaveClient(props: Props) {
         title="Current account"
         value={eur.format(props.balance)}
       />
+      {props.tradeRepublic && (
+        <>
+          <Row
+            icon={
+              <IconTile>
+                <TrendingUp />
+              </IconTile>
+            }
+            title="Trade Republic cash"
+            subtitle="Not invested yet: room to invest"
+            value={eur.format(props.tradeRepublic.cash)}
+          />
+          {props.tradeRepublic.planMonthly > 0 && (
+            <Row
+              icon={
+                <IconTile tone="grey">
+                  <Repeat />
+                </IconTile>
+              }
+              title="ETF savings plan"
+              subtitle="At Trade Republic"
+              value={eur.format(props.tradeRepublic.planMonthly)}
+              valueSub="a month"
+            />
+          )}
+        </>
+      )}
     </Group>
   );
   const goalsGroup = <Goals mode={props.mode} goals={goals} plan={plan} freed={freed} />;
@@ -311,6 +339,9 @@ function PlanEditor(
 
   const total = rows.reduce((s, r) => s + r.monthly, 0);
   const parts = split(total, props.savingsGoal, freed);
+  // Editing a plan: offer to save only once something differs from the current plan.
+  const key = (fs: PlanFund[]) => fs.map((f) => `${f.fundId}:${f.monthly}`).sort().join(",");
+  const changed = !plan || key(rows) !== key(planFunds(plan));
   const inPlan = (id: string) => rows.some((r) => r.fundId === id);
   const setAmount = (id: string, monthly: number) =>
     setRows((rs) => rs.map((r) => (r.fundId === id ? { ...r, monthly: Math.max(STEP, monthly) } : r)));
@@ -321,7 +352,7 @@ function PlanEditor(
 
   return (
     <main className={PAGE}>
-      <TopBar />
+      <TopBar back={plan ? <BackButton onClick={props.onDone} label="Save" /> : undefined} />
       <PageTitle title={plan ? "Edit your plan" : "Your investments"}>
         {plan
           ? "Change the amounts, add a fund or your savings account, or take one out. Nothing changes until you approve."
@@ -436,13 +467,15 @@ function PlanEditor(
       {rows.length > 0 && <Projection funds={rows} />}
 
       <div className="mt-4 flex flex-col gap-3">
-        <button type="button" className={primaryButton} onClick={() => setConfirming(true)} disabled={rows.length === 0}>
-          <PiggyBank className="size-[18px]" aria-hidden />
-          {plan ? `Save plan, ${eur.format(total)} a month` : `Start investing ${eur.format(total)} a month`}
-        </button>
+        {changed && (
+          <button type="button" className={primaryButton} onClick={() => setConfirming(true)} disabled={rows.length === 0}>
+            <PiggyBank className="size-[18px]" aria-hidden />
+            {plan ? `Save plan, ${eur.format(total)} a month` : `Start investing ${eur.format(total)} a month`}
+          </button>
+        )}
         {plan && (
           <button type="button" className={secondaryButton} onClick={props.onDone}>
-            Keep current plan
+            {changed ? "Keep current plan" : "Back"}
           </button>
         )}
       </div>

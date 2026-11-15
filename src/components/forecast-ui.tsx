@@ -9,7 +9,7 @@ import { NumberField } from "@/components/solvo/fields";
 import { Sheet } from "@/components/solvo/sheet";
 import { eur, secondaryButton } from "@/components/solvo/ui";
 import { plainFormat } from "@/lib/demo-clock";
-import { useCalendarFile } from "@/lib/calendar-file-store";
+import { useCalendarFileOr, type CalendarFile } from "@/lib/calendar-file-store";
 import { applyChoices, forecast, weeklyReserve, type Baselines, type CalendarMode, type CountedItem, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
 import { setChoice, useChoices } from "@/lib/forecast-store";
 
@@ -19,22 +19,22 @@ import { setChoice, useChoices } from "@/lib/forecast-store";
 
 const dayFmt = plainFormat({ weekday: "short", day: "numeric", month: "short" });
 
-type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines };
-const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null } };
+type State = { mode: CalendarMode | null; today: string; items: CountedItem[]; reserve: number; baselines: Baselines; file: CalendarFile | null };
+const EMPTY: State = { mode: null, today: "", items: [], reserve: 0, baselines: { dining: null, entertainment: null, trip: null }, file: null };
 const Ctx = createContext<State>(EMPTY);
 
 /**
  * `items` and `mode` come from the server (demo, Google, link). A calendar FILE lives only in this browser, so when there is one and
  * no real calendar on the server, the items are made here from the person's baselines (numbers the server sends for exactly this).
  */
-export function ForecastProvider({ mode, items, today, baselines, children }: { mode: Exclude<CalendarMode, "file"> | null; items: ForecastItem[]; today: string; baselines: Baselines; children: ReactNode }) {
+export function ForecastProvider({ mode, items, today, baselines, demoFile = null, children }: { mode: Exclude<CalendarMode, "file"> | null; items: ForecastItem[]; today: string; baselines: Baselines; demoFile?: CalendarFile | null; children: ReactNode }) {
   const choices = useChoices();
-  const file = useCalendarFile();
+  const file = useCalendarFileOr(demoFile);
   const value = useMemo<State>(() => {
     const useFile = !!file && mode !== "google" && mode !== "link";
     const raw = useFile ? forecast(file.events, baselines, today, "file", { keepTitle: true }) : items;
     const counted = applyChoices(raw, choices);
-    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines };
+    return { mode: useFile ? "file" : mode, today, items: counted, reserve: weeklyReserve(counted, today), baselines, file: useFile ? file : null };
   }, [mode, items, today, baselines, choices, file]);
   return (
     <Ctx.Provider value={value}>

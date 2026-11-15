@@ -66,6 +66,8 @@ function foundRows(db: AgentDb): FoundRow[] {
 // agent and the options appear. Kept in memory only, so a page reload starts the demo over.
 const ranThisVisit = new Set<AgentDb["agent"]>();
 export const agentHasRun = (agent: AgentDb["agent"]) => ranThisVisit.has(agent);
+/** Bills starts over each time it is opened: no offers on screen until the agent runs again. */
+export const resetAgentRuns = () => ranThisVisit.clear();
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 

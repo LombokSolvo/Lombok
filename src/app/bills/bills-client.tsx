@@ -36,8 +36,9 @@ import {
   type BillKey,
   type SwitchRecord,
 } from "@/lib/switches";
-import { MarketAgentCard, agentHasRun } from "./market-agent-card";
+import { MarketAgentCard, agentHasRun, resetAgentRuns } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
+import { OfferFacts } from "./offer-facts";
 import { PhotoUpload } from "./photo-upload";
 import { TelecomDetail } from "./telecom-detail";
 
@@ -128,9 +129,15 @@ export function BillsClient(props: {
 
   // The coach chat can open a contract directly: /bills?open=electricity. The page stays mounted between visits, so the
   // parameter is removed once handled and the effect runs again each time the page is shown.
+  // Leaving Bills and coming back shows the list in its first state again (no open contract, no finished switch,
+  // no agent results), so each visit starts the same way.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("open");
-    if (!id) return;
+    if (!id) {
+      resetAgentRuns();
+      setTimeout(() => setOpenState(null), 0);
+      return;
+    }
     window.history.replaceState(null, "", "/bills");
     if (props.invoices.some((inv) => inv.id === id)) setTimeout(() => setOpenState(id), 0);
   }, [props.invoices]);
@@ -362,6 +369,7 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
   const cmp = useMemo(() => compare(terms, db, preference), [terms, db, preference]);
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
+  const best = [...cmp.offers].sort((a, b) => b.saving - a.saving).find((o) => o.saving > 0);
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
   const perWeek = chosen.saving / 52;
   const boost = weeklyBoost(useSwitches(), useSavingsPlan()); // all approved switches, including this one once approved
@@ -420,11 +428,25 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
 
       {ran && (
         <SavingSlab
-          label="Switching saves you"
-          saving={chosen.saving}
+          label={chosen.saving < 0 ? "This choice costs you more" : "Switching saves you"}
+          saving={Math.abs(chosen.saving)}
           before={{ label: `Do nothing, rolls over ${fmtDate(startDate)}`, yearly: cmp.doNothing }}
           after={{ label: `${chosen.supplier} ${chosen.product}`, yearly: chosen.yearly }}
-          footnote={<>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>}
+          footnote={
+            chosen.saving < 0 ? (
+              <>
+                More than staying put.
+                {best && (
+                  <>
+                    {" "}Switching to {best.supplier} {best.product} instead saves you{" "}
+                    <span className="font-semibold text-white">{eur.format(best.saving)} a year</span>.
+                  </>
+                )}
+              </>
+            ) : (
+              <>That&apos;s +{eur.format(Math.max(0, perWeek))} to your safe-to-spend every week.</>
+            )
+          }
         />
       )}
 
@@ -510,23 +532,29 @@ function ElectricityDetail(props: { loaded: Loaded; weeklyBudget: number; remain
                 title={`${o.supplier} ${o.product}`}
                 yearly={o.yearly}
                 detail={
-                  <>
-                    {o.pricing === "spot"
-                      ? `Spot, about ${dec2(o.centsPerKwh)} c/kWh (margin ${dec2(o.marginCents ?? 0)})`
-                      : `${dec2(o.centsPerKwh)} c/kWh`}
-                    {` + ${dec2(o.monthlyFee)} €/mo`}
-                    {o.termMonths ? `, fixed ${o.termMonths} months` : ""}
-                    {o.note ? `. ${o.note}` : ""}
-                    {o.renewable && (
-                      <span className="mt-0.5 flex items-center gap-1 font-medium text-primary">
-                        <Leaf className="size-3.5" aria-hidden />
-                        Renewable electricity
-                      </span>
-                    )}
-                    <span className="mt-0.5 block">
-                      Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
-                    </span>
-                  </>
+                  <OfferFacts
+                    rows={[
+                      ["Type", o.pricing === "spot" ? "Spot price, no fixed term" : `Fixed price, ${o.termMonths ? `${o.termMonths} months` : "no fixed term"}`],
+                      [
+                        "Energy",
+                        o.pricing === "spot"
+                          ? `about ${dec2(o.centsPerKwh)} c/kWh (spot + ${dec2(o.marginCents ?? 0)} margin)`
+                          : `${dec2(o.centsPerKwh)} c/kWh`,
+                      ],
+                      ["Monthly fee", `${dec2(o.monthlyFee)} €`],
+                      ...(o.renewable
+                        ? [[
+                            "Origin",
+                            <span key="o" className="inline-flex items-center gap-1 font-medium text-primary">
+                              <Leaf className="size-3.5" aria-hidden />
+                              Renewable
+                            </span>,
+                          ] as [string, React.ReactNode]]
+                        : []),
+                      ...(o.note ? [["Good to know", o.note] as [string, React.ReactNode]] : []),
+                      ["Source", `${domainOf(o.sourceUrl)}, ${fmtDate(o.checkedAt)}`],
+                    ]}
+                  />
                 }
                 pick={o.id === cmp.recommended.id ? cmp.pickReason : undefined}
               />

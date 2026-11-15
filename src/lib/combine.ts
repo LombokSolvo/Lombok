@@ -3,7 +3,7 @@
 // Transfers between her own accounts and deposits to an investment account are not spending, so they stay out of every basket.
 import type { DemoCustomer, Tx } from "@/lib/demo";
 import type { RealBank } from "@/lib/live-bank-ids";
-import type { BankId } from "@/lib/banks";
+import { BANK_INFO, type BankId } from "@/lib/banks";
 import { daysBetween, shiftIso, todayIso } from "@/lib/demo-clock";
 import { syntheticBanks, type BankAccount, type SecondBanks } from "@/lib/second-bank";
 
@@ -70,11 +70,12 @@ export function secondBanksFor(base: DemoCustomer, real: RealBank[] = []): Secon
 }
 
 export function combinedCustomer(base: DemoCustomer, banks: BankId[], real: RealBank[] = []): DemoCustomer {
-  if (!banks.includes("nordea")) return base;
-  const nordea = secondBanksFor(base, real).nordea;
-  const transactions = [...base.transactions, ...nordea.transactions].sort((a, b) => a.date.localeCompare(b.date));
-  // Insurance and subscriptions (Netflix, Spotify, a gym) are fixed, regular costs: basket 1.
-  const basketOf: DemoCustomer["basketOf"] = { ...Object.assign({}, ...real.map((r) => r.customer.basketOf)), ...base.basketOf, Insurance: 1, Subscriptions: 1 };
+  if (!banks.length) return base;
+  const sb = secondBanksFor(base, real);
+  const parts = banks.map((id) => sb[id]);
+  const transactions = [...base.transactions, ...parts.flatMap((p) => p.transactions)].sort((a, b) => a.date.localeCompare(b.date));
+  // Insurance, subscriptions (Netflix, Spotify, a gym) and pay-later instalments are fixed, regular costs: basket 1.
+  const basketOf: DemoCustomer["basketOf"] = { ...Object.assign({}, ...real.map((r) => r.customer.basketOf)), ...base.basketOf, Insurance: 1, Subscriptions: 1, "Pay later": 1 };
 
   const monthly: DemoCustomer["monthly"] = {};
   for (const t of transactions) {
@@ -97,7 +98,7 @@ export function combinedCustomer(base: DemoCustomer, banks: BankId[], real: Real
   }
   return {
     ...base,
-    accounts: [...base.accounts, ...nordea.accounts.map((a) => a.id)],
+    accounts: [...base.accounts, ...parts.flatMap((p) => p.accounts.map((a) => a.id))],
     basketOf,
     summary: { ...base.summary, basketYear, categoryYear, salaryYear },
     monthly,
@@ -105,30 +106,47 @@ export function combinedCustomer(base: DemoCustomer, banks: BankId[], real: Real
   };
 }
 
-/** What the connected banks add, in numbers a card or the coach can state. Based on the last 12 complete months. */
-export function bankFacts(base: DemoCustomer, banks: BankId[], real: RealBank[] = []) {
+/** What the connected banks and apps add, in numbers a card or the coach can state. Based on the last 12 complete months. */
+export function bankFacts(base: DemoCustomer, banks: BankId[], real: RealBank[] = [], bankName = "Nordea") {
   const sb = secondBanksFor(base, real);
   const months = new Set(base.summary.last12Months);
-  const rows = sb.nordea.transactions.filter((t) => months.has(t.date.slice(0, 7)));
-  const per = (pred: (t: (typeof rows)[number]) => boolean) => rows.filter(pred).reduce((s, t) => s + t.amount, 0) / 12;
+  const inYear = <T extends { date: string }>(txs: T[]) => txs.filter((t) => months.has(t.date.slice(0, 7)));
+  const rows = inYear(sb.nordea.transactions);
+  const per = (list: typeof rows, pred: (t: (typeof rows)[number]) => boolean) => list.filter(pred).reduce((s, t) => s + t.amount, 0) / 12;
   const lastBalance = base.transactions[base.transactions.length - 1]?.balance ?? 0;
   const bills = ["Insurance", "Subscriptions"]
-    .map((cat) => ({ cat, monthly: -per((t) => t.category === cat), names: [...new Set(rows.filter((t) => t.category === cat).map((t) => t.merchant))].join(", ") }))
+    .map((cat) => ({ cat, monthly: -per(rows, (t) => t.category === cat), names: [...new Set(rows.filter((t) => t.category === cat).map((t) => t.merchant))].join(", ") }))
     .filter((b) => b.monthly > 0);
+  const klarnaRows = sb.klarna.transactions.slice(-12);
+  const trRows = inYear(sb.traderepublic.transactions);
+  // Cash per bank or app, for the card's subtitle. The simulated bank has no bank name on its accounts, so it uses the picked name.
+  const perBank = banks.flatMap((id) =>
+    [...sb[id].accounts.reduce((m, a) => m.set(a.bank || (id === "nordea" ? "" : BANK_INFO[id].name), (m.get(a.bank ?? "") ?? 0) + a.balance), new Map<string, number>())].map(
+      ([name, cash]) => ({ name: name || bankName, cash: Math.round(cash) }),
+    ),
+  );
+  const lastMonth = (list: typeof klarnaRows) => list.filter((t) => t.date.slice(0, 7) === list[list.length - 1]?.date.slice(0, 7));
   return {
     spankki: { cash: Math.round(lastBalance) },
+    perBank,
     nordea: banks.includes("nordea")
       ? {
-          // Cash per bank, for the card's subtitle. The simulated Nordea has no bank name on its accounts, so it is one entry.
-          perBank: [...sb.nordea.accounts.reduce((m, a) => m.set(a.bank ?? "", (m.get(a.bank ?? "") ?? 0) + a.balance), new Map<string, number>())].map(([name, cash]) => ({ name, cash: Math.round(cash) })),
           everyday: Math.round(sb.nordea.accounts[0].balance),
           savings: Math.round(sb.nordea.accounts.slice(1).reduce((s, a) => s + a.balance, 0)),
           // Income that lands here and that S-Pankki cannot see: a side income in the demo, pay and other income when it is real.
-          sideIncomeMonthly: Math.round(per((t) => t.category === "Side income" || (real.length > 0 && (t.category === "Salary" || t.category === "Other Income")))),
+          sideIncomeMonthly: Math.round(per(rows, (t) => t.category === "Side income" || (real.length > 0 && (t.category === "Salary" || t.category === "Other Income")))),
           billsMonthly: Math.round(bills.reduce((s, b) => s + b.monthly, 0)),
           bills: bills.map((b) => ({ label: b.cat, monthly: Math.round(b.monthly), names: b.names })),
-          movedBetweenAccountsMonthly: Math.round(-per((t) => t.category === "Transfer" && t.amount < 0) - per((t) => t.category === "Invest Deposit")),
+          movedBetweenAccountsMonthly: Math.round(-per(rows, (t) => t.category === "Transfer" && t.amount < 0) - per(rows, (t) => t.category === "Invest Deposit")),
         }
+      : null,
+    // Pay later: what this month's instalments add up to, and for what.
+    klarna: banks.includes("klarna")
+      ? { monthly: Math.round(-lastMonth(klarnaRows).reduce((s, t) => s + t.amount, 0)), names: [...new Set(lastMonth(klarnaRows).map((t) => (t.merchant ?? "").replace(/^Klarna: /, "").split(",")[0]))].join(" and ") }
+      : null,
+    // Trade Republic: cash that is not invested yet, and the ETF savings plan that runs there.
+    traderepublic: banks.includes("traderepublic")
+      ? { cash: Math.round(sb.traderepublic.accounts[0]?.balance ?? 0), planMonthly: Math.round(-per(trRows, (t) => t.category === "Invest Deposit")) }
       : null,
   };
 }
@@ -143,5 +161,7 @@ export function banksNoteFor(base: DemoCustomer, banks: BankId[], bankName = "No
       `${bankName} (demo data): everyday account €${f.nordea.everyday}, savings account €${f.nordea.savings}; side income €${f.nordea.sideIncomeMonthly}/month that S-Pankki cannot see; bills paid from ${bankName}: ${bills}; about €${f.nordea.movedBetweenAccountsMonthly}/month moves between her own accounts and to an investment account, which is saving, not spending.`,
     );
   }
+  if (f.klarna) parts.push(`Klarna (demo data): pay-later instalments of about €${f.klarna.monthly}/month (${f.klarna.names}), a fixed monthly cost until they are paid off.`);
+  if (f.traderepublic) parts.push(`Trade Republic (demo data): €${f.traderepublic.cash} cash not invested yet, and an ETF savings plan of €${f.traderepublic.planMonthly}/month there.`);
   return `\n\nOther banks the customer connected: ${parts.join(" ")} The safe-to-spend, budgets and spending figures above ALREADY include these banks. When it helps, say that an answer covers all her banks, and mention what S-Pankki alone would not show.`;
 }

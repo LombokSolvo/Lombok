@@ -15,6 +15,7 @@ import {
 import { SAVED_TELECOM_DB, domainOf, type TelecomDb } from "@/lib/market";
 import { MarketAgentCard, agentHasRun } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
+import { OfferFacts } from "./offer-facts";
 import { ApproveSheet, DoneView, EditField, InfoRow, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -51,6 +52,9 @@ export function TelecomDetail(props: {
     setChosenId(null); // the coach's new pick becomes the selection
   };
   const chosen = cmp.offers.find((o) => o.id === chosenId) ?? cmp.recommended;
+  // The saving offer to name when the person picks one that costs more than today.
+  const savers = [...cmp.offers].sort((a, b) => b.saving - a.saving).filter((o) => o.saving > 0);
+  const best = savers.find((o) => o.lineSpeedMbps >= chosen.lineSpeedMbps) ?? savers[0]; // keeps the chosen speed if it can
   const [stage, setStage] = useState<"compare" | "confirm" | "done">("compare");
   const switches = useSwitches();
   const plan = useSavingsPlan();
@@ -130,7 +134,16 @@ export function TelecomDetail(props: {
           after={{ label: `${chosen.operator}${chosen.kind === "switch" ? ` ${chosen.product}` : ", price match"}`, yearly: chosen.yearly }}
           footnote={
             chosen.saving < 0 ? (
-              <>More than you pay today.</>
+              <>
+                More than you pay today.
+                {best && (
+                  <>
+                    {" "}Switching to {best.operator}
+                    {best.kind === "switch" ? ` ${best.product}` : ", price match"} instead saves you{" "}
+                    <span className="font-semibold text-white">{eur.format(best.saving)} a year</span>.
+                  </>
+                )}
+              </>
             ) : (
               <>That&apos;s +{eur.format(perWeek)} to your safe-to-spend every week.</>
             )
@@ -203,23 +216,26 @@ export function TelecomDetail(props: {
                 title={`${o.operator}${o.kind === "switch" ? ` ${o.product}` : ""}`}
                 yearly={o.yearly}
                 detail={
-                  <>
-                    {o.kind === "price_match" ? `${o.product}. ` : ""}
-                    {eur2.format(o.perLine)}/line ({o.lineSpeed})
-                    {o.homeInternet != null ? ` + ${o.homeSpeed} ${eur2.format(o.homeInternet)}` : " + your current home internet"}
-                    {o.note ? `. ${o.note}` : ""}
-                    {o.climate && (
-                      <span className="mt-0.5 flex items-center gap-1">
-                        <Leaf className="size-3.5 shrink-0 text-primary" aria-hidden />
-                        {o.operator}: {o.climate}
-                      </span>
-                    )}
-                    {o.sourceUrl && o.checkedAt && (
-                      <span className="mt-0.5 block">
-                        Source: {domainOf(o.sourceUrl)}, checked {fmtDate(o.checkedAt)}
-                      </span>
-                    )}
-                  </>
+                  <OfferFacts
+                    rows={[
+                      ...(o.kind === "price_match" ? [["What", o.product] as [string, React.ReactNode]] : []),
+                      ["Speed", o.lineSpeed],
+                      ["Per line", `${eur2.format(o.perLine)}/mo`],
+                      ["Home internet", o.homeInternet != null ? `${o.homeSpeed}, ${eur2.format(o.homeInternet)}/mo` : "Keep your current one"],
+                      ["Contract", "Until further notice"],
+                      ...(o.note && !/^no fixed term$/i.test(o.note) ? [["Good to know", o.note] as [string, React.ReactNode]] : []),
+                      ...(o.climate
+                        ? [[
+                            "Climate",
+                            <span key="c" className="inline-flex items-start gap-1">
+                              <Leaf className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+                              {o.climate}
+                            </span>,
+                          ] as [string, React.ReactNode]]
+                        : []),
+                      ...(o.sourceUrl && o.checkedAt ? [["Source", `${domainOf(o.sourceUrl)}, ${fmtDate(o.checkedAt)}`] as [string, React.ReactNode]] : []),
+                    ]}
+                  />
                 }
                 pick={o.id === cmp.recommended.id ? cmp.pickReason : undefined}
               />

@@ -1,0 +1,62 @@
+/* First-open intro: the Solvo logo on the slab green, then it flies into Home's header logo. See intro-splash.tsx. */
+.intro-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Never takes a tap, so nothing behind it is ever blocked (and tests can click straight through). */
+  pointer-events: none;
+  /* Fail-safe if JavaScript never runs: fade away on its own. */
+  animation: intro-failsafe 400ms ease 3.2s forwards;
+}
+
+.intro-splash__bg {
+  position: absolute;
+  inset: 0;
+  background: #0c3524;
+}
+
+.intro-splash__logo {
+  position: relative;
+  height: 52px;
+  width: auto;
+  /* The logo file is green; on the slab it shows white. */
+  filter: brightness(0) invert(1);
+  transform-origin: 0 0;
+  animation: intro-logo-in 760ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+html[data-intro="off"] .intro-splash {
+  display: none;
+}
+
+@keyframes intro-logo-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    translate: 0 10px;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    translate: 0 0;
+  }
+}
+
+@keyframes intro-failsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-splash__logo {
+    animation: none;
+  }
+}

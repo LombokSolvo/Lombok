@@ -122,7 +122,7 @@ export function readSavingsPlan(): SavingsPlan | null {
 }
 
 // E-invoice readings by invoice id, so Gemini reads each invoice once per device, not on every visit to Bills.
-const readingStore = createStore<Record<string, unknown>>("solvo.readings.v1", {});
+const readingStore = createStore<Record<string, unknown>>("solvo.readings.v2", {});
 export const readCachedReadings = readingStore.snapshot;
 export const useCachedReadings = readingStore.use;
 export function cacheReading(id: string, value: unknown) {

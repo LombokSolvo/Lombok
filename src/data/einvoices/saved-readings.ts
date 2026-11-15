@@ -54,7 +54,7 @@ export const SAVED_READINGS: Record<string, Reading> = {
   telecom: {
     kind: "telecom",
     supplier: "Kaista Oy",
-    product: "2 × 5G Rajaton 1000M + Kuitu 1000M",
+    product: "2 × 5G Rajaton 200M + Kuitu 1000M",
     total: 109.91,
     dueDate: "2026-09-28",
     periodStart: "2026-09-01",
