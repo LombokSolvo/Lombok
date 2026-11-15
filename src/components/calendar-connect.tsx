@@ -3,6 +3,14 @@
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, CalendarDays, Check, ChevronRight, FileUp, Link2, Loader2, RefreshCw, Trash2 } from "lucide-react";
+
+// A connected calendar reads like a connected bank: just "Connected" with a check.
+const connected = (
+  <span className="flex items-center gap-1">
+    <Check className="size-3.5 text-primary" aria-hidden />
+    Connected
+  </span>
+);
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { CategoryIcon, useForecast } from "@/components/forecast-ui";
 import { SignedAmount } from "@/components/solvo/money-badge";
@@ -24,7 +32,6 @@ import type { LinkStatus } from "@/lib/ics-link";
 // There is no simulated calendar: nothing is shown until the person connects a real one.
 // The type imports above are erased at build time, so no server code reaches the browser.
 
-const day = plainFormat({ day: "numeric", month: "short" });
 const shortDay = plainFormat({ weekday: "short", day: "numeric", month: "short" });
 const WINDOW_DAYS = 45;
 const MAX_FILE_BYTES = 5_000_000;
@@ -58,13 +65,12 @@ function Choice({ icon, title, sub, onClick }: { icon: ReactNode; title: string;
 /** `from` says which page Google should send the person back to: Profile (default) or the first-run setup. */
 export function CalendarConnect({ google, link, notice, from }: { google: GoogleStatus; link: LinkStatus; notice: string | null; from?: "onboarding" }) {
   const router = useRouter();
-  const { mode, items, today, baselines, file } = useForecast();
+  const { mode, today, baselines, file } = useForecast();
   const [sheet, setSheet] = useState<Sheets>(null);
   const [busy, setBusy] = useState<null | "connect" | "sync" | "disconnect">(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
-  const counted = items.filter((i) => i.counted).length;
   const googleHere = google.enabled && google.connected;
   const spin = <Loader2 className="animate-spin" />;
 
@@ -135,7 +141,7 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
             <Row
               icon={<IconTile><FileUp /></IconTile>}
               title="Calendar file"
-              subtitle={`${file.name} · ${counted} ${counted === 1 ? "expense" : "expenses"} · added ${day(file.importedAt.slice(0, 10))}`}
+              subtitle={connected}
             />
             <button type="button" className={action} onClick={() => setSheet("file")}>
               <IconTile><RefreshCw /></IconTile>
@@ -154,7 +160,7 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
             <Row
               icon={<IconTile><Link2 /></IconTile>}
               title="Calendar link"
-              subtitle={`${counted} upcoming ${counted === 1 ? "expense" : "expenses"}${link.syncedAt ? ` · ${day(link.syncedAt.slice(0, 10))}` : ""}`}
+              subtitle={connected}
             />
             <button type="button" className={action} onClick={() => run("link", "sync")} disabled={busy !== null}>
               <IconTile>{busy === "sync" ? spin : <RefreshCw />}</IconTile>
@@ -176,7 +182,7 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
               subtitle={
                 google.reconnect
                   ? "Google ended the connection. Connect again."
-                  : `${google.events} upcoming ${google.events === 1 ? "event" : "events"} read${google.syncedAt ? `, ${day(google.syncedAt.slice(0, 10))}` : ""}. Read-only.`
+                  : connected
               }
             />
             {google.reconnect ? (
