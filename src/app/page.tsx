@@ -20,7 +20,8 @@ import { scheduleFor } from "@/lib/schedule-server";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 
-const dateFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+// Today's date sits under today in the week strip, not in the header.
+const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const fmtDate = (iso: string) => dateFmt.format(new Date(`${iso}T00:00:00Z`));
 
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -58,7 +59,6 @@ async function HomeScreen() {
         )}
         <header className="flex h-11 items-center justify-between">
           <Logo />
-          <span className="text-[13px] text-muted-foreground">{fmtDate(c.asOf)}</span>
         </header>
 
         {/* The one number */}
@@ -85,21 +85,19 @@ async function HomeScreen() {
 
           <div className="mt-5">
             <LiveWeekBar spent={s.spentThisWeek} budget={s.weeklyBudget} />
-            <div className="mt-2 grid grid-cols-7 text-center text-[11px] font-medium">
-              {DAYS.map((d, i) => (
-                <span
-                  key={i}
-                  className={
-                    i === today
-                      ? "mx-auto flex size-5 items-center justify-center rounded-full bg-white text-slab"
-                      : i < today
-                        ? "leading-5 text-white/55"
-                        : "leading-5 text-white/30"
-                  }
-                >
-                  {d}
-                </span>
-              ))}
+            <div className="mt-2 grid grid-cols-7 items-start text-center text-[11px] font-medium">
+              {DAYS.map((d, i) =>
+                i === today ? (
+                  <span key={i} className="flex flex-col items-center gap-1">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-white text-slab">{d}</span>
+                    <span className="text-[10px] leading-none whitespace-nowrap text-white/70">{fmtDate(c.asOf)}</span>
+                  </span>
+                ) : (
+                  <span key={i} className={i < today ? "leading-5 text-white/55" : "leading-5 text-white/30"}>
+                    {d}
+                  </span>
+                ),
+              )}
             </div>
           </div>
 
