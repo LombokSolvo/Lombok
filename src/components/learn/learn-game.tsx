@@ -259,7 +259,7 @@ function Quiz({ course, lesson, done, onNext, onBack, backLabel }: { course: Cou
 }
 
 /** The streak after a lesson: today's dot fills in, the flame pops, and the number rolls up (2 to 3) when the streak grew. */
-function StreakBump({ from, to, dots }: { from: number; to: number; dots: ReturnType<typeof weekDots> }) {
+export function StreakBump({ from, to, dots }: { from: number; to: number; dots: ReturnType<typeof weekDots> }) {
   const [shown, setShown] = useState(from);
   useEffect(() => {
     const t = setTimeout(() => setShown(to), 750);
@@ -303,7 +303,7 @@ function RollingStreak({ from, to }: { from: number; to: number }) {
 }
 
 /** A Home lesson played in the chat: the questions as a card, then follow-up questions for the coach and End session. */
-export function ChatLesson({ lessonId, mode, onAsk }: { lessonId: string; mode: DemoMode; onAsk: (q: string) => void }) {
+export function ChatLesson({ lessonId, mode }: { lessonId: string; mode: DemoMode; onAsk?: (q: string) => void }) {
   const router = useRouter();
   const done = useLearnDone(mode);
   const course = COURSES.find((c) => c.lessons.some((l) => l.id === lessonId));
@@ -321,14 +321,6 @@ export function ChatLesson({ lessonId, mode, onAsk }: { lessonId: string; mode: 
         onBack={() => router.push("/?learned=1")}
         backLabel="End session"
       />
-      <div className="mt-4 flex flex-col gap-2 border-t pt-3">
-        {[`Explain ${current.title.replace(/\?$/, "").toLowerCase()} more simply`, "How does this apply to my own money?"].map((q) => (
-          <button key={q} type="button" onClick={() => onAsk(q)} className="flex min-h-11 w-full items-center gap-2.5 rounded-2xl bg-muted px-3.5 py-2.5 text-left text-[14px] font-medium active:bg-muted/70">
-            <GraduationCap className="size-4 shrink-0 text-primary" aria-hidden />
-            <span className="flex-1">{q}</span>
-          </button>
-        ))}
-      </div>
     </section>
   );
 }

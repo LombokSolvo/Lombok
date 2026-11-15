@@ -18,7 +18,10 @@ import {
   type LearnContext,
   type PackId,
 } from "@/lib/learn";
-import { finishPack, learnStreak, useLearnProgress } from "@/lib/learn-store";
+import { finishPack, useLearnDone, useLearnProgress } from "@/lib/learn-store";
+import { StreakBump } from "@/components/learn/learn-game";
+import { streakDays, weekDots, withPractice } from "@/lib/learn-game";
+import type { DemoMode } from "@/lib/demo-mode";
 
 const nf = (n: number, d = 0) => n.toLocaleString("fi-FI", { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -26,11 +29,13 @@ const nf = (n: number, d = 0) => n.toLocaleString("fi-FI", { minimumFractionDigi
 export function LearnPack({
   id,
   ctx,
+  mode,
   onAsk,
   onOpen,
 }: {
   id: PackId;
   ctx: LearnContext;
+  mode: DemoMode;
   onAsk: (q: string) => void;
   onOpen: (id: PackId) => void;
 }) {
@@ -43,10 +48,16 @@ export function LearnPack({
   const done = step >= steps;
   const finishedCount = PACK_IDS.filter((p) => progress.done[p]).length;
   const nextPack = PACK_IDS.find((p) => p !== id && !progress.done[p]);
-  const streak = learnStreak(progress);
+  const all = useLearnDone(mode);
+  const [bump, setBump] = useState<{ from: number; to: number; dots: ReturnType<typeof weekDots> } | null>(null);
 
   const next = () => {
-    if (step === steps - 1) finishPack(id, picked === pack.quiz.correct);
+    if (step === steps - 1) {
+      // The streak before and after this pack, for the growing-streak moment on the done card.
+      const after = withPractice(all, id, picked === pack.quiz.correct);
+      setBump({ from: streakDays(all), to: streakDays(after), dots: weekDots(after) });
+      finishPack(id, picked === pack.quiz.correct);
+    }
     setStep((s) => s + 1);
   };
 
@@ -158,9 +169,9 @@ export function LearnPack({
             </span>
             <h3 className="mt-3 font-display text-[21px] font-semibold tracking-[-0.015em]">Pack done</h3>
             <p className="mt-1 text-[14px] text-muted-foreground">
-              {finishedCount} of {PACK_IDS.length} Money skills finished
-              {streak > 1 ? `, ${streak} days in a row` : ""}. You&apos;ll find them in Profile.
+              {finishedCount} of {PACK_IDS.length} Money skills finished. You&apos;ll find them in Profile.
             </p>
+            {bump && <StreakBump from={bump.from} to={bump.to} dots={bump.dots} />}
             <div className="mt-4 flex w-full flex-col gap-2">
               {pack.followUps.map((q) => (
                 <button
