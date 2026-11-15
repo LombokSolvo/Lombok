@@ -4,6 +4,7 @@ import { ArrowUp, ArrowUpRight, Check, GraduationCap, ReceiptText, Sparkles } fr
 import { useEffect, useRef, useState } from "react";
 import { LearnPack } from "@/components/learn/learn-pack";
 import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
+import { useBackStep } from "@/lib/use-back-step";
 import { LAST_PAGE_KEY, followUpsFor, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
 import type { DemoMode } from "@/lib/demo-mode";
 import { PACK_IDS, PACK_META, getPack, packFromText, type LearnContext, type PackId } from "@/lib/learn";
@@ -80,6 +81,11 @@ export function CoachClient({ learn, mode, remaining }: { learn: LearnContext; m
     setBusy(false);
     window.scrollTo({ top: 0 });
   }
+
+  // Swipe back from a conversation returns to the chat's start, like the back button, before leaving the page.
+  useBackStep(messages.length ? 1 : 0, (d) => {
+    if (d === 0) backToStart();
+  });
 
   function openPack(id: PackId, asked?: string) {
     const p = getPack(id, learn);

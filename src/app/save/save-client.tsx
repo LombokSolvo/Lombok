@@ -9,6 +9,7 @@ import { Sheet } from "@/components/solvo/sheet";
 import { ApproveSheet } from "@/app/bills/switch-ui";
 import { LearnChip } from "@/components/learn/learn-chip";
 import { BackButton, Chip, Group, IconTile, PAGE, PageTitle, Row, Slab, TopBar, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
+import { useBackStep } from "@/lib/use-back-step";
 import { plainFormat } from "@/lib/demo-clock";
 import type { DemoMode } from "@/lib/demo-mode";
 import { FUND_TYPES, FUNDS, FUNDS_SOURCE, SAVINGS_ACCOUNT, SAVINGS_ACCOUNT_ID, fundById, isSavingsAccount, projectFund, type FundType } from "@/lib/funds";
@@ -183,6 +184,8 @@ export function SaveClient(props: Props) {
   // Aino already has a saving plan into her two funds (demo data); a plan she edits and approves replaces it.
   const plan: SavingsPlan | null = stored ?? (props.hasFunds ? AINO_PLAN : null);
   const [editing, setEditing] = useState(false);
+  // Swipe back while editing the plan closes the editor, like its back button.
+  useBackStep(editing ? 1 : 0, (d) => setEditing(d > 0));
   const freed = Math.floor(monthlyFreed(switches));
   const next = nextInvestDate(props.asOf);
 

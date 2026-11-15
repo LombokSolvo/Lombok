@@ -21,6 +21,7 @@ import {
 } from "@/components/solvo/ui";
 import { ApproveSheet, DoneView, EditField, InfoRow, OfferOption, ReadFields, SavingSlab, StickyAction } from "./switch-ui";
 import { LearnChip } from "@/components/learn/learn-chip";
+import { useBackStep } from "@/lib/use-back-step";
 import type { Reading } from "@/lib/einvoice";
 import { compare, type ContractTerms, type ElectricityPreference } from "@/lib/offers";
 import { SAVED_ELECTRICITY_DB, domainOf, type MarketDb } from "@/lib/market";
@@ -102,6 +103,10 @@ export function BillsClient(props: {
       addTransitionType(id ? "nav-forward" : "nav-back");
       setOpenState(id);
     });
+  // Swipe back closes the open contract first, like the Bills back button.
+  useBackStep(open ? 1 : 0, (d) => {
+    if (d === 0) setOpen(null);
+  });
   const [photos, setPhotos] = useState<InvoiceMeta[]>([]);
   const switches = useSwitches();
 
