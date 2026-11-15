@@ -1,3 +1,4 @@
+import { checkLimit, withCookie } from "@/lib/rate-limit";
 import { READING_PROMPT, READING_SCHEMA, type Reading } from "@/lib/einvoice";
 
 // Secondary path for bills that don't arrive as e-invoices (paper bills, other banks):
@@ -48,6 +49,11 @@ export async function POST(request: Request) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return Response.json({ error: "Photo reading needs the AI, which isn't configured." }, { status: 503 });
 
+  const limit = checkLimit(request, "photo");
+  if (!limit.ok) {
+    return withCookie(Response.json({ error: "You've read a lot of photos in a short time. Try again in a while." }, { status: 429 }), limit);
+  }
+
   const started = Date.now();
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   let error: unknown;
@@ -57,12 +63,12 @@ export async function POST(request: Request) {
       if (reading.supplier === "Unknown" || !reading.total) {
         return Response.json({ error: "That doesn't look like a bill Solvo can read. Try a sharper photo of the whole bill." }, { status: 422 });
       }
-      return Response.json({ reading, source: "gemini", model, ms: Date.now() - started });
+      return withCookie(Response.json({ reading, source: "gemini", model, ms: Date.now() - started }), limit);
     } catch (e) {
       error = e;
       const status = (e as { status?: number }).status;
       if (status !== 429 && status !== 503) break;
     }
   }
-  return Response.json({ error: "Couldn't read the photo right now. Try again in a moment.", detail: String(error) }, { status: 502 });
+  return withCookie(Response.json({ error: "Couldn't read the photo right now. Try again in a moment.", detail: String(error) }, { status: 502 }), limit);
 }

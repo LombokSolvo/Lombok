@@ -9,6 +9,7 @@ import { BASKET_LABELS, type Basket, type DemoCustomer } from "@/lib/demo";
 import { todayIso, toDemo, toShown } from "@/lib/demo-clock";
 import type { DemoMode } from "@/lib/demo-mode";
 import { requestMode } from "@/lib/source";
+import { checkLimit, withCookie } from "@/lib/rate-limit";
 import { getDemoEffective } from "@/lib/source-banks";
 import { compare } from "@/lib/offers";
 import { MERCHANT_TYPE_NAMES, spending, type SpendingQuery, type SpendingResult } from "@/lib/spending";
@@ -736,7 +737,7 @@ const FOLLOW = (fi: boolean) => ({
   save: fi ? "Haluatko nähdä, mistä voisit säästää lisää?" : "Want to see where else you could save?",
 });
 
-function offlineAnswer(ctx: Ctx, question: string) {
+function offlineAnswer(ctx: Ctx, question: string, limited = false) {
   const c = ctx.c;
   const fi = /[äö]|paljon|kuinka|mihin/i.test(question);
   if (STYLE.test(question)) {
@@ -807,8 +808,12 @@ function offlineAnswer(ctx: Ctx, question: string) {
   if (!hit) {
     return {
       answer: fi
-        ? "En saa juuri nyt yhteyttä tekoälyyn. Kysy esimerkiksi, paljonko käytit takseihin tai ravintoloihin."
-        : "I can't reach the AI right now. Try asking how much you spent on taxis or restaurants.",
+        ? limited
+          ? "Olet kysynyt paljon lyhyessä ajassa. Kokeile alla olevia kysymyksiä tai kysy uudelleen hetken päästä."
+          : "En saa juuri nyt yhteyttä tekoälyyn. Kysy esimerkiksi, paljonko käytit takseihin tai ravintoloihin."
+        : limited
+          ? "You've asked a lot in a short time. Try one of the questions below, or ask again in a few minutes."
+          : "I can't reach the AI right now. Try asking how much you spent on taxis or restaurants.",
       checks: [],
       actions: [],
     };
@@ -856,13 +861,24 @@ export async function POST(request: Request) {
   const ctx: Ctx = { c, mode, banksNote, state: readState(body.state) };
   const started = Date.now();
   const key = process.env.GEMINI_API_KEY;
-  if (key) {
-    try {
-      const out = await askGemini(ctx, messages, key);
-      return Response.json({ ...out, source: "gemini", ms: Date.now() - started });
-    } catch (e) {
-      return Response.json({ ...offlineAnswer(ctx, last.text), source: "offline", ms: Date.now() - started, error: String(e) });
-    }
+  if (!key) return Response.json({ ...offlineAnswer(ctx, last.text), source: "offline", ms: 0, error: "GEMINI_API_KEY not set" });
+
+  // Many visitors tap the same suggested questions: the same question in the same state gets the same answer.
+  const cacheKey = JSON.stringify([mode, banksNote, ctx.state, messages, todayIso()]);
+  const cached = answers.get(cacheKey);
+  if (cached && cached.until > Date.now()) return Response.json({ ...cached.out, source: "gemini", ms: 0, cached: true });
+
+  const limit = checkLimit(request, "chat");
+  if (!limit.ok) return withCookie(Response.json({ ...offlineAnswer(ctx, last.text, true), source: "offline", ms: 0, limited: limit.reason }), limit);
+  try {
+    const out = await askGemini(ctx, messages, key);
+    if (answers.size > 500) answers.clear();
+    answers.set(cacheKey, { out, until: Date.now() + ANSWER_TTL_MS });
+    return withCookie(Response.json({ ...out, source: "gemini", ms: Date.now() - started }), limit);
+  } catch (e) {
+    return withCookie(Response.json({ ...offlineAnswer(ctx, last.text), source: "offline", ms: Date.now() - started, error: String(e) }), limit);
   }
-  return Response.json({ ...offlineAnswer(ctx, last.text), source: "offline", ms: 0, error: "GEMINI_API_KEY not set" });
 }
+
+const ANSWER_TTL_MS = 30 * 60 * 1000;
+const answers = new Map<string, { out: Awaited<ReturnType<typeof askGemini>>; until: number }>();

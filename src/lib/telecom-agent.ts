@@ -54,11 +54,17 @@ type RawPlan = { operator: string; product: string; monthlyPrice: number; speedM
 
 const plausible = (p: RawPlan) => p.monthlyPrice >= 5 && p.monthlyPrice <= 120 && p.speedMbps >= 10 && p.speedMbps <= 10_000;
 
-export async function* runTelecomAgent(): AsyncGenerator<AgentEvent> {
+export async function* runTelecomAgent({ offline = false }: { offline?: boolean } = {}): AsyncGenerator<AgentEvent> {
   const saved = SAVED_TELECOM_DB;
   const fallback = (error: string): AgentEvent => ({ type: "result", db: saved, live: false, error });
 
   yield { type: "step", step: "search", status: "running", detail: "Searching Finnish mobile and broadband prices with Exa" };
+  if (offline) {
+    // Over the run limit: the latest saved prices, without a new search.
+    yield { type: "step", step: "search", status: "done", detail: "Using the latest saved prices" };
+    yield { type: "result", db: saved, live: false };
+    return;
+  }
   if (!exaKey()) {
     yield { type: "step", step: "search", status: "failed", detail: "Live search is off, using the last saved run" };
     yield fallback("EXA_API_KEY not set");
