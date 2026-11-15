@@ -241,15 +241,14 @@ function isActionable(l: Loaded | undefined, switches: ReturnType<typeof useSwit
   );
 }
 
+// Only a photographed bill says where it was read from; e-invoices are read in the background and get no label.
 function SourceBadge({ l }: { l: Loaded }) {
-  return l.source === "gemini" ? (
+  return l.fromPhoto ? (
     <Chip tone="green">
       <Sparkles className="size-3" aria-hidden />
-      {l.fromPhoto ? "Read from your photo" : "Read from your e-invoice"}
+      Read from your photo
     </Chip>
-  ) : (
-    <Chip>Read from your e-invoice</Chip>
-  );
+  ) : null;
 }
 
 /** The bill Solvo can do something about: shown first, with the saving up front. */
