@@ -7,6 +7,7 @@ import type { DemoCustomer } from "@/lib/demo";
 import type { DemoMode } from "@/lib/demo-mode";
 import { fundById } from "@/lib/funds";
 import type { LearnContext } from "@/lib/learn";
+import { HOBBIES, SUBSCRIPTIONS } from "@/data/subscriptions";
 import { SAVED_ELECTRICITY_DB, offerYearly, shortlistFor } from "@/lib/market";
 
 // A new customer has no electricity e-invoice read yet, so the pack starts from a small flat.
@@ -61,6 +62,9 @@ export function learnContext(c: DemoCustomer, mode: DemoMode): LearnContext {
       groceries: (c.summary.categoryYear.Groceries ?? 0) / 12,
       balance: Math.max(0, last?.balance ?? 0),
       savingsGoal: DEFAULT_SAVINGS_GOAL_PER_MONTH,
+      income: c.summary.salaryYear / 12,
     },
+    // Card subscriptions and the gym are Aino's demo extras; a new customer's synthetic bank data names no merchants.
+    subs: mode === "aino" ? [...SUBSCRIPTIONS, ...HOBBIES].map((x) => ({ name: x.name, monthly: x.monthly })) : [],
   };
 }

@@ -6,7 +6,7 @@ import { LearnPack } from "@/components/learn/learn-pack";
 import { BackButton, Group, TopBar, eur } from "@/components/solvo/ui";
 import { LAST_PAGE_KEY, followUpsFor, suggestionsFor, type ChatAction } from "@/lib/chat-actions";
 import type { DemoMode } from "@/lib/demo-mode";
-import { PACK_IDS, PACK_META, getPack, packFromText, type LearnContext, type PackId } from "@/lib/learn";
+import { FEATURED_PACKS, PACK_META, getPack, isPackId, packFromText, type LearnContext, type PackId } from "@/lib/learn";
 import { useLearnProgress } from "@/lib/learn-store";
 import type { SpendingResult } from "@/lib/spending";
 import type { WhatIfResult } from "@/lib/what-if";
@@ -138,7 +138,7 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
     const l = params.get("learn") as PackId | null;
     if (!q && !l) return;
     window.history.replaceState(null, "", "/coach");
-    if (l && PACK_IDS.includes(l)) setTimeout(() => openPack(l), 0);
+    if (isPackId(l)) setTimeout(() => openPack(l), 0);
     else if (q) setTimeout(() => void ask(q), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -164,10 +164,10 @@ export function CoachClient({ learn, mode }: { learn: LearnContext; mode: DemoMo
             </div>
             <Group
               title="Learn with your own numbers"
-              aside={`${PACK_IDS.filter((id) => progress.done[id]).length} of ${PACK_IDS.length} done`}
+              aside={`${FEATURED_PACKS.filter((id) => progress.done[id]).length} of ${FEATURED_PACKS.length} done`}
               className="mt-0"
             >
-              {PACK_META.map((p) => (
+              {PACK_META.filter((p) => FEATURED_PACKS.includes(p.id)).map((p) => (
                 <button
                   key={p.id}
                   type="button"

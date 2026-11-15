@@ -21,6 +21,7 @@ import { trimsFrom, type Trim } from "@/lib/plan-view";
 import { spenderProfile, type SpenderProfile } from "@/lib/spender";
 import { compareTelecom, telecomTermsFrom } from "@/lib/telecom-offers";
 import { MAX_ACTIONS, actionKey, splitSuggestions, type ChatAction, type ChatState, type ChatView } from "@/lib/chat-actions";
+import { PACK_IDS, isPackId, type PackId } from "@/lib/learn";
 
 // Coach chat. Gemini answers, but every spending number comes from the `spending` tool,
 // which runs exact queries over the customer's real S-Pankki transactions.
@@ -163,7 +164,7 @@ Rules:
 - For "help me save €X more a month", or "find me €X", call find_savings with the monthly target (100 if none is given) and nothing else. A plan card with each change, its euros and a button appears under your answer, and it ends with a button to move the money to savings. Reply in one or two short sentences: the total found, and the first change to make. Don't list the lines again.
 - For "how do I compare", "am I spending a lot", "do I spend more than others" or "how do I compare with people in Helsinki", call compare_with_peers (focus all; by area, income or all if they name a city, an income band or everyone, otherwise their age band). For "where could I save", "where could I cut" or "where do I spend more than others", call compare_with_peers with focus above. A card appears under your answer, so reply in two short sentences, never listing every line: the first says where they spend relatively a lot (the category, their euros a month against typical); when the result has a suggestion, the second says what trimming it could free a month and asks if they want to add that to their saving plan (a button is under your answer; never say it is done). With no suggestion, say they are in line with others. These are S-Pankki customers in the synthetic dataset, never say "Finns" or "people in general".
 - For "what kind of spender am I" call spending_style and say the type in one sentence; a card with the chart appears.
-- Concept questions (index fund, fund fee, spot or fixed electricity price, buffer, compound interest, interest rate, and the like): explain in 3 to 4 plain sentences, explaining any jargon, using the user's own numbers where there are any (fund fees from her saving plan, her electricity price, how many months of bills her buffer covers). If a Money skills lesson matches (electricity, fees, buffer), propose_action open_lesson for it. For this answer you may go to about 90 words.
+- Concept questions (index fund, fund fee, spot or fixed electricity price, buffer, compound interest, interest rate, and the like): explain in 3 to 4 plain sentences, explaining any jargon, using the user's own numbers where there are any (fund fees from her saving plan, her electricity price, how many months of bills her buffer covers). If a Money skills lesson matches (fund: what a fund or index fund is; risk: risk and time; fees: fund fees; spread: diversifying; needs: needs and wants; buffer: emergency fund; first: pay yourself first; electricity: fixed or spot; ends: contract end dates; subs: subscriptions), propose_action open_lesson for it. For this answer you may go to about 90 words.
 - No investment, loan or tax advice: never say which product to buy or whether to buy one. Explain first; mention that an S-Pankki advisor can help in at most one short last sentence. Never only redirect.
 - Never write "definitely", "easily", "guaranteed" or "you should buy". When numbers are involved, show the sum.
 - When the user wants something the app can do, or your advice points to one (cancel a subscription, change the saving plan total, add a savings goal, switch electricity or phone and internet, open a view), call propose_action so a card with a button appears under your answer. At most ${MAX_ACTIONS} per answer, the most useful first. Then say in one short sentence that they can approve it below. Never say it is already done.
@@ -217,7 +218,7 @@ const tools = (c: DemoCustomer) => [
             deadline: { type: "STRING", description: "For add_savings_goal: YYYY-MM-DD, or give months instead." },
             months: { type: "NUMBER", description: "For add_savings_goal: months from today, instead of a deadline." },
             alreadySaved: { type: "NUMBER", description: "For add_savings_goal: EUR already saved for it, if the user said." },
-            lesson: { type: "STRING", enum: ["electricity", "fees", "buffer"], description: "For open_lesson: the Money skills lesson." },
+            lesson: { type: "STRING", enum: PACK_IDS, description: "For open_lesson: the Money skills lesson." },
             subscription: { type: "STRING", enum: SUBSCRIPTIONS.map((x) => x.id), description: "For cancel_subscription." },
             monthly: { type: "NUMBER", description: "For change_saving_plan: the new monthly total in EUR." },
             view: { type: "STRING", enum: ["home", "bills", "save", "calendar", "costs"], description: "For open_view." },
@@ -320,7 +321,7 @@ function toAction(ctx: Ctx, a: ActionArgs): ChatAction | string {
       if (ctx.state.switched.includes("telecom")) return "The phone and internet switch is already approved.";
       return { kind: "switch_bill", bill: "telecom" };
     case "open_lesson":
-      return a.lesson === "electricity" || a.lesson === "fees" || a.lesson === "buffer" ? { kind: "learn", pack: a.lesson } : "Unknown lesson.";
+      return isPackId(a.lesson) ? { kind: "learn", pack: a.lesson } : "Unknown lesson.";
     case "open_view":
       return VIEWS.includes(a.view as ChatView) ? { kind: "open", view: a.view as ChatView } : "Unknown view.";
     default:
@@ -665,11 +666,11 @@ function whatIfSentence(r: WhatIfResult, fi: boolean) {
 }
 
 // Offline concept answers: plain words, then the matching Money skills lesson.
-const OFFLINE_CONCEPTS: [RegExp, string, "electricity" | "fees" | "buffer"][] = [
+const OFFLINE_CONCEPTS: [RegExp, string, PackId][] = [
   [
     /index fund|indeksirahast|what is a fund|mikä on rahasto/i,
     "An index fund buys every company in a stock index, such as the 500 biggest in the US, so its value follows that whole market instead of a manager's picks. Because nobody picks stocks, the yearly fee is usually low, and fees come off your money every year. Its value goes up and down with the market, so it suits money you won't need for years. Whether to buy one is your call; an S-Pankki advisor can go through it with you.",
-    "fees",
+    "fund",
   ],
   [
     /spot price|pörssisähk|fixed or spot|kiinteä vai pörssi/i,

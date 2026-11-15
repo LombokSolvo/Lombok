@@ -79,3 +79,31 @@ test("the week row has seven days ending today, with the days that had a lesson 
   assert.deepEqual(w.map((d) => d.done), [false, true, false, false, false, true, true]);
   assert.deepEqual([w[6].today, w[0].today, w[6].letter], [true, false, "S"]);
 });
+
+test("every lesson opens in the chat as a pack with cards, a quiz and a try-it step", async () => {
+  const { getPack, isPackId } = await import("../src/lib/learn.ts");
+  const ctx = {
+    mode: "new",
+    electricity: { kwh: 2000, hasInvoice: false, current: null, fixed: { cents: 8, fee: 3, termMonths: 12 }, spot: { margin: 0.4, fee: 3 }, spotAvg: 6 },
+    funds: { hasFunds: false, value: 0, monthly: 50, holdings: [] },
+    buffer: { rentAndBills: 1000, groceries: 300, balance: 2000, savingsGoal: 200, income: 2500 },
+    subs: [],
+  };
+  for (const c of COURSES)
+    for (const l of c.lessons) {
+      assert.equal(l.kind, "pack", l.id);
+      assert.ok(isPackId(l.pack));
+      const p = getPack(l.pack, ctx);
+      assert.equal(p.cards.length, 3, l.id);
+      assert.ok(p.quiz.correct < p.quiz.options.length, l.id);
+      assert.ok(p.tryTitle && p.followUps.length, l.id);
+    }
+});
+
+test("the next lesson stays in the same course first", async () => {
+  const { nextLesson } = await import("../src/lib/learn-game.ts");
+  assert.equal(nextLesson("electricity", {})?.id, "ends");
+  assert.equal(nextLesson("ends", { electricity: { at: "x", quizRight: true } })?.id, "subs");
+  const bills = { electricity: { at: "x", quizRight: true }, ends: { at: "x", quizRight: true } };
+  assert.equal(nextLesson("subs", bills)?.id, "fund");
+});
