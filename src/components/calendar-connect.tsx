@@ -8,7 +8,7 @@ import { CategoryIcon, useForecast } from "@/components/forecast-ui";
 import { SignedAmount } from "@/components/solvo/money-badge";
 import { Sheet } from "@/components/solvo/sheet";
 import { Group, IconTile, Row, primaryButton, secondaryButton } from "@/components/solvo/ui";
-import { clearCalendarFile, saveCalendarFile, useCalendarFile } from "@/lib/calendar-file-store";
+import { removeCalendarFile, saveCalendarFile } from "@/lib/calendar-file-store";
 import { postJson, request } from "@/lib/client-request";
 import { plainFormat } from "@/lib/demo-clock";
 import { eventDays, forecast, spendingEvents, type Baselines, type ForecastCategory, type ForecastItem } from "@/lib/forecast";
@@ -58,8 +58,7 @@ function Choice({ icon, title, sub, onClick }: { icon: ReactNode; title: string;
 /** `from` says which page Google should send the person back to: Profile (default) or the first-run setup. */
 export function CalendarConnect({ google, link, notice, from }: { google: GoogleStatus; link: LinkStatus; notice: string | null; from?: "onboarding" }) {
   const router = useRouter();
-  const { mode, items, today, baselines } = useForecast();
-  const file = useCalendarFile();
+  const { mode, items, today, baselines, file } = useForecast();
   const [sheet, setSheet] = useState<Sheets>(null);
   const [busy, setBusy] = useState<null | "connect" | "sync" | "disconnect">(null);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +94,7 @@ export function CalendarConnect({ google, link, notice, from }: { google: Google
     setBusy(null);
   };
   const removeFile = () => {
-    clearCalendarFile();
+    removeCalendarFile();
     resetForecast();
     setFlash(null);
   };

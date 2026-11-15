@@ -48,7 +48,7 @@ async function HomeScreen() {
 
   return (
     <Screen>
-      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines}>
+      <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
       <main className={PAGE}>
         <OnboardingGate />
         {local && (
