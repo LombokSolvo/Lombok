@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
 import { Bricolage_Grotesque, Geist_Mono, Instrument_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ClockConfig } from "@/components/clock-config";
 import { IntroSplash } from "@/components/intro-splash";
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <PullToRefresh />
           <PwaRegister />
         </div>
+        <Analytics />
       </body>
     </html>
   );
