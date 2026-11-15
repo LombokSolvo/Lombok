@@ -107,24 +107,10 @@ export function LearnCard({ mode }: { mode: DemoMode }) {
   );
 }
 
-function CourseSheet({ course, start, done, onClose }: { course: Course; start: Lesson | null; done: Done; onClose: () => void }) {
+// The lessons are played in the chat (/coach?lesson=…), so the person can ask the coach about them along the way.
+function CourseSheet({ course, done, onClose }: { course: Course; start?: Lesson | null; done: Done; onClose: () => void }) {
   const router = useRouter();
-  const [lesson, setLesson] = useState<Lesson | null>(start);
   const st = courseState(course, done);
-  if (lesson?.kind === "quiz") {
-    return (
-      <Sheet title={lesson.title} onClose={onClose} hideDone>
-        <Quiz
-          key={lesson.id}
-          course={course}
-          lesson={lesson}
-          done={done}
-          onNext={(l) => setLesson(l)}
-          onBack={() => setLesson(null)}
-        />
-      </Sheet>
-    );
-  }
   return (
     <Sheet title={course.title} onClose={onClose} hideDone>
       <p className="-mt-2 mb-3 text-[14px] text-muted-foreground">{course.blurb}</p>
@@ -151,9 +137,9 @@ function CourseSheet({ course, start, done, onClose }: { course: Course; start: 
                   {body}
                 </Link>
               ) : (
-                <button type="button" onClick={() => setLesson(l)} className={cls}>
+                <Link href={`/coach?lesson=${l.id}`} className={cls}>
                   {body}
-                </button>
+                </Link>
               )}
             </li>
           );
@@ -164,7 +150,7 @@ function CourseSheet({ course, start, done, onClose }: { course: Course; start: 
         {st.complete ? `You earned the title ${course.badge}.` : `Finish all ${st.total} to earn the title ${course.badge}.`}
       </p>
       {st.next && (
-        <button type="button" className={`${primaryButton} mt-4`} onClick={() => (st.next!.kind === "quiz" ? setLesson(st.next) : router.push(`/coach?learn=${st.next!.pack}`))}>
+        <button type="button" className={`${primaryButton} mt-4`} onClick={() => router.push(st.next!.kind === "quiz" ? `/coach?lesson=${st.next!.id}` : `/coach?learn=${st.next!.pack}`)}>
           <GraduationCap className="size-[18px]" aria-hidden />
           {st.done === 0 ? "Start" : "Continue"}: {st.next.title}
         </button>
@@ -175,7 +161,7 @@ function CourseSheet({ course, start, done, onClose }: { course: Course; start: 
 
 const option = "w-full rounded-2xl px-4 py-3.5 text-left text-[15px] leading-snug transition-colors";
 
-function Quiz({ course, lesson, done, onNext, onBack }: { course: Course; lesson: Extract<Lesson, { kind: "quiz" }>; done: Done; onNext: (l: Lesson) => void; onBack: () => void }) {
+function Quiz({ course, lesson, done, onNext, onBack, backLabel }: { course: Course; lesson: Extract<Lesson, { kind: "quiz" }>; done: Done; onNext: (l: Lesson) => void; onBack: () => void; backLabel?: string }) {
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [wrong, setWrong] = useState(0);
@@ -209,7 +195,7 @@ function Quiz({ course, lesson, done, onNext, onBack }: { course: Course; lesson
             </button>
           )}
           <button type="button" className={nextLesson?.kind === "quiz" ? secondaryButton : primaryButton} onClick={onBack}>
-            Back to {course.title}
+            {backLabel ?? `Back to ${course.title}`}
           </button>
         </div>
       </div>
@@ -313,5 +299,36 @@ function RollingStreak({ from, to }: { from: number; to: number }) {
       <Flame className={`size-4 ${grown ? "animate-bounce" : ""}`} aria-hidden />
       {shown}-day streak{grown ? "!" : ""}
     </span>
+  );
+}
+
+/** A Home lesson played in the chat: the questions as a card, then follow-up questions for the coach and End session. */
+export function ChatLesson({ lessonId, mode, onAsk }: { lessonId: string; mode: DemoMode; onAsk: (q: string) => void }) {
+  const router = useRouter();
+  const done = useLearnDone(mode);
+  const course = COURSES.find((c) => c.lessons.some((l) => l.id === lessonId));
+  const [current, setCurrent] = useState(() => course?.lessons.find((l) => l.id === lessonId) ?? null);
+  if (!course || !current || current.kind !== "quiz") return null;
+  return (
+    <section aria-label={`Lesson: ${current.title}`} className="rounded-[24px] bg-card p-4 shadow-[0_1px_3px_rgba(15,42,31,0.06),0_10px_30px_-18px_rgba(15,42,31,0.35)]">
+      <p className="mb-3 text-[11px] font-semibold tracking-[0.06em] text-primary uppercase">{course.title} · {current.title}</p>
+      <Quiz
+        key={current.id}
+        course={course}
+        lesson={current}
+        done={done}
+        onNext={(l) => setCurrent(l)}
+        onBack={() => router.push("/?learned=1")}
+        backLabel="End session"
+      />
+      <div className="mt-4 flex flex-col gap-2 border-t pt-3">
+        {[`Explain ${current.title.replace(/\?$/, "").toLowerCase()} more simply`, "How does this apply to my own money?"].map((q) => (
+          <button key={q} type="button" onClick={() => onAsk(q)} className="flex min-h-11 w-full items-center gap-2.5 rounded-2xl bg-muted px-3.5 py-2.5 text-left text-[14px] font-medium active:bg-muted/70">
+            <GraduationCap className="size-4 shrink-0 text-primary" aria-hidden />
+            <span className="flex-1">{q}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
