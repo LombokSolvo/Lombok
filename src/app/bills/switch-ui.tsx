@@ -2,9 +2,13 @@
 
 // Shared pieces of the compare, approve and done screens, used by every bill type (electricity, phone).
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Bell, Check, PencilLine, ShieldCheck, Sparkles } from "lucide-react";
 import { Chip, Group, IconTile, Slab, eur, primaryButton, secondaryButton } from "@/components/solvo/ui";
+import { AINO_PLAN } from "@/data/portfolio";
+import { fundById, isSavingsAccount } from "@/lib/funds";
+import { approveSavingsPlan, planFunds, readSavingsPlan } from "@/lib/switches";
 
 /** The saving, with "do nothing" and the chosen offer as two bars on one scale. */
 export function SavingSlab(props: {
@@ -241,11 +245,20 @@ export function DoneView(props: {
   /** What would happen next in real use. The switch itself is simulated in the demo. */
   steps?: { title: string; detail: string }[];
 }) {
+  const router = useRouter();
+  const [rise, setRise] = useState<FundRiseRows | null>(null);
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, []);
+  // After the money has visibly gone into the funds, go back to Home.
+  useEffect(() => {
+    if (!rise) return;
+    const t = setTimeout(() => router.push("/"), 3600);
+    return () => clearTimeout(t);
+  }, [rise, router]);
   return (
     <div className="flex flex-col">
+      {rise && <FundRise rows={rise.rows} extra={rise.extra} />}
       <div className="mt-6 flex flex-col items-center text-center">
         <span className="flex size-16 animate-pop items-center justify-center rounded-full bg-primary text-white shadow-[0_10px_30px_-10px_rgba(19,98,63,0.8)]">
           <Check className="size-8" strokeWidth={2.75} aria-hidden />
@@ -301,12 +314,66 @@ export function DoneView(props: {
         </div>
       )}
 
-      <Link href="/save" className={`${primaryButton} mt-6`}>
-        Save it in a fund instead
-      </Link>
+      {props.perWeek > 0 && (
+        <button type="button" className={`${primaryButton} mt-6`} onClick={() => setRise(saveInFund(Math.round((props.perWeek * 52) / 12)))}>
+          Save it in a fund instead
+        </button>
+      )}
       <Link href="/" className={`${secondaryButton} mt-2`}>
         Back to home
       </Link>
+    </div>
+  );
+}
+
+type FundRiseRows = { extra: number; rows: { name: string; from: number; to: number }[] };
+
+/** Moves the money a cheaper bill frees up into the saving plan: the first fund gets it every month. Returns what to animate. */
+function saveInFund(extra: number): FundRiseRows {
+  const base = readSavingsPlan() ?? AINO_PLAN;
+  const funds = planFunds(base);
+  const target = funds.findIndex((f) => !isSavingsAccount(f.fundId));
+  const at = target < 0 ? 0 : target;
+  const next = funds.map((f, i) => (i === at ? { ...f, monthly: f.monthly + extra } : f));
+  approveSavingsPlan({ ...base, funds: next, monthly: base.monthly + extra, fromBills: (base.fromBills ?? 0) + extra, approvedAt: new Date().toISOString() });
+  return { extra, rows: funds.map((f, i) => ({ name: fundById(f.fundId).name, from: f.monthly, to: next[i].monthly })) };
+}
+
+/** Full-screen moment: each fund's monthly amount grows as a bar, the new money in mint, then the app goes Home. */
+function FundRise({ rows, extra }: { rows: FundRiseRows["rows"]; extra: number }) {
+  const [grown, setGrown] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGrown(true), 350);
+    return () => clearTimeout(t);
+  }, []);
+  const max = Math.max(...rows.map((r) => r.to));
+  return (
+    <div className="fixed inset-0 z-50 flex animate-in flex-col justify-center bg-slab px-6 text-white fade-in duration-300" role="status" aria-live="polite">
+      <p className="text-[15px] text-white/70">Saved in your funds</p>
+      <p className="num mt-1 font-display text-[44px] leading-none font-semibold tracking-[-0.03em]">
+        +<CountUp from={0} to={extra} /> a month
+      </p>
+      <p className="mt-3 max-w-[30ch] text-[14px] leading-snug text-white/70">The money your cheaper bill frees up now grows in your saving plan, from the next payday.</p>
+      <ul className="mt-8 flex flex-col gap-5">
+        {rows.map((r) => (
+          <li key={r.name}>
+            <div className="flex items-baseline justify-between text-[14px]">
+              <span className="truncate pr-3">{r.name}</span>
+              <span className="num font-semibold">
+                <CountUp from={r.from} to={r.to} />
+              </span>
+            </div>
+            <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-white/10">
+              <span className="h-full bg-white/80 transition-[width] duration-1000 ease-out" style={{ width: `${(r.from / max) * 100}%` }} />
+              <span
+                className="h-full bg-mint transition-[width] delay-300 duration-1000 ease-out"
+                style={{ width: grown ? `${((r.to - r.from) / max) * 100}%` : "0%" }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-10 text-[13px] text-white/55">Back to Home…</p>
     </div>
   );
 }

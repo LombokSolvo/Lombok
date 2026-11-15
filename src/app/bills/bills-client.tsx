@@ -36,7 +36,7 @@ import {
   type BillKey,
   type SwitchRecord,
 } from "@/lib/switches";
-import { MarketAgentCard, agentHasRun } from "./market-agent-card";
+import { MarketAgentCard, agentHasRun, resetAgentRuns } from "./market-agent-card";
 import { PreferencePicker } from "./preference-picker";
 import { OfferFacts } from "./offer-facts";
 import { PhotoUpload } from "./photo-upload";
@@ -129,9 +129,15 @@ export function BillsClient(props: {
 
   // The coach chat can open a contract directly: /bills?open=electricity. The page stays mounted between visits, so the
   // parameter is removed once handled and the effect runs again each time the page is shown.
+  // Leaving Bills and coming back shows the list in its first state again (no open contract, no finished switch,
+  // no agent results), so each visit starts the same way.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("open");
-    if (!id) return;
+    if (!id) {
+      resetAgentRuns();
+      setTimeout(() => setOpenState(null), 0);
+      return;
+    }
     window.history.replaceState(null, "", "/bills");
     if (props.invoices.some((inv) => inv.id === id)) setTimeout(() => setOpenState(id), 0);
   }, [props.invoices]);
