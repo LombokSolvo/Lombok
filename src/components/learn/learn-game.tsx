@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Award, Check, ChevronRight, Flame, GraduationCap, PiggyBank, Receipt, TrendingUp } from "lucide-react";
 import { Group, IconTile, primaryButton, secondaryButton } from "@/components/solvo/ui";
 import { Sheet } from "@/components/solvo/sheet";
 import type { DemoMode } from "@/lib/demo-mode";
-import { COURSES, LESSON_COUNT, courseState, doneToday, earnedBadges, rankTitle, streakDays, weekDots, type Course, type Done, type Lesson } from "@/lib/learn-game";
+import { COURSES, LESSON_COUNT, courseState, doneToday, earnedBadges, rankTitle, streakDays, weekDots, withPractice, type Course, type Done, type Lesson } from "@/lib/learn-game";
 import { finishLesson, useLearnDone } from "@/lib/learn-store";
 
 // Home's learning game: a streak, a rank, a badge for every course finished, and three short courses. A quiz lesson is played in
@@ -28,7 +28,7 @@ export function LearnCard({ mode }: { mode: DemoMode }) {
         title="Learn"
         className="mt-8"
         aside={
-          <span className={`flex items-center gap-1 font-medium ${streak > 0 ? "text-warn" : ""}`}>
+          <span key={doneToday(done) ? "today" : "not"} className={`flex items-center gap-1 font-medium ${streak > 0 ? "text-warn" : ""} ${doneToday(done) ? "animate-pop" : ""}`}>
             <Flame className="size-4" aria-hidden />
             {streak > 0 ? `${streak}-day streak` : "Start a streak"}
           </span>
@@ -45,7 +45,7 @@ export function LearnCard({ mode }: { mode: DemoMode }) {
             {weekDots(done).map((d, i) => (
               <span key={i} className="flex flex-col items-center gap-1">
                 <span
-                  className={`flex size-8 items-center justify-center rounded-full ${d.done ? "bg-primary text-primary-foreground" : d.today ? "border-2 border-dashed border-primary/50" : "bg-muted"}`}
+                  className={`flex size-8 items-center justify-center rounded-full ${d.done ? "bg-primary text-primary-foreground" : d.today ? "border-2 border-dashed border-primary/50" : "bg-muted"} ${d.done && d.today ? "animate-pop" : ""}`}
                 >
                   {d.done && <Check className="size-4" strokeWidth={3} aria-hidden />}
                 </span>
@@ -163,12 +163,12 @@ function Quiz({ course, lesson, done, onNext, onBack }: { course: Course; lesson
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [wrong, setWrong] = useState(0);
-  const [result, setResult] = useState<{ wrong: number; badge: string | null } | null>(null);
+  const [result, setResult] = useState<{ wrong: number; badge: string | null; from: number; to: number; dots: ReturnType<typeof weekDots> } | null>(null);
   const q = lesson.questions[i];
   const last = i === lesson.questions.length - 1;
 
   if (result) {
-    const after = { ...done, [lesson.id]: { at: new Date().toISOString(), quizRight: result.wrong === 0 } };
+    const after = withPractice(done, lesson.id, result.wrong === 0);
     const idx = course.lessons.findIndex((l) => l.id === lesson.id);
     const nextLesson = course.lessons.slice(idx + 1).find((l) => !after[l.id]) ?? null;
     return (
@@ -185,10 +185,7 @@ function Quiz({ course, lesson, done, onNext, onBack }: { course: Course; lesson
             New title: {result.badge}
           </p>
         )}
-        <p className="mt-3 flex items-center gap-1 text-[14px] font-medium text-warn">
-          <Flame className="size-4" aria-hidden />
-          {streakDays(after)}-day streak
-        </p>
+        <StreakBump from={result.from} to={result.to} dots={result.dots} />
         <div className="mt-5 flex w-full flex-col gap-3">
           {nextLesson?.kind === "quiz" && (
             <button type="button" className={primaryButton} onClick={() => onNext(nextLesson)}>
@@ -247,14 +244,42 @@ function Quiz({ course, lesson, done, onNext, onBack }: { course: Course; lesson
               }
               const before = courseState(course, done).complete;
               finishLesson(lesson.id, wrong === 0);
-              const after = { ...done, [lesson.id]: { at: new Date().toISOString(), quizRight: wrong === 0 } };
-              setResult({ wrong, badge: !before && courseState(course, after).complete ? course.badge : null });
+              const after = withPractice(done, lesson.id, wrong === 0);
+              setResult({ wrong, badge: !before && courseState(course, after).complete ? course.badge : null, from: streakDays(done), to: streakDays(after), dots: weekDots(after) });
             }}
           >
             {last ? "Finish" : "Next"}
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+/** The streak after a lesson: today's dot fills in, the flame pops, and the number rolls up (2 to 3) when the streak grew. */
+function StreakBump({ from, to, dots }: { from: number; to: number; dots: ReturnType<typeof weekDots> }) {
+  const [shown, setShown] = useState(from);
+  useEffect(() => {
+    const t = setTimeout(() => setShown(to), 750);
+    return () => clearTimeout(t);
+  }, [to]);
+  const grew = to > from;
+  return (
+    <div className="mt-4 flex flex-col items-center gap-3">
+      <div className="flex gap-2" aria-hidden>
+        {dots.map((d, i) => (
+          <span
+            key={i}
+            className={`flex size-7 items-center justify-center rounded-full ${d.done ? "bg-primary text-primary-foreground" : "bg-muted"} ${d.today ? "animate-pop [animation-delay:350ms]" : ""}`}
+          >
+            {d.done && <Check className="size-3.5" strokeWidth={3} />}
+          </span>
+        ))}
+      </div>
+      <p key={shown} className={`flex items-center gap-1.5 text-[17px] font-semibold text-warn ${grew && shown === to ? "animate-pop" : ""}`}>
+        <Flame className={`size-5 ${grew && shown === to ? "animate-bounce" : ""}`} aria-hidden />
+        {shown}-day streak{grew && shown === to ? "!" : ""}
+      </p>
     </div>
   );
 }
