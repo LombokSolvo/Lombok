@@ -17,11 +17,10 @@ const STEPS: { step: AgentStep; label: string }[] = [
   { step: "segment", label: "Rank per customer group" },
 ];
 
-// How long each step usually takes in a live run, so the steps light up one at a time at a believable pace.
-// A live run takes about 4 to 6 seconds: one Exa search per contract type (search and reading the pages come
-// back together), then checking and ranking, which take well under a second on the server. The server's
-// events arrive in bursts, so each step is shown for at least this long.
-const STEP_MS: Record<AgentStep, number> = { search: 2200, read: 1600, check: 900, segment: 700 };
+// A live run usually takes about 6 seconds from tap to result. The server's own events arrive in bursts (the
+// search is most of it, checking and ranking take milliseconds), so the steps light up on an even clock instead:
+// each gets a quarter of the usual run. The last one keeps spinning if the run takes longer.
+const RUN_MS = 6000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type StepState = { status: "waiting" | "running" | "done" | "failed"; detail?: string };
@@ -105,12 +104,31 @@ export function MarketAgentCard<D extends AgentDb>(props: {
   async function run() {
     setRunning(true);
     setNote(null);
-    setSteps(Object.fromEntries(STEPS.map((s) => [s.step, { status: "waiting" }])) as Record<AgentStep, StepState>);
-    try {
+    // What the server has reported per step. The screen shows the steps on an even clock and fills in these details.
+    const got: Partial<Record<AgentStep, StepState>> = {};
+    let result: Extract<AgentEvent, { type: "result" }> | null = null;
+    let failure: string | null = null;
+    const failed = () => STEPS.some((s) => got[s.step]?.status === "failed");
+    const show = (current: number, final = false) =>
+      setSteps(
+        Object.fromEntries(
+          STEPS.map(({ step }, i) => {
+            const g = got[step];
+            const detail = g?.detail;
+            if (g?.status === "failed") return [step, { status: "failed", detail }];
+            if (final) return [step, g?.status === "done" || !failed() ? { status: "done", detail } : { status: "waiting" }];
+            if (i < current) return [step, { status: "done", detail: g?.status === "done" ? detail : undefined }];
+            if (i === current) return [step, { status: "running", detail }];
+            return [step, { status: "waiting" }];
+          }),
+        ) as Record<AgentStep, StepState>,
+      );
+    show(0);
+
+    const stream = (async () => {
       const res = await fetch("/api/market-agent", { method: "POST", body: JSON.stringify({ agent: db.agent }) });
       if (!res.body) throw new Error("no stream");
       const reader = res.body.getReader();
-      const shownAt: Partial<Record<AgentStep, number>> = {};
       const decoder = new TextDecoder();
       let buffer = "";
       for (;;) {
@@ -123,18 +141,25 @@ export function MarketAgentCard<D extends AgentDb>(props: {
           if (!line.trim()) continue;
           const e = JSON.parse(line) as AgentEvent;
           if (e.type === "step") {
-            if (e.status === "running") shownAt[e.step] = Date.now();
-            else await sleep(Math.max(0, (shownAt[e.step] ?? Date.now()) + STEP_MS[e.step] - Date.now()));
-            setSteps((prev) => (prev ? { ...prev, [e.step]: { status: e.status, detail: e.detail } } : prev));
-          }
-          else {
-            if (e.live) props.onResult(e.db as D);
-            else setNote(`Showing the saved run from ${timeFmt.format(new Date(e.db.ranAt))}.${e.error ? ` (${e.error.slice(0, 120)})` : ""}`);
-          }
+            if (e.status !== "running" || !got[e.step]) got[e.step] = { status: e.status, detail: e.detail };
+          } else result = e;
         }
       }
-    } catch (err) {
-      setNote(`Couldn't reach the agent (${String(err).slice(0, 80)}). Showing the saved run.`);
+    })().catch((err) => {
+      failure = String(err);
+    });
+
+    try {
+      for (let i = 0; i < STEPS.length && !failed(); i++) {
+        show(i);
+        await sleep(RUN_MS / STEPS.length);
+      }
+      await stream; // the last step keeps spinning until the run is over
+      show(STEPS.length, true);
+      const r = result as Extract<AgentEvent, { type: "result" }> | null;
+      if (failure || !r) setNote(`Couldn't reach the agent (${String(failure ?? "no result").slice(0, 80)}). Showing the saved run.`);
+      else if (r.live) props.onResult(r.db as D);
+      else setNote(`Showing the saved run from ${timeFmt.format(new Date(r.db.ranAt))}.${r.error ? ` (${r.error.slice(0, 120)})` : ""}`);
     } finally {
       setRunning(false);
       ranThisVisit.add(db.agent);
