@@ -74,3 +74,14 @@ test("the demo calendar file (public/demo/aino-calendar.ics) keeps its ten spend
   const kinds = forecast(kept, baselinesFrom([]), "2026-11-15", "file").map((i) => i.kind);
   assert.deepEqual(kinds, ["dinner", "birthday", "lunch", "trip", "cinema", "party", "wedding", "concert", "drinks", "party"]);
 });
+
+test("Aino's built-in demo calendar is the same as the demo file, moved to the real date", async () => {
+  const fs = await import("node:fs");
+  const { DEMO_CALENDAR, DEMO_CALENDAR_ANCHOR, demoCalendarFor } = await import("../src/data/demo-calendar.ts");
+  const fromFile = spendingEvents(parseIcs(fs.readFileSync(new URL("../public/demo/aino-calendar.ics", import.meta.url), "utf8")), DEMO_CALENDAR_ANCHOR);
+  const key = (e) => `${e.start}|${e.end}|${e.title}`;
+  assert.deepEqual(DEMO_CALENDAR.map(key).sort(), fromFile.map(key).sort());
+  const moved = demoCalendarFor("2026-11-17");
+  assert.equal(moved[0].start, "2026-11-22T19:00:00");
+  assert.equal(moved.find((e) => e.allDay).end, "2026-12-01"); // Mum's birthday, 28 Nov + 2 days, end exclusive
+});
