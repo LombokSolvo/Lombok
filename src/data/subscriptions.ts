@@ -16,7 +16,12 @@ export const SUBSCRIPTIONS: Subscription[] = [
   { id: "netflix", name: "Netflix", what: "Streaming, Standard plan", monthly: 13.99, day: 12, since: "2022-03" },
   { id: "spotify", name: "Spotify", what: "Music, Premium Individual", monthly: 11.99, day: 3, since: "2019-08" },
   { id: "icloud", name: "iCloud+", what: "Cloud storage, 200 GB", monthly: 2.99, day: 21, since: "2023-01" },
+  // The coach suggests this one first when the person asks where to save: the biggest subscription, and a want, not a need.
+  { id: "tinder", name: "Tinder Platinum", what: "Dating app, Platinum, monthly", monthly: 34.99, day: 8, since: "2026-05" },
 ];
+
+/** The subscription the coach names first for "where could I save" (see src/app/api/coach/route.ts). */
+export const FIRST_TO_CUT = "tinder";
 
 // DEMO DATA as well: Aino's gym membership, a fixed monthly hobby. The dataset's recreation payments have no merchant
 // names, so this is invented; the costs page carves it, and the subscriptions, out of Entertainment.
