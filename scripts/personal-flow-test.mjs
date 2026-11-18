@@ -222,7 +222,7 @@ try {
     assert.equal(home.status, 200);
     const html = await home.text();
     assert.match(html, /Safe to spend this week/);
-    const demo = html.match(/Aino|Reset demo|Play the demo call|Ask Solvo about your money/i);
+    const demo = html.match(/Aino|Reset demo|Play the demo call/i);
     assert.ok(!demo, `demo content on Home: ${demo?.[0]} … ${html.slice(Math.max(0, (demo?.index ?? 0) - 150), (demo?.index ?? 0) + 80)}`);
   });
 
@@ -234,11 +234,13 @@ try {
     assert.ok(!/Oomi|Tinder|Netflix/.test(html), "demo bills on Bills");
   });
 
-  await step("the coach is off", async () => {
-    // The page streams, so its "not found" arrives inside the page.
-    const coach = await go("/coach");
-    if (coach.status !== 404) assert.match(await coach.text(), /NEXT_HTTP_ERROR_FALLBACK;404|could not be found/);
-    assert.equal((await go("/api/coach", { method: "POST", body: "{}" })).status, 404);
+  await step("the coach answers from the person's own payments", async () => {
+    // No Gemini key in the test, so this is the offline answer, computed from the same data.
+    const res = await go("/api/coach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", text: "How much did I spend on restaurants?" }] }) });
+    const data = await res.json();
+    assert.equal(res.status, 200, JSON.stringify(data));
+    assert.ok(typeof data.answer === "string" && data.answer.length > 0);
+    assert.ok(!/Aino|dentist/i.test(data.answer));
   });
 
   await step("the daily sync needs its secret", async () => {

@@ -6,5 +6,5 @@
 /** True on the person's private deployment. */
 export const isPersonal = () => process.env.SOLVO_PERSONAL === "1";
 
-/** Whether the coach chat may read the person's real data (it goes to Gemini). Off unless the owner turns it on. */
-export const personalCoach = () => isPersonal() && process.env.SOLVO_COACH_REAL === "1";
+/** Whether the coach chat may read the person's real data (it goes to Gemini). The owner said yes (18 Nov 2026); SOLVO_COACH_REAL=0 turns it off. */
+export const personalCoach = () => isPersonal() && process.env.SOLVO_COACH_REAL !== "0";

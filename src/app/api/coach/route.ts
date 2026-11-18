@@ -121,7 +121,9 @@ function customerContext(c: DemoCustomer, mode: DemoMode) {
     .map((r) => `- ${r.supplier}, ${r.product}: ${eur(r.monthlyCost)}/month. ${r.summary}`)
     .join("\n");
 
-  const common = `Customer: age ${c.age}, postal code ${c.postalCode} (Espoo). Today is ${toShown(c.asOf)}. Data covers ${toShown(c.transactions[0].date)} to ${toShown(c.asOf)}.
+  // Real bank data (the private deployment) has no age or postal code.
+  const who = c.age ? `Customer: age ${c.age}, postal code ${c.postalCode} (Espoo).` : "Customer: the app's owner, with their own real bank data.";
+  const common = `${who} Today is ${toShown(c.asOf)}. Data covers ${toShown(c.transactions[0].date)} to ${toShown(c.asOf)}.
 
 Safe to spend this week (Monday to Sunday): ${eur(s.remaining)} left of a ${eur(s.weeklyBudget)} weekly everyday budget, ${eur(s.spentThisWeek)} spent so far, ${realDaysLeft()} days left. Built from: salary ${eur(s.incomePerMonth)}/month, minus fixed and regular bills ${eur(s.fixedRegularPerMonth)}, minus set-aside for irregular costs ${eur(s.irregularSetAsidePerMonth)}, minus savings goal ${eur(s.savingsGoalPerMonth)} (an assumption the user can change). They usually spend ${eur(s.usualWeeklyEveryday)} a week on everyday things.
 
