@@ -11,6 +11,7 @@ import { PwaRegister } from "@/components/pwa-register";
 import { TabBar } from "@/components/tab-bar";
 import { DATASET_END, configureDemoClock } from "@/lib/demo-clock";
 import { INTRO_SCRIPT } from "@/lib/intro";
+import { isPersonal } from "@/lib/personal";
 
 // Display: Bricolage Grotesque for the big money figures and page titles. Body: Instrument Sans.
 const display = Bricolage_Grotesque({
@@ -51,12 +52,14 @@ export const viewport: Viewport = {
 
 // Reads the real date per request (never frozen at deploy time) and turns the demo clock on, so every screen shows today's real
 // date. Real Nordea data is merged onto the demo timeline (src/lib/combine.ts), so the shift stays on. See src/lib/demo-clock.ts.
+// The private deployment (SOLVO_PERSONAL=1) runs on the person's real dates, so the shift is off there.
 async function DemoClock({ children }: { children: ReactNode }) {
   await connection();
-  configureDemoClock(DATASET_END);
+  const end = isPersonal() ? null : DATASET_END;
+  configureDemoClock(end);
   return (
     <>
-      <ClockConfig end={DATASET_END} />
+      <ClockConfig end={end} />
       {children}
     </>
   );

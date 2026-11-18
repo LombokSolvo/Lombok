@@ -10,6 +10,7 @@ import { Group, IconTile } from "@/components/solvo/ui";
 import { BANK_INFO, FALLBACK_BANKS, INVESTING_NAMES, readBankNameCookie, simulatedIdFor, writeBankNameCookie, writeBanksCookie, type BankId, type View } from "@/lib/banks";
 import { postJson, request } from "@/lib/client-request";
 import { LIVE_BANKS, LIVE_BANK_IDS, liveConsentPoints, type LiveBankId } from "@/lib/live-bank-ids";
+import { isPersonal } from "@/lib/personal";
 import type { LiveStatus } from "@/lib/live-banks";
 
 // Other banks: opt-in, never assumed. The picker lists every bank Enable Banking offers, per country, with search, plus the person's
@@ -155,7 +156,8 @@ export function OtherBanks({
   const plainBanks: Entry[] = FALLBACK_BANKS.filter((n) => !registryNames.has(n)).map((n) => ({ key: n, name: n, sub: plainGroup(n) === "invest" ? "Trading platform" : null, group: plainGroup(n), live: null, country: "FI" }));
   // The list only offers what is not connected yet: S-Pankki is the main bank, and an app added before is already in the list above.
   const connectedNames = new Set<string>(["S-Pankki", ...banks.map((b) => (b === "nordea" ? bankName : BANK_INFO[b].name))]);
-  const entries: Entry[] = (sandbox.enabled ? [...(liveActive ? liveEntries : []), ...testBanks] : [...liveEntries, ...plainBanks]).filter((e) => !connectedNames.has(e.name));
+  // The private deployment offers only real connections.
+  const entries: Entry[] = (isPersonal() ? liveEntries : sandbox.enabled ? [...(liveActive ? liveEntries : []), ...testBanks] : [...liveEntries, ...plainBanks]).filter((e) => !connectedNames.has(e.name));
   const q = query.trim().toLowerCase();
   const inGroup = (g: Group3) => entries.filter((e) => e.group === g && e.name.toLowerCase().includes(q));
   const shown = inGroup(tab);

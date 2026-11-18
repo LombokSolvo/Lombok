@@ -28,8 +28,10 @@ export class EbError extends Error {
 export function configFromEnv(env: Record<string, string | undefined>): EbConfig | null {
   const appId = env.ENABLE_APP_ID;
   const keyPath = env.ENABLE_KEY_PATH;
-  if (!appId || !keyPath) return null;
-  return { appId, keyPath, apiUrl: env.ENABLE_API_URL ?? "https://api.enablebanking.com" };
+  // A hosting environment has no file to point at: the .pem text itself goes in ENABLE_KEY (often on one line with literal \n).
+  const privateKey = env.ENABLE_KEY?.replace(/\\n/g, "\n");
+  if (!appId || (!keyPath && !privateKey)) return null;
+  return { appId, ...(privateKey ? { privateKey } : { keyPath }), apiUrl: env.ENABLE_API_URL ?? "https://api.enablebanking.com" };
 }
 
 /** A SANDBOX application (Enable Banking's test environment: a mock bank, example data). Separate from the production one on purpose. */

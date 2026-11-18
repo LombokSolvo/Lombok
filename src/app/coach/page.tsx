@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { safeToSpend } from "@/lib/coach";
 import { Reveal, Screen } from "@/components/solvo/screen";
 import { learnContext } from "@/lib/learn-context";
+import { notFound } from "next/navigation";
+import { isPersonal, personalCoach } from "@/lib/personal";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { CoachClient } from "./coach-client";
@@ -24,6 +26,7 @@ export default function CoachPage() {
 async function Coach() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
+  if (isPersonal() && !personalCoach()) notFound(); // off on the private deployment unless the owner turned it on
   const mode = await pageMode();
   const { customer } = await getEffective(mode);
   // Only the few numbers the learning packs show reach the browser, never transactions.

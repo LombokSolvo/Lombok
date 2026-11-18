@@ -11,6 +11,8 @@ const lanAddresses = Object.values(networkInterfaces())
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: lanAddresses,
+  // The private deployment's switch, also known in the browser (src/lib/personal.ts). Inlined at build time.
+  env: { SOLVO_PERSONAL: process.env.SOLVO_PERSONAL ?? "", SOLVO_COACH_REAL: process.env.SOLVO_COACH_REAL ?? "" },
   /* config options here */
   cacheComponents: true,
   // The service worker file must never be served from a cache, or phones keep running an old one. Allow it to control the whole site.
