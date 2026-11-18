@@ -123,6 +123,7 @@ export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | nul
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (!rows.length) throw new Error("The bank returned no transactions");
+  pairOwnTransfers(rows);
 
   const asOf = rows[rows.length - 1].date;
   const allMonths = [...new Set(rows.map((r) => r.date.slice(0, 7)))].sort();
@@ -171,4 +172,26 @@ export function buildNordeaCustomer(accounts: RawTx[][], balances: (number | nul
     },
     unmapped,
   };
+}
+
+/**
+ * Money moved between two of the person's own accounts at the same bank shows up twice: out of one, into the other. Banks that
+ * don't code it ("Oma siirto" is Nordea's code) would make it look like spending and income. Pair each payment out with one in of
+ * the same amount on another account within a day, and mark both as a transfer. Salary and investing keep their category.
+ */
+function pairOwnTransfers(rows: Tx[]) {
+  const KEEP = new Set(["Transfer", "Salary", "Invest Deposit", "Invest Withdraw"]);
+  const DAY = 864e5;
+  const ins = rows.filter((r) => r.amount > 0 && !KEEP.has(r.category));
+  const used = new Set<Tx>();
+  for (const out of rows) {
+    if (out.amount >= 0 || KEEP.has(out.category)) continue;
+    const match = ins.find(
+      (r) => !used.has(r) && r.account !== out.account && Math.abs(r.amount + out.amount) < 0.005 && Math.abs(Date.parse(r.date) - Date.parse(out.date)) <= DAY,
+    );
+    if (!match) continue;
+    used.add(match);
+    out.category = "Transfer";
+    match.category = "Transfer";
+  }
 }

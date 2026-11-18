@@ -13,7 +13,7 @@ export function startAutoSync() {
   g.__solvoAutoSync = true;
 
   const tick = async () => {
-    for (const bank of liveStatus().banks) {
+    for (const bank of (await liveStatus()).banks) {
       try {
         if (!bank.connected || !bank.syncedAt) continue;
         if (Date.now() - Date.parse(bank.syncedAt) < DAY) continue;

@@ -11,6 +11,7 @@ import { resetLearn } from "@/lib/learn-store";
 import { resetOnboarding } from "@/lib/onboarding-store";
 import { resetTrimmed } from "@/lib/trimmed-store";
 import { DEMO_COOKIE, type DemoMode } from "@/lib/demo-mode";
+import { isPersonal } from "@/lib/personal";
 
 // What the user has approved in this browser: contract switches and a monthly fund savings plan.
 // The demo has no backend, so both live in localStorage: approve a switch in Bills and the
@@ -136,8 +137,12 @@ export function clearCachedReadings() {
 // "new": a first-time customer; starts from a clean slate and goes through onboarding.
 export type { DemoMode };
 const modeStore = createStore<{ mode?: DemoMode }>("solvo.demo-mode.v1", {});
-export const readDemoMode = (): DemoMode => modeStore.snapshot().mode ?? "aino";
-export const useDemoMode = (): DemoMode => modeStore.use().mode ?? "aino";
+// The private deployment is always the person's own account ("new": no Aino extras).
+export const readDemoMode = (): DemoMode => (isPersonal() ? "new" : (modeStore.snapshot().mode ?? "aino"));
+export const useDemoMode = (): DemoMode => {
+  const stored = modeStore.use().mode;
+  return isPersonal() ? "new" : (stored ?? "aino");
+};
 
 /** Switch demo account. Both start clean: approvals, plans and onboarding are cleared. "new" also re-reads e-invoices. */
 export function setDemoMode(mode: DemoMode) {
@@ -155,6 +160,7 @@ function writeDemoCookie(mode: DemoMode) {
 
 /** Makes the cookie match this browser's demo account (it may predate the cookie). True if it had to change. */
 export function syncDemoCookie() {
+  if (isPersonal()) return false;
   const mode = readDemoMode();
   if (document.cookie.split("; ").includes(`${DEMO_COOKIE}=new`) === (mode === "new")) return false;
   writeDemoCookie(mode);

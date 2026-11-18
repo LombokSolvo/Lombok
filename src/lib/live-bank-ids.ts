@@ -5,6 +5,8 @@
 import type { DemoCustomer } from "./demo";
 
 export const LIVE_BANKS = {
+  // The main bank on the person's private deployment (SOLVO_PERSONAL=1). The picker leaves it out: it is connected from the welcome screen.
+  spankki: { name: "S-Pankki", aspsp: "S-Pankki", country: "FI", kind: "Bank", note: null },
   nordea: { name: "Nordea", aspsp: "Nordea", country: "FI", kind: "Bank", note: null },
   revolut: { name: "Revolut", aspsp: "Revolut", country: "FI", kind: "Neobank", note: "Euro accounts only. Investments inside Revolut aren't included." },
   bunq: { name: "bunq", aspsp: "bunq", country: "FI", kind: "Neobank", note: "Euro accounts only." },

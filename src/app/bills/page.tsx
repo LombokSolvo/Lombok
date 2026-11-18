@@ -6,6 +6,10 @@ import { INVOICES } from "@/data/einvoices/CUST01787";
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
 import { SUBSCRIPTIONS, subscriptionCharges } from "@/data/subscriptions";
 import { namedBillsFor } from "@/lib/bill-names";
+import type { DemoCustomer } from "@/lib/demo";
+import { isPersonal } from "@/lib/personal";
+import { billType, inferSchedule } from "@/lib/schedule";
+import type { Subscription } from "@/data/subscriptions";
 import { safeToSpend } from "@/lib/coach";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
@@ -30,6 +34,11 @@ async function Bills() {
   // Render per request: these pages show dates, and the demo clock reads the real date. See src/lib/demo-clock.ts.
   await connection();
   const { customer: c, mode } = await getEffective(await pageMode());
+  if (isPersonal()) {
+    const s = safeToSpend(c);
+    const { history, subscriptions } = ownBills(c);
+    return <BillsClient asOf={c.asOf} invoices={[]} weeklyBudget={s.weeklyBudget} remaining={s.remaining} history={history} subscriptions={subscriptions} dentalBill={false} intro="From the payments in your bank." />;
+  }
   // The synthetic e-invoices (and the dentist bill) belong to Aino's demo story. The new customer has none yet.
   const invoices = mode === "aino" ? INVOICES : [];
   const subscriptions = mode === "aino" ? SUBSCRIPTIONS : []; // demo data, see src/data/subscriptions.ts
@@ -71,4 +80,39 @@ async function Bills() {
       dentalBill={mode === "aino"}
     />
   );
+}
+
+// The private deployment: real payments have the payee's name, so bills are named from it. Fixed bills are rent, utilities,
+// insurance and subscriptions; subscriptions are the payees charged the same amount about monthly (inferSchedule).
+const FIXED = new Set(["Housing", "Utilities", "Insurance", "Subscriptions"]);
+
+function ownBills(c: DemoCustomer): { history: PaidBill[]; subscriptions: Subscription[] } {
+  const from = `${c.summary.last12Months[0] ?? c.asOf.slice(0, 7)}-01`;
+  const subscriptions: Subscription[] = inferSchedule(c)
+    .items.filter((i) => i.id.startsWith("sub-"))
+    .map((i) => {
+      const paid = c.transactions.filter((t) => t.merchant === i.label && t.amount < 0);
+      const first = paid[0]?.date ?? c.asOf;
+      // The latest charge to the cent (the schedule rounds to whole euros).
+      const monthly = paid.length ? -paid[paid.length - 1].amount : i.amount;
+      return { id: `own-${i.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name: i.label, what: i.detail ?? "Monthly payment", monthly, day: i.day, since: first.slice(0, 7) };
+    });
+  const subNames = new Set(subscriptions.map((s) => s.name));
+  const history: PaidBill[] = c.transactions
+    .filter((t) => t.date >= from && t.amount < 0 && FIXED.has(t.category) && !(t.merchant && subNames.has(t.merchant)))
+    .map((t) => {
+      const name = t.merchant && t.merchant !== "Person" ? t.merchant : null;
+      const type = name ? billType(name) : null;
+      return {
+        date: t.date,
+        kind: t.category === "Housing" ? "rent" : "utility",
+        amount: -t.amount,
+        label: type && name ? `${type}, ${name}` : (name ?? t.category),
+      };
+    });
+  // The subscriptions' own payments, as the bank booked them.
+  for (const t of c.transactions) {
+    if (t.date >= from && t.amount < 0 && t.merchant && subNames.has(t.merchant)) history.push({ date: t.date, kind: "subscription", amount: -t.amount, supplier: t.merchant });
+  }
+  return { history, subscriptions };
 }

@@ -7,6 +7,7 @@ import { googleStatus } from "@/lib/google-calendar";
 import { linkStatus } from "@/lib/ics-link";
 import { inferProfile } from "@/lib/profile";
 import { scheduleFor } from "@/lib/schedule-server";
+import { isPersonal } from "@/lib/personal";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { OnboardingClient } from "./onboarding-client";
@@ -42,7 +43,7 @@ async function Onboarding({ searchParams }: { searchParams: Promise<{ calendar?:
   };
   return (
     <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
-      <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new"} banks={banks} view={view} calendar={{ google: googleStatus(), link: await linkStatus(), notice: calendarNotice ?? null }} />
+      <OnboardingClient profile={profile} base={base} schedule={schedule} local={local} askConnect={mode === "new" && !isPersonal()} banks={banks} view={view} calendar={{ google: googleStatus(), link: await linkStatus(), notice: calendarNotice ?? null }} />
     </ForecastProvider>
   );
 }

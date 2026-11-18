@@ -9,21 +9,21 @@ import { plainFormat } from "@/lib/demo-clock";
 const day = plainFormat({ day: "numeric", month: "long" });
 
 const errors = (bank: string): Record<string, string> => ({
-  state: "Couldn't connect. Try again from Profile.",
+  state: "Couldn't connect.",
   declined: `The approval at ${bank} was cancelled, so nothing was connected.`,
-  nocode: `${bank} didn't send back an approval. Try again from Profile.`,
-  session: `Couldn't connect to ${bank}. Try again from Profile.`,
+  nocode: `${bank} didn't send back an approval.`,
+  session: `Couldn't connect to ${bank}.`,
 });
 
 type State = { kind: "working" } | { kind: "done"; transactions: number; accounts: number; asOf: string } | { kind: "error"; message: string };
 
-export function ConnectClient({ bank, bankName, error, hasSession }: { bank: string | null; bankName: string; error: string | null; hasSession: boolean }) {
+export function ConnectClient({ bank, bankName, error, hasSession, backHref = "/profile", backLabel = "Profile" }: { bank: string | null; bankName: string; error: string | null; hasSession: boolean; backHref?: string; backLabel?: string }) {
   const router = useRouter();
   const started = useRef(false);
   const [state, setState] = useState<State>(() =>
     error ? { kind: "error", message: errors(bankName)[error] ?? errors(bankName).session }
     : hasSession ? { kind: "working" }
-    : { kind: "error", message: "Nothing to finish here. Connect a bank from Profile." },
+    : { kind: "error", message: "Nothing to finish here. Connect a bank first." },
   );
 
   const run = async () => {
@@ -48,7 +48,7 @@ export function ConnectClient({ bank, bankName, error, hasSession }: { bank: str
 
   return (
     <main className={PAGE}>
-      <TopBar back={<BackLink href="/profile" label="Profile" />} />
+      <TopBar back={<BackLink href={backHref} label={backLabel} />} />
       <PageTitle title={state.kind === "done" ? `${bankName} is connected` : state.kind === "error" ? "Not connected" : `Connecting ${bankName}`} />
       {state.kind === "working" && (
         <p role="status" className="flex items-center gap-3 text-[15px]">
@@ -79,8 +79,8 @@ export function ConnectClient({ bank, bankName, error, hasSession }: { bank: str
                 Try again
               </button>
             )}
-            <button type="button" className={secondaryButton} onClick={() => router.replace("/profile")}>
-              Back to Profile
+            <button type="button" className={secondaryButton} onClick={() => router.replace(backHref)}>
+              Back to {backLabel}
             </button>
           </div>
         </>

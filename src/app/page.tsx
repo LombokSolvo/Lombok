@@ -17,6 +17,7 @@ import { safeToSpend } from "@/lib/coach";
 import { todayIso } from "@/lib/demo-clock";
 import { getCalendarState } from "@/lib/calendar-source";
 import { scheduleFor } from "@/lib/schedule-server";
+import { isPersonal, personalCoach } from "@/lib/personal";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 
@@ -129,8 +130,8 @@ async function HomeScreen() {
           everyday={s.everydayBudgetPerMonth}
         />
 
-        {/* Coach chat entry */}
-        <section className="mt-4">
+        {/* Coach chat entry. The private deployment has it only when the owner turned the coach on for their own data. */}
+        {(!isPersonal() || personalCoach()) && <section className="mt-4">
           <Link
             href="/coach"
             transitionTypes={["nav-forward"]}
@@ -158,13 +159,15 @@ async function HomeScreen() {
               </Link>
             ))}
           </div>
-        </section>
+        </section>}
 
         <LearnCard mode={mode} />
 
-        <footer className="mt-6 px-1 text-[13px]">
-          <ResetDemoButton className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4" />
-        </footer>
+        {!isPersonal() && (
+          <footer className="mt-6 px-1 text-[13px]">
+            <ResetDemoButton className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4" />
+          </footer>
+        )}
       </main>
       </ForecastProvider>
     </Screen>

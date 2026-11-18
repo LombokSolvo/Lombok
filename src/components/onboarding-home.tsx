@@ -1,15 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
+import { isPersonal } from "@/lib/personal";
+import { readOnboarding } from "@/lib/onboarding-store";
 import { readDemoMode, setDemoMode, syncDemoCookie } from "@/lib/switches";
 
 /**
  * On Home. The public app shows Aino only (the "New customer" switch was removed), so a browser that had picked the new
  * customer goes back to Aino once. Aino is already set up and is never sent to onboarding; /onboarding stays reachable
- * by its address.
+ * by its address. On the private deployment the person's own account goes through onboarding once (unless they skipped it).
  */
 export function OnboardingGate() {
   useEffect(() => {
+    if (isPersonal()) {
+      const o = readOnboarding();
+      if (!o.completedAt && !o.skipped) window.location.replace("/onboarding");
+      return;
+    }
     // A browser that chose its demo account before the server could see it: fix the cookie and reload once.
     if (syncDemoCookie()) return window.location.reload();
     if (readDemoMode() === "new") {

@@ -22,6 +22,7 @@ import {
   secondaryButton,
 } from "@/components/solvo/ui";
 import { useLearnProgress } from "@/lib/learn-store";
+import { isPersonal } from "@/lib/personal";
 import {
   resetDemo,
   useDemoMode,
@@ -49,7 +50,9 @@ export function ProfileClient(props: {
   const learned = Object.keys(useLearnProgress().done).length > 0;
   const anything =
     switches.length > 0 || !!plan || Object.keys(bills).length > 0;
-  const name = mode === "new" ? "New customer" : props.name;
+  // The private deployment: the owner's own name (SOLVO_NAME), no demo settings, and Log out instead of Reset demo.
+  const personal = isPersonal();
+  const name = personal ? props.name : mode === "new" ? "New customer" : props.name;
   const initials = name
     .split(" ")
     .map((w) => w[0].toUpperCase())
@@ -66,14 +69,16 @@ export function ProfileClient(props: {
           <h1 className="font-display text-[26px] leading-tight font-semibold tracking-[-0.02em]">
             {name}
           </h1>
-          <p className="text-[15px] text-muted-foreground">
-            {props.age} years, {props.postalCode} Espoo{mode === "new" ? ", first time in Solvo" : ""}
-          </p>
+          {!personal && (
+            <p className="text-[15px] text-muted-foreground">
+              {props.age} years, {props.postalCode} Espoo{mode === "new" ? ", first time in Solvo" : ""}
+            </p>
+          )}
         </div>
       </section>
 
 
-      <Group title="Solvo settings">
+      {!personal && <Group title="Solvo settings">
         <Row
           icon={
             <IconTile>
@@ -104,13 +109,21 @@ export function ProfileClient(props: {
           subtitle="Remind me 30 days before a contract ends"
           value={<Toggle label="Contract end dates" />}
         />
-      </Group>
+      </Group>}
 
-      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
+      {(props.showBanks || props.linkedBank.enabled) && <OtherBanks mainBank={!personal} title="Connected banks" banks={props.showBanks ? props.banks : []} view={props.view} sandbox={props.linkedBank} live={props.live} />}
 
       <CalendarConnect {...props.calendar} />
 
-      {(anything || learned) && (
+      {personal && (
+        <form method="post" action="/api/logout">
+          <button type="submit" className={`${secondaryButton} mt-7 w-full`}>
+            Log out
+          </button>
+        </form>
+      )}
+
+      {!personal && (anything || learned) && (
         <button
           type="button"
           onClick={resetDemo}

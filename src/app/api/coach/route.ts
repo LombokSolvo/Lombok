@@ -1,4 +1,5 @@
 import { SAVED_READINGS } from "@/data/einvoices/saved-readings";
+import { isPersonal, personalCoach } from "@/lib/personal";
 import { AINO_PLAN, portfolio } from "@/data/portfolio";
 import { UNPAID } from "@/data/reminders";
 import { FIRST_TO_CUT, SUBSCRIPTIONS, subscriptionsMonthly } from "@/data/subscriptions";
@@ -847,6 +848,8 @@ function readState(raw: unknown): ChatState {
 }
 
 export async function POST(request: Request) {
+  // The private deployment: the coach would read the owner's real data, so it is off unless they turned it on (SOLVO_COACH_REAL=1).
+  if (isPersonal() && !personalCoach()) return new Response("Not found", { status: 404 });
   const body = (await request.json().catch(() => ({}))) as { messages?: ChatMessage[]; state?: unknown };
   const messages = (body.messages ?? [])
     .filter((m) => (m.role === "user" || m.role === "coach") && typeof m.text === "string" && m.text.trim())

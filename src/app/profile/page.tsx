@@ -8,6 +8,7 @@ import { googleStatus } from "@/lib/google-calendar";
 import { linkStatus } from "@/lib/ics-link";
 import { currentLinked, sandboxEnabled } from "@/lib/linked-bank";
 import { liveStatus } from "@/lib/live-banks";
+import { isPersonal } from "@/lib/personal";
 import { pageMode } from "@/lib/source";
 import { getEffective } from "@/lib/source-banks";
 import { ProfileClient } from "./profile-client";
@@ -36,14 +37,14 @@ async function Profile({ searchParams }: { searchParams: Promise<{ bank?: string
   return (
     <ForecastProvider mode={calendar.mode} items={calendar.items} today={calendar.today} baselines={calendar.baselines} demoFile={calendar.demoFile}>
     <ProfileClient
-      name="Aino Esimerkki"
+      name={isPersonal() ? (process.env.SOLVO_NAME || "My money") : "Aino Esimerkki"}
       id={c.id}
       age={c.age}
       postalCode={c.postalCode}
       banks={cookieBanks}
       view={view}
       showBanks
-      live={liveStatus()}
+      live={await liveStatus()}
       calendar={{ google: googleStatus(), link: await linkStatus(), notice: calendarNotice ?? null }}
       linkedBank={{ enabled: sandboxEnabled(), linked: linked && { bank: linked.bank, validUntil: linked.validUntil }, notice: bank ?? null }}
     />

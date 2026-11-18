@@ -11,6 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { LAST_PAGE_KEY } from "@/lib/chat-actions";
+import { isPersonal, personalCoach } from "@/lib/personal";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -22,7 +23,9 @@ const TABS = [
 ] as const;
 
 // Full-screen pages with no tab bar. Onboarding: the tabs appear only once the person has a plan or skips.
-const HIDDEN = ["/call", "/onboarding"];
+const HIDDEN = ["/call", "/onboarding", "/login", "/welcome"];
+// The private deployment has no chat unless the owner turned the coach on for their own data.
+const tabs = () => (isPersonal() && !personalCoach() ? TABS.filter((t) => t.href !== "/coach") : TABS);
 const HOME_CHILDREN = ["/costs", "/calendar"];
 
 /**
@@ -47,7 +50,7 @@ export function TabBar() {
       className="fixed inset-x-0 bottom-0 z-[25] mx-auto w-full max-w-[430px] border-t border-border/70 bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
     >
       <ul className="flex h-14">
-        {TABS.map(({ href, label, Icon, ...t }) => {
+        {tabs().map(({ href, label, Icon, ...t }) => {
           // Screens reached from Home (costs, compare, calendar) keep Home lit, so you always know where you are.
           const active =
             href === "/" ? path === "/" || HOME_CHILDREN.some((p) => path.startsWith(p)) : path.startsWith(href);

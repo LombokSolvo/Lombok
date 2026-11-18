@@ -87,7 +87,8 @@ export function BillsClient(props: {
   remaining: number;
   history: PaidBill[];
   dentalBill: boolean; // Aino's unpaid dentist e-invoice, part of her demo story only
-  subscriptions: Subscription[]; // Aino's card subscriptions, demo data
+  subscriptions: Subscription[]; // Aino's card subscriptions (demo data), or on the private deployment the person's own
+  intro?: string; // the line under the title, when the bills don't come from e-invoices
 }) {
   const [fetched, setLoaded] = useState<Record<string, Loaded>>({});
   const stored = useCachedReadings() as Record<string, Loaded>;
@@ -181,9 +182,9 @@ export function BillsClient(props: {
           ) : (
             <>
               <PageTitle title="Your bills">
-                {props.invoices.length
+                {props.intro ?? (props.invoices.length
                   ? "Read from the e-invoices in your bank."
-                  : "No e-invoices yet. New ones show up here."}
+                  : "No e-invoices yet. New ones show up here.")}
               </PageTitle>
 
               {actionable.length > 0 && (
